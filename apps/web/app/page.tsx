@@ -33,7 +33,7 @@ export default function HomePage() {
           Speak with{" "}
           <span
             aria-hidden
-            className="mx-0.5 inline-flex h-[0.9em] w-[1.5em] translate-y-[0.08em] items-center justify-center rounded-[0.32em] bg-sky align-baseline"
+            className="mx-0.5 inline-flex h-[0.9em] w-[1.5em] translate-y-[0.08em] items-center justify-center rounded-[0.32em] bg-peach align-baseline"
           >
             <Mascot size={40} mood="happy" className="h-[0.8em] w-[0.8em]" />
           </span>{" "}

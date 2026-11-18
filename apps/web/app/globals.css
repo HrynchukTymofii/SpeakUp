@@ -34,6 +34,11 @@
   --on-pastel-muted: #6e5f55;
   --danger: #f07c72;
 
+  /* mascot body: the "Sky" blob from the Genesis funnel */
+  --mascot-light: #f4fcff;
+  --mascot-mid: #aeddf7;
+  --mascot-deep: #5ba6df;
+
   --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
   --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
   --shadow-peach: 0 12px 26px -12px rgba(242, 154, 106, 0.55);
@@ -209,6 +214,31 @@
 .mascot * {
   transform-box: fill-box;
   transform-origin: center;
+}
+/* The Genesis blob's border-radius morph, as SVG paths (browsers without CSS `d` keep shape 1). */
+@keyframes mascot-morph {
+  0%,
+  100% {
+    d: path(
+      "M56.6 16C81.7 16 102 33.3 102 54.6C102 79.7 82.4 100 58.3 100C36.1 100 18 81.9 18 59.7C18 35.6 35.3 16 56.6 16Z"
+    );
+  }
+  33% {
+    d: path(
+      "M63.4 16C84.7 16 102 37.1 102 63C102 83.5 85.5 100 65 100C39.1 100 18 79.7 18 54.6C18 33.3 38.3 16 63.4 16Z"
+    );
+  }
+  66% {
+    d: path(
+      "M60 16C83.2 16 102 34.8 102 58C102 81.2 80.9 100 55 100C34.5 100 18 83.5 18 63C18 37.1 36.8 16 60 16Z"
+    );
+  }
+}
+.mascot-morph {
+  animation: mascot-morph 7s ease-in-out infinite;
+}
+.mascot-listening .mascot-morph {
+  animation-duration: 3s;
 }
 @keyframes mascot-bob {
   0%,

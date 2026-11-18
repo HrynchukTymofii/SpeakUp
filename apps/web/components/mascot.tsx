@@ -3,8 +3,9 @@ import { useId } from "react";
 export type MascotMood = "idle" | "listening" | "happy" | "thinking";
 
 /**
- * SpeakUp's mascot: a little speech-bubble buddy. Flat shapes + a soft radial gradient + an
- * expressive face; the mood changes the face and adds a prop (sound waves, sparkles, "…").
+ * SpeakUp's mascot: a soft sky-blue blob that slowly morphs (same body as the Genesis funnel
+ * mascot), with a glow and an expressive face; the mood changes the face and adds a prop
+ * (sound waves, sparkles, "…").
  * Colors come from the theme tokens (CSS variables), so it follows globals.css.
  * Animations live in globals.css (`.mascot*`) and switch off for reduced motion.
  */
@@ -37,17 +38,14 @@ export function Mascot({
       aria-hidden={label ? undefined : true}
     >
       <defs>
-        <radialGradient id={body} cx="36%" cy="28%" r="80%">
-          <stop offset="0" style={{ stopColor: "color-mix(in srgb, var(--peach) 45%, white)" }} />
-          <stop offset="0.5" style={{ stopColor: "var(--peach)" }} />
-          <stop
-            offset="1"
-            style={{ stopColor: "color-mix(in srgb, var(--peach-2) 80%, var(--orange))" }}
-          />
+        <radialGradient id={body} cx="36%" cy="28%" r="78%">
+          <stop offset="0" style={{ stopColor: "var(--mascot-light)" }} />
+          <stop offset="0.5" style={{ stopColor: "var(--mascot-mid)" }} />
+          <stop offset="1" style={{ stopColor: "var(--mascot-deep)" }} />
         </radialGradient>
         <radialGradient id={glow}>
-          <stop offset="0" style={{ stopColor: "var(--peach)", stopOpacity: 0.55 }} />
-          <stop offset="1" style={{ stopColor: "var(--peach)", stopOpacity: 0 }} />
+          <stop offset="0" style={{ stopColor: "var(--mascot-mid)", stopOpacity: 0.5 }} />
+          <stop offset="1" style={{ stopColor: "var(--mascot-mid)", stopOpacity: 0 }} />
         </radialGradient>
         <linearGradient id={shine} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" style={{ stopColor: "white", stopOpacity: 0.7 }} />
@@ -58,29 +56,25 @@ export function Mascot({
       <circle className="mascot-glow" cx="60" cy="58" r="58" fill={`url(#${glow})`} />
 
       <g className="mascot-bob">
-        {/* body: a round speech bubble with a tail at the bottom left */}
+        {/* body: an organic blob; `.mascot-morph` animates between three shapes (globals.css) */}
         <path
-          d="M60 16C84.3 16 103 32.6 103 55S84.3 94 60 94c-5.6 0-11-.9-15.9-2.6L29.6 101.7c-2.3 1.6-5.2-.8-4.1-3.4l5.6-13.1C22.6 77.8 17 67 17 55 17 32.6 35.7 16 60 16Z"
+          className="mascot-morph"
+          d="M56.6 16C81.7 16 102 33.3 102 54.6C102 79.7 82.4 100 58.3 100C36.1 100 18 81.9 18 59.7C18 35.6 35.3 16 56.6 16Z"
           fill={`url(#${body})`}
         />
-        {/* soft inner shade at the bottom + a highlight at the top left */}
-        <path
-          d="M23 66c5 15 19.5 25 37 25 17 0 31.3-9.4 36.6-24C90 79 76 86 60 86S29 79 23 66Z"
-          fill="black"
-          opacity="0.07"
-        />
+        {/* highlight at the top left */}
         <ellipse
           cx="44"
-          cy="31"
-          rx="15"
-          ry="7"
+          cy="32"
+          rx="14"
+          ry="6.5"
           fill={`url(#${shine})`}
-          transform="rotate(-18 44 31)"
+          transform="rotate(-24 44 32)"
         />
 
         {/* cheeks */}
-        <ellipse cx="38.5" cy="64" rx="6" ry="3.6" fill="var(--rose)" opacity="0.9" />
-        <ellipse cx="81.5" cy="64" rx="6" ry="3.6" fill="var(--rose)" opacity="0.9" />
+        <ellipse cx="38.5" cy="64" rx="6" ry="3.6" fill="var(--rose)" opacity="0.75" />
+        <ellipse cx="81.5" cy="64" rx="6" ry="3.6" fill="var(--rose)" opacity="0.75" />
 
         <Face mood={mood} />
       </g>
