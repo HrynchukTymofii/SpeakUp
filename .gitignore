@@ -32,3 +32,6 @@ packages/db/src/generated/
 
 # AWS CDK synth output
 cdk.out/
+
+# Playwright MCP tool output (browser logs and screenshots from agent sessions)
+.playwright-mcp/
