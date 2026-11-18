@@ -3,7 +3,7 @@
   "watch": { "include": ["bin/**", "lib/**"] },
   "context": {
     "speakup:webOrigins": "https://speakup.fibipals.com",
-    "speakup:certificateArn": "arn:aws:acm:us-east-1:780875686809:certificate/1294950d-62d9-4ee9-ae1b-368746323561",
+    "speakup:certificateArn": "arn:aws:acm:us-east-1:780875686809:certificate/ebafa518-e312-4439-89c7-031c5192188f",
     "speakup:paddleEnv": "sandbox",
     "speakup:appSecretName": "speakup/app",
     "speakup:anthropicModel": "claude-sonnet-5-5",
