@@ -17,11 +17,11 @@ export function TranscriptView({ words, metrics }: { words: TranscriptWord[]; me
   );
   const unclearIndexes = new Set(metrics.lowConfidenceWords.map((w) => w.wordIndex));
 
-  if (words.length === 0) return <p className="text-slate-500">No words were recognized.</p>;
+  if (words.length === 0) return <p className="text-muted">No words were recognized.</p>;
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="leading-loose text-slate-800">
+    <div className="flex flex-col gap-4 rounded-3xl border border-line bg-card p-5 shadow-soft-sm">
+      <p className="text-[17px] leading-loose text-ink/90">
         {words.map((w, i) => {
           const pause = longPauseAfter.get(i);
           const isFiller = fillerIndexes.has(i);
@@ -31,9 +31,9 @@ export function TranscriptView({ words, metrics }: { words: TranscriptWord[]; me
               <span
                 className={
                   isFiller
-                    ? "rounded bg-amber-100 px-0.5 text-amber-900"
+                    ? "rounded-md bg-butter px-1 font-semibold text-on-pastel"
                     : isUnclear
-                      ? "underline decoration-slate-400 decoration-dotted underline-offset-4"
+                      ? "underline decoration-muted decoration-dotted decoration-2 underline-offset-4"
                       : undefined
                 }
                 title={isFiller ? "Filler word" : isUnclear ? "Possibly unclear" : undefined}
@@ -41,7 +41,7 @@ export function TranscriptView({ words, metrics }: { words: TranscriptWord[]; me
                 {w.punctuated}
               </span>
               {pause !== undefined && (
-                <span className="mx-1 rounded bg-sky-100 px-1 text-xs text-sky-900">
+                <span className="mx-1 rounded-md bg-sky px-1.5 py-0.5 text-xs font-bold whitespace-nowrap text-on-pastel">
                   pause {pause.toFixed(1)}s
                 </span>
               )}{" "}
@@ -49,17 +49,20 @@ export function TranscriptView({ words, metrics }: { words: TranscriptWord[]; me
           );
         })}
       </p>
-      <p className="flex flex-wrap gap-3 text-xs text-slate-500">
+      <p className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3 text-xs text-muted">
         <span>
-          <span className="rounded bg-amber-100 px-1 text-amber-900">um</span> filler word
+          <span className="rounded-md bg-butter px-1 font-semibold text-on-pastel">um</span> filler
+          word
         </span>
         <span>
-          <span className="rounded bg-sky-100 px-1 text-sky-900">pause</span> long pause (over 1.5
-          s)
+          <span className="rounded-md bg-sky px-1 font-bold text-on-pastel">pause</span> long pause
+          (over 1.5 s)
         </span>
         <span>
-          <span className="underline decoration-dotted underline-offset-4">word</span> possibly
-          unclear
+          <span className="text-ink underline decoration-muted decoration-dotted decoration-2 underline-offset-4">
+            word
+          </span>{" "}
+          possibly unclear
         </span>
       </p>
     </div>

@@ -4,6 +4,7 @@ import { AnalysisErrorCode, type AnalysisStage } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Mascot } from "@/components/mascot";
 import { ResultsReport } from "@/components/results-report";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
@@ -54,19 +55,19 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
   });
 
   const backLink = (
-    <Link href="/app" className="text-sm text-slate-600 hover:underline">
+    <Link href="/app" className="link w-fit text-sm font-bold">
       ← Back to dashboard
     </Link>
   );
 
-  if (query.isPending) return <p className="text-slate-500">Loading results…</p>;
+  if (query.isPending) return <p className="text-muted">Loading results…</p>;
 
   if (query.isError) {
     const notFound = query.error instanceof ApiClientError && query.error.status === 404;
     return (
       <>
         {backLink}
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="font-medium text-danger">
           {notFound
             ? "This recording doesn’t exist."
             : `Couldn’t load results: ${query.error.message}`}
@@ -90,12 +91,12 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
     return (
       <>
         {backLink}
-        <div
-          role="alert"
-          className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-6"
-        >
-          <h1 className="text-lg font-semibold text-red-900">We couldn’t analyze this recording</h1>
-          <p className="text-red-900">
+        <div role="alert" className="flex flex-col gap-3 rounded-[28px] bg-rose p-6 text-on-pastel">
+          <Mascot mood="thinking" size={72} />
+          <h1 className="font-display text-2xl font-semibold">
+            We couldn’t analyze this recording
+          </h1>
+          <p className="text-on-pastel-muted">
             {FAILURE_MESSAGE[attempt.errorCode ?? ""] ?? GENERIC_FAILURE}
           </p>
         </div>
@@ -107,33 +108,32 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
   return (
     <>
       {backLink}
-      <div className="flex flex-col gap-4 rounded-lg border border-slate-200 p-6">
-        <h1 className="text-lg font-semibold">Analyzing your recording…</h1>
+      <div className="card flex flex-col gap-5 p-6">
+        <Mascot mood="thinking" size={96} />
+        <h1 className="font-display text-2xl font-semibold">Analyzing your recording…</h1>
         <ol className="flex flex-col gap-2" aria-live="polite">
           {progressSteps(stage).map(({ label, done, active }) => {
             return (
               <li key={label} className="flex items-center gap-3 text-sm">
                 <span
                   aria-hidden
-                  className={`flex size-5 items-center justify-center rounded-full text-xs ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
                     done
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-sage text-on-pastel"
                       : active
-                        ? "animate-pulse bg-slate-900 text-white"
-                        : "bg-slate-200 text-slate-500"
+                        ? "animate-pulse bg-peach"
+                        : "border-[1.5px] border-line-2"
                   }`}
                 >
                   {done ? "✓" : ""}
                 </span>
-                <span className={active ? "font-medium text-slate-900" : "text-slate-600"}>
-                  {label}
-                </span>
+                <span className={active ? "font-bold text-ink" : "text-muted"}>{label}</span>
               </li>
             );
           })}
         </ol>
         {timedOut && (
-          <div className="flex flex-col items-start gap-2 text-sm text-slate-700">
+          <div className="flex flex-col items-start gap-2 text-sm text-muted">
             <p>This is taking longer than usual.</p>
             <button
               type="button"
@@ -141,7 +141,7 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
                 setTimedOut(false);
                 void query.refetch();
               }}
-              className="rounded-md border border-slate-300 px-3 py-1.5 font-medium hover:bg-slate-50"
+              className="btn btn-secondary btn-sm"
             >
               Check again
             </button>

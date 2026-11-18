@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Mascot, type MascotMood } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { uploadToS3 } from "@/lib/upload";
 import { useApi } from "@/lib/use-api";
@@ -78,18 +79,38 @@ export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
 
   const { state } = recorder;
   const maxMs = exercise.maxDurationSec * 1000;
+  const mood: MascotMood = submission.isPending
+    ? "thinking"
+    : state.kind === "recording" || state.kind === "requesting"
+      ? "listening"
+      : state.kind === "recorded"
+        ? "happy"
+        : "idle";
 
   if (submission.isSuccess) {
     return (
-      <div role="status" className="flex flex-col gap-2 rounded-md bg-emerald-50 p-3">
-        <p className="font-medium text-emerald-900">Recording submitted ✓</p>
-        <p className="text-sm text-emerald-900">
+      <div
+        role="status"
+        className="flex flex-col items-start gap-2 rounded-3xl bg-sage p-4 text-on-pastel"
+      >
+        <div className="flex items-center gap-3">
+          <Mascot mood="happy" size={52} />
+          <p className="font-display text-lg font-semibold">Recording submitted ✓</p>
+        </div>
+        <p className="text-sm font-medium text-on-pastel-muted">
           Opening your results…{" "}
-          <Link href={`/results/${submission.data.id}`} className="underline">
+          <Link
+            href={`/results/${submission.data.id}`}
+            className="font-bold text-on-pastel underline"
+          >
             View results
           </Link>
         </p>
-        <button type="button" onClick={recordAgain} className={secondaryButton}>
+        <button
+          type="button"
+          onClick={recordAgain}
+          className="btn btn-sm border-[1.5px] border-on-pastel/25 text-on-pastel hover:bg-on-pastel/5"
+        >
           Record another take
         </button>
       </div>
@@ -97,59 +118,62 @@ export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Screen readers announce changes in this region (recording started, errors…). */}
-      <div aria-live="polite" className="flex flex-col gap-2 text-sm">
-        {state.kind === "idle" && (
-          <p className="text-slate-600">
-            We’ll ask for microphone access. Your recording is used only to analyze your speaking.
-          </p>
-        )}
-        {state.kind === "requesting" && (
-          <p className="text-slate-600">Waiting for microphone permission…</p>
-        )}
-        {state.kind === "recording" && (
-          <div className="flex flex-col gap-1">
-            <p className="flex items-center gap-2 font-medium text-red-700">
-              <span className="size-2 animate-pulse rounded-full bg-red-600" aria-hidden />
-              Recording {formatSeconds(state.elapsedMs)} / {formatSeconds(maxMs)}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <Mascot mood={mood} size={56} />
+        {/* Screen readers announce changes in this region (recording started, errors…). */}
+        <div aria-live="polite" className="flex flex-1 flex-col gap-2 text-sm">
+          {state.kind === "idle" && (
+            <p className="text-muted">
+              We’ll ask for microphone access. Your recording is used only to analyze your speaking.
             </p>
-            <div className="h-1.5 w-full overflow-hidden rounded bg-slate-200" aria-hidden>
-              <div
-                className="h-full bg-red-600 transition-[width]"
-                style={{ width: `${Math.min(100, (state.elapsedMs / maxMs) * 100)}%` }}
-              />
+          )}
+          {state.kind === "requesting" && (
+            <p className="text-muted">Waiting for microphone permission…</p>
+          )}
+          {state.kind === "recording" && (
+            <div className="flex flex-col gap-1">
+              <p className="flex items-center gap-2 font-bold text-ink tabular-nums">
+                <span className="size-2 animate-pulse rounded-full bg-danger" aria-hidden />
+                Recording {formatSeconds(state.elapsedMs)} / {formatSeconds(maxMs)}
+              </p>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-card-2" aria-hidden>
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width]"
+                  style={{ width: `${Math.min(100, (state.elapsedMs / maxMs) * 100)}%` }}
+                />
+              </div>
             </div>
-          </div>
-        )}
-        {state.kind === "denied" && (
-          <p role="alert" className="text-red-700">
-            Microphone access is blocked. Allow it in your browser’s site settings (the icon next to
-            the address bar), then try again.
-          </p>
-        )}
-        {state.kind === "unsupported" && (
-          <p role="alert" className="text-red-700">
-            We couldn’t find a microphone, or this browser can’t record audio. Try a recent Chrome,
-            Firefox, Edge or Safari.
-          </p>
-        )}
-        {state.kind === "error" && (
-          <p role="alert" className="text-red-700">
-            {state.message}
-          </p>
-        )}
-        {submission.isPending && <p className="text-slate-600">{STEP_LABEL[step]}</p>}
-        {submission.isError && (
-          <p role="alert" className="text-red-700">
-            {errorMessage(submission.error)}{" "}
-            {isPlanLimit(submission.error) && (
-              <Link href="/pricing" className="font-medium underline">
-                See Pro
-              </Link>
-            )}
-          </p>
-        )}
+          )}
+          {state.kind === "denied" && (
+            <p role="alert" className="font-medium text-danger">
+              Microphone access is blocked. Allow it in your browser’s site settings (the icon next
+              to the address bar), then try again.
+            </p>
+          )}
+          {state.kind === "unsupported" && (
+            <p role="alert" className="font-medium text-danger">
+              We couldn’t find a microphone, or this browser can’t record audio. Try a recent
+              Chrome, Firefox, Edge or Safari.
+            </p>
+          )}
+          {state.kind === "error" && (
+            <p role="alert" className="font-medium text-danger">
+              {state.message}
+            </p>
+          )}
+          {submission.isPending && <p className="text-muted">{STEP_LABEL[step]}</p>}
+          {submission.isError && (
+            <p role="alert" className="font-medium text-danger">
+              {errorMessage(submission.error)}{" "}
+              {isPlanLimit(submission.error) && (
+                <Link href="/pricing" className="font-bold text-peach underline">
+                  See Pro
+                </Link>
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
       {state.kind === "recorded" && (
@@ -197,7 +221,5 @@ export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
   );
 }
 
-const primaryButton =
-  "w-fit rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButton =
-  "w-fit rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
+const primaryButton = "btn btn-primary btn-sm min-h-11 px-5";
+const secondaryButton = "btn btn-secondary btn-sm min-h-11 px-5";

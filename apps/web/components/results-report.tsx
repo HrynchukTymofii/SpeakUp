@@ -1,5 +1,6 @@
 import type { AttemptResult, Exercise, Metrics } from "@speakup/shared";
 import type { ReactNode } from "react";
+import { Mascot } from "./mascot";
 import { TranscriptView } from "./transcript-view";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -12,15 +13,16 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 const SEVERITY_STYLE: Record<string, string> = {
-  low: "bg-slate-100 text-slate-700",
-  medium: "bg-amber-100 text-amber-900",
-  high: "bg-red-100 text-red-900",
+  low: "bg-sky text-on-pastel",
+  medium: "bg-butter text-on-pastel",
+  high: "bg-rose text-on-pastel",
 };
 
-function scoreColor(score: number): string {
-  if (score >= 75) return "text-emerald-700";
-  if (score >= 55) return "text-amber-700";
-  return "text-red-700";
+/** Score tile: pastel by band (pastel surfaces keep dark ink). */
+function scoreSurface(score: number): string {
+  if (score >= 75) return "bg-sage";
+  if (score >= 55) return "bg-butter";
+  return "bg-rose";
 }
 
 /**
@@ -31,16 +33,25 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
   const { metrics, feedback, transcript } = result;
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-start gap-5">
-        <div className="flex flex-col items-center rounded-lg border border-slate-200 px-5 py-3">
-          <span className={`text-4xl font-bold tabular-nums ${scoreColor(result.overallScore)}`}>
-            {result.overallScore}
-          </span>
-          <span className="text-xs text-slate-500">out of 100</span>
+      <header className="flex flex-col gap-4 rounded-[28px] border border-line bg-card p-5 shadow-soft">
+        <div className="flex items-center gap-4">
+          <div
+            className={`flex shrink-0 flex-col items-center rounded-3xl px-5 py-3 text-on-pastel ${scoreSurface(result.overallScore)}`}
+          >
+            <span className="font-display text-5xl leading-none font-semibold tabular-nums">
+              {result.overallScore}
+            </span>
+            <span className="mt-1 text-xs font-bold text-on-pastel-muted">out of 100</span>
+          </div>
+          <Mascot
+            mood={result.overallScore >= 55 ? "happy" : "thinking"}
+            size={84}
+            className="ml-auto"
+          />
         </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-sm text-slate-500">{exercise.prompt}</p>
-          <p className="leading-relaxed text-slate-800">{feedback.summary}</p>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm font-semibold text-muted">{exercise.prompt}</p>
+          <p className="text-[17px] leading-relaxed text-ink">{feedback.summary}</p>
         </div>
       </header>
 
@@ -74,56 +85,64 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Feedback</h2>
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium text-slate-500">What went well</h3>
-          <ul className="list-disc pl-5 text-slate-800">
+        <h2 className="font-display text-2xl font-semibold">Feedback</h2>
+        <div className="flex flex-col gap-2 rounded-3xl bg-sage p-5 text-on-pastel">
+          <h3 className="text-xs font-extrabold tracking-[0.12em] text-on-pastel-muted uppercase">
+            What went well
+          </h3>
+          <ul className="flex flex-col gap-1.5 font-medium">
             {feedback.strengths.map((s) => (
-              <li key={s}>{s}</li>
+              <li key={s} className="flex gap-2">
+                <span aria-hidden>✓</span>
+                {s}
+              </li>
             ))}
           </ul>
         </div>
         {feedback.issues.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-slate-500">What to work on</h3>
+            <h3 className="eyebrow">What to work on</h3>
             {feedback.issues.map((issue, i) => (
-              <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-slate-200 p-4">
+              <div
+                key={i}
+                className="flex flex-col gap-2 rounded-3xl border border-line bg-card p-5 shadow-soft-sm"
+              >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{CATEGORY_LABEL[issue.category]}</span>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${SEVERITY_STYLE[issue.severity]}`}
-                  >
-                    {issue.severity}
+                  <span className="font-display text-lg font-semibold">
+                    {CATEGORY_LABEL[issue.category]}
                   </span>
+                  <span className={`pill ${SEVERITY_STYLE[issue.severity]}`}>{issue.severity}</span>
                 </div>
-                <p className="text-sm text-slate-600 italic">{issue.evidence}</p>
-                <p className="text-slate-800">
-                  <span className="font-medium">Try this: </span>
+                <p className="text-sm text-muted italic">{issue.evidence}</p>
+                <p className="text-ink">
+                  <span className="font-bold text-peach">Try this: </span>
                   {issue.tip}
                 </p>
               </div>
             ))}
           </div>
         )}
-        <div className="rounded-lg bg-slate-50 p-4">
-          <h3 className="text-sm font-medium text-slate-500">Next step</h3>
-          <p className="text-slate-800">{feedback.nextStep}</p>
+        <div className="flex flex-col gap-1 rounded-3xl bg-lav p-5 text-on-pastel">
+          <h3 className="text-xs font-extrabold tracking-[0.12em] text-on-pastel-muted uppercase">
+            Next step
+          </h3>
+          <p className="font-medium">{feedback.nextStep}</p>
         </div>
       </section>
 
       {metrics.readAloud &&
         (metrics.readAloud.missed.length > 0 || metrics.readAloud.substituted.length > 0) && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">Reading details</h2>
+            <h2 className="font-display text-2xl font-semibold">Reading details</h2>
             {metrics.readAloud.missed.length > 0 && (
-              <p className="text-sm text-slate-700">
-                <span className="font-medium">Skipped: </span>
+              <p className="text-sm text-ink/85">
+                <span className="font-bold text-ink">Skipped: </span>
                 {metrics.readAloud.missed.join(", ")}
               </p>
             )}
             {metrics.readAloud.substituted.length > 0 && (
-              <p className="text-sm text-slate-700">
-                <span className="font-medium">Said differently: </span>
+              <p className="text-sm text-ink/85">
+                <span className="font-bold text-ink">Said differently: </span>
                 {metrics.readAloud.substituted
                   .map((s) => `“${s.said}” instead of “${s.expected}”`)
                   .join(", ")}
@@ -133,7 +152,7 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
         )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Transcript</h2>
+        <h2 className="font-display text-2xl font-semibold">Transcript</h2>
         <TranscriptView words={transcript.words} metrics={metrics} />
       </section>
     </div>
@@ -142,18 +161,18 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-slate-200 p-4">
-      <h3 className="text-sm font-medium text-slate-500">{title}</h3>
+    <div className="flex flex-col gap-1 rounded-3xl border border-line bg-card p-5 shadow-soft-sm">
+      <h3 className="font-sans text-sm font-bold text-muted">{title}</h3>
       {children}
     </div>
   );
 }
 
 const Big = ({ children }: { children: ReactNode }) => (
-  <p className="text-2xl font-semibold tabular-nums">{children}</p>
+  <p className="font-display text-3xl font-semibold tabular-nums">{children}</p>
 );
 const Small = ({ children }: { children: ReactNode }) => (
-  <p className="text-sm text-slate-600">{children}</p>
+  <p className="text-sm text-muted">{children}</p>
 );
 
 /** WPM with a scale from 80 to 200 and the target band shaded. */
@@ -167,17 +186,20 @@ function PaceCard({ metrics }: { metrics: Metrics }) {
   return (
     <Card title="Pace">
       <Big>
-        {wpm} <span className="text-base font-normal text-slate-500">words/min</span>
+        {wpm} <span className="font-sans text-base font-medium text-muted">words/min</span>
       </Big>
-      <div className="relative mt-1 h-2 rounded bg-slate-100" aria-hidden>
+      <div className="relative my-1.5 h-2 rounded-full bg-card-2" aria-hidden>
         <div
-          className="absolute h-full rounded bg-emerald-200"
+          className="absolute h-full rounded-full bg-sage/70"
           style={{
             left: pct(wpmTarget.min),
             width: `calc(${pct(wpmTarget.max)} - ${pct(wpmTarget.min)})`,
           }}
         />
-        <div className="absolute -top-1 h-4 w-1 rounded bg-slate-900" style={{ left: pct(wpm) }} />
+        <div
+          className="absolute -top-1 h-4 w-1.5 -translate-x-1/2 rounded-full bg-peach shadow-peach"
+          style={{ left: pct(wpm) }}
+        />
       </div>
       <Small>
         Target {wpmTarget.min}–{wpmTarget.max} · {verdict}
