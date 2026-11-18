@@ -1,28 +1,158 @@
 @import "tailwindcss";
 
 /*
+ * Design tokens: the Holy Hush / Lumen kit's "dark · warm" theme, on a true-black base.
+ * The warm pastel accents are kept; the brown page/card/line greys are replaced with neutral
+ * blacks. Components use these through Tailwind (bg-card, text-muted, border-line…), never hex.
+ */
+:root {
+  color-scheme: dark;
+
+  /* surfaces (neutral black) */
+  --page: #000000;
+  --bg: #0a0a0a;
+  --card: #141414;
+  --card-2: #1c1c1c;
+  --line: #222222;
+  --line-2: #2e2e2e;
+
+  /* text (warm cream) */
+  --ink: #f7eee5;
+  --muted: #a39b94;
+  --dim: #6b6560;
+
+  /* warm accents */
+  --peach: #f2b29a;
+  --peach-2: #f4a585;
+  --orange: #f29a4a;
+  --butter: #f3d894;
+  --sage: #c8ddbe;
+  --sky: #c6dce6;
+  --lav: #d9cbee;
+  --rose: #f1c9c5;
+  --on-pastel: #2b211c;
+  --on-pastel-muted: #6e5f55;
+  --danger: #f07c72;
+
+  --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
+  --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+  --shadow-peach: 0 12px 26px -12px rgba(242, 154, 106, 0.55);
+}
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --color-page: var(--page);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-dim: var(--dim);
+  --color-peach: var(--peach);
+  --color-peach-2: var(--peach-2);
+  --color-orange: var(--orange);
+  --color-butter: var(--butter);
+  --color-sage: var(--sage);
+  --color-sky: var(--sky);
+  --color-lav: var(--lav);
+  --color-rose: var(--rose);
+  --color-on-pastel: var(--on-pastel);
+  --color-on-pastel-muted: var(--on-pastel-muted);
+  --color-danger: var(--danger);
+
+  --shadow-soft: var(--shadow);
+  --shadow-soft-sm: var(--shadow-sm);
+  --shadow-peach: var(--shadow-peach);
+}
+
+@layer base {
+  html {
+    background: var(--page);
+  }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--peach-2);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--peach);
+    color: var(--on-pastel);
+  }
+}
+
+/* Kit components: pill buttons, rounded cards, pastel surfaces. */
+@layer components {
+  .btn {
+    @apply inline-flex min-h-13 items-center justify-center gap-2 rounded-full px-6 text-base font-extrabold transition-[transform,opacity,background-color] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:active:scale-100;
+  }
+  /* primary: cream pill on black (the kit's btn-ink, inverted for dark) */
+  .btn-primary {
+    @apply bg-ink text-page hover:bg-white;
+  }
+  .btn-peach {
+    @apply bg-peach text-on-pastel shadow-peach hover:bg-peach-2;
+  }
+  .btn-secondary {
+    @apply border-[1.5px] border-line-2 bg-card text-ink hover:bg-card-2;
+  }
+  .btn-sm {
+    @apply min-h-10 px-4 text-sm;
+  }
+  .card {
+    @apply rounded-[28px] border border-line bg-card p-5 shadow-soft;
+  }
+  .eyebrow {
+    @apply text-[11.5px] font-extrabold tracking-[0.12em] text-muted uppercase;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-extrabold tracking-[0.02em];
+  }
+  .link {
+    @apply text-muted underline-offset-4 hover:text-ink hover:underline;
+  }
+  /* Pastel surfaces keep dark ink (kit rule). */
+  .pastel {
+    @apply text-on-pastel;
+  }
+}
+
+/*
  * Typography for markdown lesson bodies (rendered by react-markdown).
  * Tailwind's reset strips default heading/list styles; a handful of rules here is
  * simpler than adding the typography plugin for three element types.
  */
 @layer components {
   .lesson-body {
-    @apply flex flex-col gap-3 leading-relaxed text-slate-800;
+    @apply flex flex-col gap-3 leading-relaxed text-ink/90;
   }
   .lesson-body h2 {
-    @apply mt-2 text-lg font-semibold text-slate-900;
+    @apply mt-2 font-display text-xl font-semibold text-ink;
   }
   .lesson-body ul {
-    @apply list-disc pl-5;
+    @apply list-disc pl-5 marker:text-peach;
   }
   .lesson-body ol {
-    @apply list-decimal pl-5;
+    @apply list-decimal pl-5 marker:text-peach;
   }
   .lesson-body li + li {
     @apply mt-1;
   }
   .lesson-body strong {
-    @apply font-semibold;
+    @apply font-bold text-ink;
   }
 }
 

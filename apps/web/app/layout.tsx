@@ -1,9 +1,16 @@
 import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Manrope, Outfit } from "next/font/google";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
+
+// Body: Manrope. Headings: Outfit (same pair as the Holy Hush kit, minus its serif).
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
+
+export const viewport: Viewport = { themeColor: "#000000", colorScheme: "dark" };
 
 export const metadata: Metadata = {
   title: "SpeakUp — speaking skills trainer",
@@ -13,8 +20,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-dvh bg-white text-slate-900 antialiased">
+    <html lang="en" className={`${manrope.variable} ${outfit.variable}`}>
+      <body className="min-h-dvh bg-page font-sans text-ink antialiased">
         {/* Clerk Core 3: ClerkProvider goes inside <body>, not around <html>. */}
         <ClerkProvider>
           <Providers>
