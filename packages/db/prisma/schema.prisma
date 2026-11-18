@@ -1,0 +1,186 @@
+// SpeakUp data model (SPEC §5).
+// The connection URL is not here: Prisma 7 reads it from prisma.config.ts.
+
+generator client {
+  // Prisma 7's TypeScript-first generator: emits plain .ts files into our package,
+  // which we compile with tsc like the rest of our code (no hidden node_modules magic).
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  // Our packages use NodeNext resolution, which requires ".js" on relative imports.
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ExerciseType {
+  read_aloud
+  free_speech
+}
+
+enum AttemptStatus {
+  awaiting_upload
+  queued
+  processing
+  completed
+  failed
+}
+
+enum Plan {
+  free
+  pro
+}
+
+enum PaymentSource {
+  paddle
+  stripe
+  app_store
+  play_store
+}
+
+enum SubStatus {
+  active
+  trialing
+  past_due
+  canceled
+}
+
+model User {
+  id             String          @id @default(cuid())
+  clerkUserId    String          @unique
+  email          String?
+  onboarding     Json? // quiz answers
+  createdAt      DateTime        @default(now())
+  attempts       Attempt[]
+  subscriptions  Subscription[]
+  funnelSessions FunnelSession[]
+}
+
+model Course {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  title   String
+  summary String
+  order   Int
+  lessons Lesson[]
+}
+
+model Lesson {
+  id        String     @id @default(cuid())
+  courseId  String
+  course    Course     @relation(fields: [courseId], references: [id])
+  slug      String     @unique
+  title     String
+  order     Int
+  videoUrl  String? // MVP: public/unlisted video URL; later: CloudFront HLS
+  body      String // markdown
+  isFree    Boolean    @default(false)
+  exercises Exercise[]
+
+  @@index([courseId, order])
+}
+
+model Exercise {
+  id             String       @id @default(cuid())
+  lessonId       String? // null = baseline assessment exercise
+  lesson         Lesson?      @relation(fields: [lessonId], references: [id])
+  slug           String       @unique
+  type           ExerciseType
+  prompt         String
+  referenceText  String? // required for read_aloud
+  maxDurationSec Int          @default(60)
+  order          Int          @default(0)
+  attempts       Attempt[]
+}
+
+model FunnelSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique // sha256 of the guest token; raw token lives only on the client
+  answers     Json      @default("{}") // { questionId: answer }
+  currentStep String?
+  userId      String? // set when claimed after sign-up
+  user        User?     @relation(fields: [userId], references: [id])
+  ipHash      String? // for abuse limits, never the raw IP
+  createdAt   DateTime  @default(now())
+  claimedAt   DateTime?
+  attempts    Attempt[]
+
+  @@index([createdAt]) // cleanup job for unclaimed sessions
+}
+
+model Attempt {
+  id              String         @id @default(cuid())
+  userId          String? // null while anonymous (funnel baseline); set on claim
+  user            User?          @relation(fields: [userId], references: [id])
+  funnelSessionId String?
+  funnelSession   FunnelSession? @relation(fields: [funnelSessionId], references: [id])
+  // Invariant: userId OR funnelSessionId is set.
+  // Enforced by the CHECK constraint "Attempt_owner_check" (added by hand in the init migration,
+  // because Prisma's schema language can't express CHECK constraints) and in application code.
+  exerciseId      String
+  exercise        Exercise       @relation(fields: [exerciseId], references: [id])
+  status          AttemptStatus  @default(awaiting_upload)
+  audioKey        String // S3 object key
+  mimeType        String
+  durationMs      Int?
+  errorCode       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  transcript      Transcript?
+  analysis        Analysis?
+
+  @@index([userId, createdAt]) // history list + daily quota count
+}
+
+model Transcript {
+  id        String  @id @default(cuid())
+  attemptId String  @unique
+  attempt   Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  provider  String
+  text      String
+  words     Json // [{word, start, end, confidence}]
+}
+
+model Analysis {
+  id            String   @id @default(cuid())
+  attemptId     String   @unique
+  attempt       Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  metrics       Json // see packages/shared MetricsSchema
+  feedback      Json // see packages/shared FeedbackSchema
+  overallScore  Int // 0–100, denormalized for lists
+  llmModel      String
+  promptVersion String
+  costUsdMicros Int // estimated cost, 1 USD = 1_000_000
+  latencyMs     Int
+  createdAt     DateTime @default(now())
+}
+
+model Subscription {
+  id                     String        @id @default(cuid())
+  userId                 String
+  user                   User          @relation(fields: [userId], references: [id])
+  source                 PaymentSource
+  providerCustomerId     String?
+  providerSubscriptionId String        @unique
+  plan                   Plan
+  status                 SubStatus
+  currentPeriodEnd       DateTime?
+  // occurred_at of the newest provider event applied. Webhooks can arrive out of order;
+  // an event older than this is ignored so it can't overwrite newer state.
+  lastEventAt            DateTime?
+  updatedAt              DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model WebhookEvent {
+  id         String        @id @default(cuid())
+  source     PaymentSource
+  eventId    String
+  type       String
+  receivedAt DateTime      @default(now())
+
+  @@unique([source, eventId]) // idempotency: process each event once
+}
