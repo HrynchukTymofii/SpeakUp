@@ -58,6 +58,13 @@ ENV NODE_ENV=production \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/rds-global-bundle.pem
 COPY --from=rds-ca /rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chmod=755 infra/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+# The worker decodes recordings with ffmpeg (pitch / loudness / pause analysis). Debian's
+# package, so it gets security updates with the base image; the API image stays without it.
+RUN if [ "$APP" = "worker" ]; then \
+      apt-get update \
+      && apt-get install -y --no-install-recommends ffmpeg \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
 WORKDIR /app
 COPY --from=prod-deps /repo/ ./
 COPY --from=build /repo/packages/shared/dist ./packages/shared/dist

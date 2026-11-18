@@ -1,7 +1,7 @@
 import type { TranscriptWord } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
 import { detectFillers } from "./fillers.js";
-import { computeMetrics, findPauses } from "./index.js";
+import { computeMetrics } from "./index.js";
 import { normalizeWord, tokenize } from "./normalize.js";
 import { alignWords, readAloudMetrics } from "./read-aloud.js";
 
@@ -54,21 +54,6 @@ describe("normalize", () => {
   });
 });
 
-describe("findPauses", () => {
-  it("finds gaps over 0.5 s and flags those over 1.5 s as long", () => {
-    const pauses = findPauses(words("a@0-0.3", "b@0.5-0.8", "c@1.6-1.9", "d@3.6-4"));
-    expect(pauses).toEqual([
-      { start: 0.8, durationSec: 0.8, afterWordIndex: 1, long: false },
-      { start: 1.9, durationSec: 1.7, afterWordIndex: 2, long: true },
-    ]);
-  });
-
-  it("returns nothing for a single word or none", () => {
-    expect(findPauses(words("a@0-1"))).toEqual([]);
-    expect(findPauses([])).toEqual([]);
-  });
-});
-
 describe("detectFillers", () => {
   it("always counts pure fillers like um/uh", () => {
     const hits = detectFillers(words("So@0-0.2", "um@0.3-0.5", "I@0.6-0.7", "uh@0.8-1"));
@@ -112,9 +97,9 @@ describe("alignWords / readAloudMetrics", () => {
   it("detects a substitution as one op (not missed + inserted)", () => {
     const ops = alignWords(["the", "cat", "sat"], ["the", "bat", "sat"]);
     expect(ops).toEqual([
-      { kind: "match", expected: "the" },
-      { kind: "sub", expected: "cat", said: "bat" },
-      { kind: "match", expected: "sat" },
+      { kind: "match", expected: "the", ref: 0, spoken: 0 },
+      { kind: "sub", expected: "cat", said: "bat", ref: 1, spoken: 1 },
+      { kind: "match", expected: "sat", ref: 2, spoken: 2 },
     ]);
   });
 
@@ -147,7 +132,7 @@ describe("computeMetrics", () => {
     }));
     const lastWord = speech.at(-1);
     if (lastWord) lastWord.end = 62;
-    const m = computeMetrics({ words: speech, totalSec: 63, referenceText: null });
+    const m = computeMetrics({ words: speech, totalSec: 63, referenceText: null, audio: null });
     expect(m.durationSec).toBe(60);
     expect(m.totalSec).toBe(63);
     expect(m.wordCount).toBe(150);
@@ -158,7 +143,7 @@ describe("computeMetrics", () => {
 
   it("counts fillers per minute and leaves them out of the word count", () => {
     const ws = [...evenWords(10), ...words("um@4-4.2", "uh@4.3-4.5")];
-    const m = computeMetrics({ words: ws, totalSec: 5, referenceText: null });
+    const m = computeMetrics({ words: ws, totalSec: 5, referenceText: null, audio: null });
     expect(m.wordCount).toBe(10);
     expect(m.fillers.count).toBe(2);
     expect(m.fillers.perMinute).toBe(26.7); // 2 fillers / 4.5 s
@@ -169,6 +154,7 @@ describe("computeMetrics", () => {
       words: words("clear@0-0.4", "mumble@0.5-0.9:0.42"),
       totalSec: 1,
       referenceText: null,
+      audio: null,
     });
     expect(m.lowConfidenceWords).toEqual([
       { word: "mumble", start: 0.5, confidence: 0.42, wordIndex: 1 },
@@ -180,12 +166,13 @@ describe("computeMetrics", () => {
       words: words("The@0-0.2", "um@0.3-0.5", "cat@0.6-0.8", "sat.@0.9-1.2"),
       totalSec: 1.5,
       referenceText: "The cat sat.",
+      audio: null,
     });
     expect(m.readAloud?.accuracyPct).toBe(100);
   });
 
   it("returns zeros instead of dividing by zero for empty or tiny transcripts", () => {
-    const m = computeMetrics({ words: [], totalSec: 3, referenceText: null });
+    const m = computeMetrics({ words: [], totalSec: 3, referenceText: null, audio: null });
     expect(m).toMatchObject({ durationSec: 0, wordCount: 0, wpm: 0 });
     expect(m.pauses.longestSec).toBe(0);
     expect(m.fillers.perMinute).toBe(0);

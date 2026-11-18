@@ -1,29 +1,28 @@
-import {
-  LONG_PAUSE_SEC,
-  LOW_CONFIDENCE,
-  PAUSE_MIN_SEC,
-  WPM_TARGET,
-  type Metrics,
-  type Pause,
-  type TranscriptWord,
-} from "@speakup/shared";
+import { LOW_CONFIDENCE, WPM_TARGET, type Metrics, type TranscriptWord } from "@speakup/shared";
+import type { AudioFeatures } from "../audio/features.js";
 import { detectFillers } from "./fillers.js";
+import { languageMetrics } from "./language.js";
 import { round, tokenize } from "./normalize.js";
+import { analyzePauses } from "./pauses.js";
+import { punctuationMetrics } from "./punctuation.js";
 import { readAloudMetrics } from "./read-aloud.js";
+import { voiceMetrics } from "./voice.js";
 
 export interface MetricsInput {
   words: TranscriptWord[];
   /** Length of the whole recording in seconds (from the STT metadata). */
   totalSec: number;
-  /** Set for read_aloud exercises → accuracy is computed against it. */
+  /** Set for read_aloud exercises → accuracy and punctuation are checked against it. */
   referenceText: string | null;
+  /** Loudness/pitch/silences from the audio; null when decoding failed (transcript-only metrics). */
+  audio: AudioFeatures | null;
 }
 
 /**
- * All speaking metrics, as pure functions of the transcript (SPEC §6.3).
+ * All speaking metrics, as pure functions of the transcript and the audio features (SPEC §6.3).
  * No I/O, no randomness → trivially unit-tested, and the LLM gets numbers we can defend.
  */
-export function computeMetrics({ words, totalSec, referenceText }: MetricsInput): Metrics {
+export function computeMetrics({ words, totalSec, referenceText, audio }: MetricsInput): Metrics {
   const first = words[0];
   const last = words.at(-1);
   const durationSec = first && last ? Math.max(0, last.end - first.start) : 0;
@@ -36,7 +35,8 @@ export function computeMetrics({ words, totalSec, referenceText }: MetricsInput)
   const minutes = durationSec / 60;
   const wpm = durationSec >= 1 ? realWords.length / minutes : 0;
 
-  const pauses = findPauses(words);
+  const pauses = analyzePauses(words, audio, fillerIndexes);
+  const pauseList = pauses.list;
 
   return {
     durationSec: round(durationSec),
@@ -45,10 +45,13 @@ export function computeMetrics({ words, totalSec, referenceText }: MetricsInput)
     wpm: round(wpm, 0),
     wpmTarget: { ...WPM_TARGET },
     pauses: {
-      count: pauses.length,
-      longCount: pauses.filter((p) => p.long).length,
-      longestSec: round(Math.max(0, ...pauses.map((p) => p.durationSec))),
-      list: pauses,
+      count: pauseList.length,
+      longCount: pauseList.filter((p) => p.long).length,
+      longestSec: round(Math.max(0, ...pauseList.map((p) => p.durationSec))),
+      list: pauseList,
+      source: pauses.source,
+      hesitationCount: pauseList.filter((p) => p.kind === "hesitation").length,
+      longestRunSec: pauses.longestRunSec,
     },
     fillers: {
       count: fillers.length,
@@ -75,25 +78,12 @@ export function computeMetrics({ words, totalSec, referenceText }: MetricsInput)
             tokenize(referenceText),
             realWords.flatMap((w) => tokenize(w.word)),
           ),
+    // Comma pauses are only visible on the waveform; from STT gaps we'd report false misses.
+    punctuation:
+      referenceText !== null && pauses.source === "audio"
+        ? punctuationMetrics(referenceText, words, fillerIndexes, pauseList)
+        : null,
+    voice: audio ? voiceMetrics(words, audio, fillerIndexes, pauseList) : null,
+    language: referenceText === null ? languageMetrics(words, fillerIndexes) : null,
   };
-}
-
-/** Silences between consecutive words longer than PAUSE_MIN_SEC. */
-export function findPauses(words: TranscriptWord[]): Pause[] {
-  const pauses: Pause[] = [];
-  for (let i = 0; i < words.length - 1; i++) {
-    const cur = words[i];
-    const next = words[i + 1];
-    if (!cur || !next) continue;
-    const gap = next.start - cur.end;
-    if (gap > PAUSE_MIN_SEC) {
-      pauses.push({
-        start: round(cur.end),
-        durationSec: round(gap),
-        afterWordIndex: i,
-        long: gap > LONG_PAUSE_SEC,
-      });
-    }
-  }
-  return pauses;
 }

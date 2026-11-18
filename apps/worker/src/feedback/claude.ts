@@ -1,23 +1,23 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { AnalysisErrorCode } from "@speakup/shared";
+import { AnalysisErrorCode, FeedbackCategorySchema } from "@speakup/shared";
 import { z } from "zod";
 import { PipelineError } from "../errors.js";
 import { SYSTEM_PROMPT } from "./prompt.js";
 
 /**
  * The JSON shape the model must produce. Structured outputs make the API constrain the model's
- * output to this schema. Ranges/lengths (0–100, max 4 issues…) are checked afterwards by the
- * stricter shared `FeedbackSchema`, because the API's schema support doesn't cover every
+ * output to this schema. Ranges/lengths (0–100, max 6 issues…) are checked afterwards by the
+ * stricter `LlmOutputSchema`, because the API's schema support doesn't cover every
  * Zod constraint.
  */
 const LlmFeedbackSchema = z.object({
-  overallScore: z.number(),
+  contentScore: z.number().nullable(),
   summary: z.string(),
   strengths: z.array(z.string()),
   issues: z.array(
     z.object({
-      category: z.enum(["pace", "pauses", "fillers", "clarity", "accuracy", "structure"]),
+      category: FeedbackCategorySchema,
       severity: z.enum(["low", "medium", "high"]),
       evidence: z.string(),
       tip: z.string(),

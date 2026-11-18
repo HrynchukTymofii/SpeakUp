@@ -1,14 +1,17 @@
-import type { AnalysisErrorCode, Feedback, TranscriptWord } from "@speakup/shared";
+import type { AnalysisErrorCode, TranscriptWord } from "@speakup/shared";
 import pino from "pino";
+import type { AudioDecoder } from "../audio/decode.js";
 import type { LlmResponse, SendToLlm } from "../feedback/claude.js";
+import type { LlmOutput } from "../feedback/index.js";
 import type { PipelineDeps } from "../pipeline.js";
 import type { SttProvider, SttResult } from "../providers/stt.js";
 import type { AnalysisRepo, AttemptForAnalysis, CompletedAnalysis } from "../repo.js";
 
 export const silentLog = pino({ level: "silent" });
 
-export const validFeedback: Feedback = {
-  overallScore: 78,
+/** A valid model reply (the model gives a content score; overall is computed by us). */
+export const validLlmOutput: LlmOutput = {
+  contentScore: 64,
   summary: "You read clearly and at a comfortable pace.",
   strengths: ["Steady pace"],
   issues: [
@@ -108,7 +111,12 @@ export function makeAttempt(overrides: Partial<AttemptForAnalysis> = {}): Attemp
   };
 }
 
-export function makeDeps(parts: { repo: FakeRepo; stt?: FakeStt; llm?: FakeLlm }): PipelineDeps {
+export function makeDeps(parts: {
+  repo: FakeRepo;
+  stt?: FakeStt;
+  llm?: FakeLlm;
+  decoder?: AudioDecoder;
+}): PipelineDeps {
   return {
     repo: parts.repo,
     storage: {
@@ -118,7 +126,38 @@ export function makeDeps(parts: { repo: FakeRepo; stt?: FakeStt; llm?: FakeLlm }
     stt:
       parts.stt ??
       new FakeStt({ provider: "fake", durationSec: 12, text: "hello", words: makeWords(30) }),
-    llm: (parts.llm ?? new FakeLlm([llmReply(validFeedback)])).send,
+    llm: (parts.llm ?? new FakeLlm([llmReply(validLlmOutput)])).send,
+    ...(parts.decoder && { decoder: parts.decoder }),
     prices: { sttUsdPerMin: 0.0043, llmInputUsdPerMTok: 2, llmOutputUsdPerMTok: 10 },
   };
+}
+
+/**
+ * Fake "speech" for audio tests: a tone during each word, near-silence between words.
+ * Each word gets its own pitch and loudness (from the callbacks), so tests can make a voice
+ * lively or monotone. 16 kHz mono, like the real decoder.
+ */
+export function synthSpeech(
+  words: TranscriptWord[],
+  opts: { pitchHz?: (i: number) => number; amplitude?: (i: number) => number } = {},
+): Float32Array {
+  const rate = 16_000;
+  const end = (words.at(-1)?.end ?? 0) + 0.5;
+  const out = new Float32Array(Math.ceil(end * rate));
+  // Deterministic low noise floor (a real room is never digitally silent).
+  let seed = 1;
+  for (let n = 0; n < out.length; n++) {
+    seed = (seed * 16807) % 2147483647;
+    out[n] = ((seed / 2147483647) * 2 - 1) * 0.001;
+  }
+  words.forEach((w, i) => {
+    const f0 = opts.pitchHz?.(i) ?? 120 + (i % 5) * 25;
+    const amp = opts.amplitude?.(i) ?? (i % 3 === 0 ? 0.5 : 0.2);
+    for (let n = Math.floor(w.start * rate); n < Math.floor(w.end * rate); n++) {
+      // Fundamental + one harmonic: a little more voice-like than a pure sine.
+      const t = n / rate;
+      out[n] = amp * (0.7 * Math.sin(2 * Math.PI * f0 * t) + 0.3 * Math.sin(4 * Math.PI * f0 * t));
+    }
+  });
+  return out;
 }

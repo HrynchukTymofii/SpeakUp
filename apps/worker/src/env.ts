@@ -23,6 +23,9 @@ export const EnvSchema = z.object({
   S3_BUCKET: z.string().min(3),
   S3_ENDPOINT: z.preprocess(emptyAsUndefined, z.url().optional()),
 
+  // Audio decoding for pitch/loudness/pause analysis. The Docker image ships ffmpeg on PATH.
+  FFMPEG_PATH: z.preprocess(emptyAsUndefined, z.string().min(1).default("ffmpeg")),
+
   DEEPGRAM_API_KEY: z.string().min(10, "DEEPGRAM_API_KEY is required (see .env.example)"),
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-", "must be an Anthropic API key (sk-ant-...)"),
   ANTHROPIC_MODEL: z.preprocess(emptyAsUndefined, z.string().default("claude-sonnet-5-5")),

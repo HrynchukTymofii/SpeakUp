@@ -301,14 +301,19 @@ Retries: 3 attempts, exponential backoff. Idempotent: if the attempt is already 
 
 1. `status=processing`.
 2. **STT** via `SttProvider` interface (implementation: Deepgram, pre-recorded API, pass a short-lived pre-signed GET URL). Options: smart formatting/punctuation, **filler words enabled**, word timestamps. Normalize output to `{ text, words: [{word, start, end, confidence}] }` and save `Transcript`.
-3. **Metrics** (pure functions in `worker/src/metrics`, fully unit-tested):
+3. **Audio features** (`worker/src/audio`, best effort): the recording is decoded with ffmpeg to 16 kHz mono PCM; per 10 ms frame we measure loudness (dB) and, with the YIN algorithm, pitch. From that: real silences (adaptive threshold relative to the recording's own noise floor and speech level) and per-word loudness/pitch. If decoding fails or the recording is too noisy, metrics fall back to the transcript.
+4. **Metrics** (pure functions in `worker/src/metrics`, fully unit-tested):
    - `durationSec` (first word start → last word end) and `totalSec`
    - `wpm` (words / speaking minutes); target band 130–160 for conversational English
-   - `pauses`: gaps between words > 0.5 s; count, longest, list of `{start, durationSec}`; flag long pauses > 1.5 s
+   - `pauses`: silences ≥ 0.15 s, measured on the audio (STT word gaps as a fallback — STT timestamps are smoothed and hide comma-length pauses); each classified as `boundary` (at punctuation), `phrase` or `hesitation` (≥ 0.4 s mid-phrase, or next to a filler); count, longest, long pauses > 1.5 s, `longestRunSec` (speech without any pause; > 12 s = no time for the listener)
+   - `punctuation` (read-aloud, audio pauses only): commas / sentence ends in the reference text that got an audible pause (≥ 0.15 s / ≥ 0.3 s), and the ones read straight through
+   - `voice`: per-word pitch variation and range in semitones (monotone?), loudness variation in dB (emphasis?), pace variation between phrases, sentences that trail off — all relative to the speaker's own voice
+   - `language` (free speech): repeated 3-word phrases, restarts ("I I"), hedges ("I think", "kind of", "maybe")
    - `fillers`: count + rate per minute + positions (um, uh, erm, like*, you know, so*) — *context words counted only when Deepgram marks them as fillers or by simple heuristics; keep it conservative
    - `lowConfidenceWords`: words with confidence < 0.6 (proxy for unclear pronunciation)
    - `readAloud` (only for `read_aloud`): normalize both texts (lowercase, strip punctuation), word-level alignment (Levenshtein / LCS) → `accuracy %`, `missed[]`, `substituted[{expected, said}]`, `inserted[]`
-4. **Feedback** via Claude (`worker/src/feedback`):
+5. **Scores** (`worker/src/scoring.ts`): per-skill subscores 0–100 computed by rules from the metrics (pace, pauses/punctuation, fillers, voice, accuracy), plus `content` from the LLM (free speech only); `overallScore` = their weighted mean. The LLM no longer picks the overall score.
+6. **Feedback** via Claude (`worker/src/feedback`):
    - Input: exercise type/prompt, reference text (if any), transcript (with timestamps compacted), metrics JSON, user goal from onboarding (or from `FunnelSession.answers` for an anonymous funnel attempt).
    - Force structured output using **tool use with a JSON schema** (`tool_choice` forced to one tool `submit_feedback`). Validate with Zod `FeedbackSchema`; on failure retry once with the validation error appended; then fail the job.
    - Low temperature. System prompt stored in `feedback/prompt.ts` with `PROMPT_VERSION` constant. Use prompt caching for the static system prompt.
@@ -319,17 +324,21 @@ Retries: 3 attempts, exponential backoff. Idempotent: if the attempt is already 
        summary: string,                // 2–3 sentences, encouraging, specific
        strengths: string[] (1–3),
        issues: Array<{
-         category: "pace" | "pauses" | "fillers" | "clarity" | "accuracy" | "structure",
+         category: "pace" | "pauses" | "fillers" | "clarity" | "accuracy" | "structure" | "voice" | "content",
          severity: "low" | "medium" | "high",
          evidence: string,             // quote or timestamp from the transcript
          tip: string                   // one concrete, actionable fix
-       }> (max 4),
-       nextStep: string                // what to practice next
+       }> (max 6 — every measured problem, most important first),
+       nextStep: string,               // what to practice next
+       subscores?: Array<{ skill, score }> // added by the worker, not the LLM
      }
      ```
+     The model returns the same minus `overallScore`/`subscores`, plus `contentScore` (0–100, null for read-aloud).
+     ```ts
+     ```
    - Rule in the prompt: **only cite numbers that appear in the metrics JSON**; never invent measurements.
-5. Save `Analysis` (incl. `costUsdMicros` estimated from STT seconds + LLM input/output tokens using per-unit prices from env, and `latencyMs`). `status=completed`.
-6. On final failure: `status=failed`, `errorCode` (e.g. `STT_FAILED`, `NO_SPEECH`, `LLM_INVALID_OUTPUT`). If transcript has < 5 words → `NO_SPEECH` and a friendly message, no LLM call.
+7. Save `Analysis` (incl. `costUsdMicros` estimated from STT seconds + LLM input/output tokens using per-unit prices from env, and `latencyMs`). `status=completed`.
+8. On final failure: `status=failed`, `errorCode` (e.g. `STT_FAILED`, `NO_SPEECH`, `LLM_INVALID_OUTPUT`). If transcript has < 5 words → `NO_SPEECH` and a friendly message, no LLM call.
 
 ### 6.4 Pluggable providers (design only, implement Deepgram now)
 - `SttProvider` — Deepgram now; Whisper/AssemblyAI later.
@@ -505,6 +514,8 @@ The repo owner is preparing for technical interviews. After each milestone appen
 | Clerk | Auth is security-critical and solved; supports web + Expo | Own auth / Cognito / Better Auth if cost or control requires |
 | Deepgram | Fast, cheap, word timestamps + filler detection | Whisper (self-host) to cut cost at scale |
 | Claude via tool-use JSON | Reliable structured output, validated with Zod | Fine-tuned/own model later for scoring |
+| Rule-based overall score; LLM only scores content | The LLM's own 0–100 was lenient and inconsistent (a clean read-aloud got 95 → nothing to practice); rules are repeatable, explainable and tunable | A model trained on coach-rated recordings once we have labelled data |
+| Pitch/loudness/silence from the waveform (ffmpeg + YIN in TS) | STT timestamps are smoothed and say nothing about voice; one runtime, ~100 ms per recording | Praat/parselmouth in a Python service if we need formants, jitter/shimmer or accent analysis |
 | Paddle (MoR) | Handles global tax; available to Ukrainian sellers | Stripe if company entity is in a Stripe country |
 | ECS Fargate | Containers without managing servers; same images as local | Kubernetes (EKS) only with a platform team |
 
