@@ -1,0 +1,34 @@
+# deps
+node_modules/
+
+# build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# tooling
+.turbo/
+coverage/
+
+# env — never commit secrets (SPEC §0.7). Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# logs
+*.log
+
+# Prisma generated client (re-created by `prisma generate`, which runs in build/typecheck)
+packages/db/src/generated/
+
+# AWS CDK synth output
+cdk.out/

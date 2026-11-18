@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+pnpm-lock.yaml
+SPEC.md
+packages/db/src/generated
+packages/db/prisma/migrations
+cdk.out

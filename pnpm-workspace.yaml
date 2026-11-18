@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "infra/cdk"
+
+# pnpm 10 blocks dependency install scripts by default (supply-chain safety).
+# Allowlist only what we need:
+# - esbuild ships its native binary via postinstall (used by tsx & vitest)
+# - prisma / @prisma/engines download the schema engine used by `prisma migrate`
+onlyBuiltDependencies:
+  - esbuild
+  - prisma
+  - "@prisma/engines"
