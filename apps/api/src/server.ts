@@ -87,7 +87,12 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   setupErrorHandling(app);
 
   await app.register(helmet);
-  await app.register(cors, { origin: env.CORS_ORIGINS, credentials: true });
+  // @fastify/cors only allows GET/HEAD/POST by default; the web app also sends PUT and PATCH.
+  await app.register(cors, {
+    origin: env.CORS_ORIGINS,
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+  });
 
   // Global per-IP rate limit (SPEC §9), counted in Redis so it holds across all API instances.
   // Routes opt out with `config: { rateLimit: false }` (health checks, provider webhooks).

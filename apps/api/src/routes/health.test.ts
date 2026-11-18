@@ -30,6 +30,23 @@ function build(db: HealthCheck, redis: HealthCheck) {
   });
 }
 
+describe("CORS", () => {
+  it.each(["PUT", "PATCH"])("allows %s from the web origin in the preflight", async (method) => {
+    const app = await build(up, up);
+    const res = await app.inject({
+      method: "OPTIONS",
+      url: "/v1/funnel/sessions/current",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-method": method,
+      },
+    });
+    expect(res.statusCode).toBe(204);
+    expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
+    expect(String(res.headers["access-control-allow-methods"])).toContain(method);
+  });
+});
+
 describe("health routes", () => {
   it("GET /health is ok even when dependencies are down", async () => {
     const app = await build(down, down);
