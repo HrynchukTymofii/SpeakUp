@@ -81,6 +81,10 @@ ENV NODE_ENV=production \
 COPY --from=rds-ca /rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chmod=755 infra/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 WORKDIR /repo/packages/db
+# Prisma fetches its schema engine on first use, into node_modules. Do that now, as root, so the
+# unprivileged runtime user never needs to write there (it can't).
+RUN pnpm exec prisma version \
+    && chown -R node:node /repo/node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines
 USER node
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 # Default: apply pending migrations. Seed with the command `pnpm exec prisma db seed`.
