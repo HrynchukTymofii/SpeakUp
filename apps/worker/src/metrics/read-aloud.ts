@@ -1,11 +1,12 @@
 import type { ReadAloudMetrics } from "@speakup/shared";
 import { round } from "./normalize.js";
 
-type Op =
-  | { kind: "match"; expected: string }
-  | { kind: "sub"; expected: string; said: string }
-  | { kind: "missed"; expected: string }
-  | { kind: "inserted"; said: string };
+/** `ref` / `spoken` are the positions in the two token lists (for mapping back to words). */
+export type Op =
+  | { kind: "match"; expected: string; ref: number; spoken: number }
+  | { kind: "sub"; expected: string; said: string; ref: number; spoken: number }
+  | { kind: "missed"; expected: string; ref: number }
+  | { kind: "inserted"; said: string; spoken: number };
 
 const SUB = 3; // substitution cost (see below)
 const INDEL = 2; // missed or extra word
@@ -56,14 +57,19 @@ export function alignWords(reference: string[], spoken: string[]): Op[] {
     const expected = reference[i - 1] ?? "";
     const said = spoken[j - 1] ?? "";
     if (i > 0 && j > 0 && at(i, j) === at(i - 1, j - 1) + (expected === said ? 0 : SUB)) {
-      ops.push(expected === said ? { kind: "match", expected } : { kind: "sub", expected, said });
+      const pos = { ref: i - 1, spoken: j - 1 };
+      ops.push(
+        expected === said
+          ? { kind: "match", expected, ...pos }
+          : { kind: "sub", expected, said, ...pos },
+      );
       i--;
       j--;
     } else if (i > 0 && at(i, j) === at(i - 1, j) + INDEL) {
-      ops.push({ kind: "missed", expected });
+      ops.push({ kind: "missed", expected, ref: i - 1 });
       i--;
     } else {
-      ops.push({ kind: "inserted", said });
+      ops.push({ kind: "inserted", said, spoken: j - 1 });
       j--;
     }
   }

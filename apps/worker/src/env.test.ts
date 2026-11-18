@@ -16,6 +16,7 @@ describe("worker parseEnv", () => {
     expect(env.NODE_ENV).toBe("development");
     expect(env.ANTHROPIC_MODEL).toBe("claude-sonnet-5-5");
     expect(env.AWS_REGION).toBe("us-east-1");
+    expect(env.FFMPEG_PATH).toBe("ffmpeg");
   });
 
   it("treats empty prices and endpoint as unset", () => {
@@ -24,10 +25,12 @@ describe("worker parseEnv", () => {
       PRICE_STT_USD_PER_MIN: "",
       S3_ENDPOINT: "",
       ANTHROPIC_MODEL: "",
+      FFMPEG_PATH: "",
     });
     expect(env.PRICE_STT_USD_PER_MIN).toBe(0);
     expect(env.S3_ENDPOINT).toBeUndefined();
     expect(env.ANTHROPIC_MODEL).toBe("claude-sonnet-5-5");
+    expect(env.FFMPEG_PATH).toBe("ffmpeg");
   });
 
   it("parses prices as numbers", () => {

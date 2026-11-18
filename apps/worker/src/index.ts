@@ -1,6 +1,7 @@
 import { createDbClient } from "@speakup/db";
 import { ANALYSIS_QUEUE_NAME } from "@speakup/shared";
 import { Queue, UnrecoverableError, Worker } from "bullmq";
+import { createFfmpegDecoder } from "./audio/decode.js";
 import { cleanupFunnelSessions, createPrismaCleanupRepo } from "./cleanup.js";
 import { loadRootDotEnv, parseEnv } from "./env.js";
 import { PipelineError } from "./errors.js";
@@ -45,6 +46,7 @@ function main(): void {
     repo: createPrismaRepo(db),
     storage,
     stt: createDeepgramStt(env.DEEPGRAM_API_KEY),
+    decoder: createFfmpegDecoder(env.FFMPEG_PATH),
     llm: createClaudeSender({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL }),
     prices: {
       sttUsdPerMin: env.PRICE_STT_USD_PER_MIN,

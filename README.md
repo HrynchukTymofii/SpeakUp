@@ -82,8 +82,13 @@ The worker needs two API keys in `.env` (it exits at startup with a clear error 
 Deepgram downloads each recording through a 10-minute pre-signed S3 link, so this needs the
 real S3 bucket (it can't reach LocalStack on your machine).
 
-Flow: record → `/results/<attemptId>` polls every 1.5 s → worker runs Deepgram → metrics →
-Claude → the report appears.
+The worker also needs **ffmpeg** to analyze the voice (pitch, loudness, real pauses). Install it
+locally (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpeg`) or point
+`FFMPEG_PATH` at the binary. Without it, analyses still complete with transcript-only metrics
+(a warning is logged per job). The Docker image ships it.
+
+Flow: record → `/results/<attemptId>` polls every 1.5 s → worker runs Deepgram → decodes the
+audio (ffmpeg) → metrics + scores → Claude → the report appears.
 
 ### Web funnel (`/start`)
 

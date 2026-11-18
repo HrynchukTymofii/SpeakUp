@@ -51,6 +51,18 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 FROM node:22-bookworm-slim AS rds-ca
 ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /rds-global-bundle.pem
 
+# ── extra binaries per app (/tools → /usr/local/bin) ─────────────────────────
+# The worker decodes recordings with ffmpeg (pitch / loudness / pause analysis). A static
+# build pinned by digest: one 135 MB file, vs ~630 MB for Debian's ffmpeg and its graphics
+# libraries. Picking the stage by APP keeps it out of the API image.
+FROM mwader/static-ffmpeg:7.1.1@sha256:11a44711684c0b9f754c047dcd64235b8b52deab251bd0e0a86f22faa160749c AS static-ffmpeg
+FROM node:22-bookworm-slim AS tools-worker
+COPY --from=static-ffmpeg /ffmpeg /tools/ffmpeg
+FROM node:22-bookworm-slim AS tools-api
+RUN mkdir /tools
+FROM tools-api AS tools-db
+FROM tools-${APP} AS tools
+
 # ── 4a. runtime image for api / worker ───────────────────────────────────────
 FROM node:22-bookworm-slim AS runtime
 ARG APP
@@ -58,6 +70,7 @@ ENV NODE_ENV=production \
     NODE_EXTRA_CA_CERTS=/etc/ssl/certs/rds-global-bundle.pem
 COPY --from=rds-ca /rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chmod=755 infra/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --from=tools /tools/ /usr/local/bin/
 WORKDIR /app
 COPY --from=prod-deps /repo/ ./
 COPY --from=build /repo/packages/shared/dist ./packages/shared/dist

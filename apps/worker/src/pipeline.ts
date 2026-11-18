@@ -1,5 +1,7 @@
-import { AnalysisErrorCode, AnalyzeJobDataSchema } from "@speakup/shared";
+import { AnalysisErrorCode, AnalyzeJobDataSchema, type Feedback } from "@speakup/shared";
 import type { Logger } from "pino";
+import type { AudioDecoder } from "./audio/decode.js";
+import { extractFeatures, type AudioFeatures } from "./audio/features.js";
 import { PipelineError } from "./errors.js";
 import { estimateCostUsdMicros, type Prices } from "./feedback/cost.js";
 import type { SendToLlm } from "./feedback/claude.js";
@@ -8,6 +10,7 @@ import { PROMPT_VERSION } from "./feedback/prompt.js";
 import { computeMetrics } from "./metrics/index.js";
 import type { SttProvider } from "./providers/stt.js";
 import type { AnalysisRepo } from "./repo.js";
+import { computeSubscores, overallScore, toSubscoreList } from "./scoring.js";
 import type { AudioStorage } from "./storage.js";
 
 /** Fewer real words than this = nothing to give feedback on (SPEC §6.3) → NO_SPEECH, no LLM call. */
@@ -17,6 +20,8 @@ export interface PipelineDeps {
   repo: AnalysisRepo;
   storage: AudioStorage;
   stt: SttProvider;
+  /** Optional on purpose: without it (or when it fails) metrics come from the transcript only. */
+  decoder?: AudioDecoder;
   llm: SendToLlm;
   prices: Prices;
 }
@@ -27,7 +32,7 @@ export interface JobContext {
 }
 
 /**
- * One `analyze` job (SPEC §6.3): STT → metrics → feedback → save.
+ * One `analyze` job (SPEC §6.3): STT → audio features → metrics → scores → feedback → save.
  *
  * Idempotent: BullMQ may run a job again (retry, worker crash, stalled job), so
  * - an attempt that is already `completed` is skipped,
@@ -72,36 +77,53 @@ export async function runAnalysis(
       log.info({ attemptId, words: stt.words.length, ms: Date.now() - startedAt }, "transcribed");
     }
 
-    // 2. Metrics (pure, instant).
+    // 2. Audio features (pitch, loudness, real silences). Best effort: a failure here costs
+    //    detail, not the whole analysis — metrics fall back to the transcript.
+    const audio = await audioFeatures(deps, attempt.audioKey, transcript.words, log, attemptId);
+
+    // 3. Metrics (pure, instant).
+    const exerciseType = attempt.exercise.type;
     const metrics = computeMetrics({
       words: transcript.words,
       totalSec,
-      referenceText: attempt.exercise.type === "read_aloud" ? attempt.exercise.referenceText : null,
+      referenceText: exerciseType === "read_aloud" ? attempt.exercise.referenceText : null,
+      audio,
     });
     if (metrics.wordCount < MIN_WORDS) {
       throw new PipelineError(AnalysisErrorCode.NO_SPEECH, "Too few words to analyze", false);
     }
 
-    // 3. Feedback from the LLM.
+    // 4. Scores we compute ourselves, then feedback (+ the content score) from the LLM.
+    const subscores = computeSubscores(metrics, exerciseType);
     const result = await generateFeedback(deps.llm, {
       exercise: attempt.exercise,
       goal: attempt.goal,
       metrics,
+      subscores: Object.fromEntries(
+        Object.entries(subscores).map(([skill, score]) => [skill, Math.round(score)]),
+      ),
       words: transcript.words,
     });
+    const { contentScore, ...shown } = result.output;
+    if (exerciseType === "free_speech" && contentScore !== null) subscores.content = contentScore;
+    const feedback: Feedback = {
+      ...shown,
+      overallScore: overallScore(subscores, exerciseType),
+      subscores: toSubscoreList(subscores),
+    };
 
-    // 4. Save. The cost estimate includes STT even when it was paid in an earlier run.
+    // 5. Save. The cost estimate includes STT even when it was paid in an earlier run.
     const latencyMs = Date.now() - startedAt;
     await repo.complete(attemptId, {
       metrics,
-      feedback: result.feedback,
+      feedback,
       llmModel: result.model,
       promptVersion: PROMPT_VERSION,
       costUsdMicros: estimateCostUsdMicros(deps.prices, totalSec, result.usage),
       latencyMs,
     });
     log.info(
-      { attemptId, latencyMs, score: result.feedback.overallScore, model: result.model },
+      { attemptId, latencyMs, score: feedback.overallScore, model: result.model },
       "analysis completed",
     );
   } catch (err) {
@@ -113,5 +135,31 @@ export async function runAnalysis(
       log.warn({ attemptId, code, err: (err as Error).message }, "analysis failed");
     }
     throw err; // the caller (BullMQ) decides whether to retry
+  }
+}
+
+async function audioFeatures(
+  deps: PipelineDeps,
+  audioKey: string,
+  words: Parameters<typeof extractFeatures>[1],
+  log: Logger,
+  attemptId: string,
+): Promise<AudioFeatures | null> {
+  if (!deps.decoder) return null;
+  const startedAt = Date.now();
+  try {
+    const samples = await deps.decoder.decode(await deps.storage.getDownloadUrl(audioKey));
+    const features = extractFeatures(samples, words);
+    log.info(
+      { attemptId, reliable: features.reliable, ms: Date.now() - startedAt },
+      "audio analyzed",
+    );
+    return features;
+  } catch (err) {
+    log.warn(
+      { attemptId, err: (err as Error).message },
+      "audio analysis failed, using transcript only",
+    );
+    return null;
   }
 }
