@@ -22,9 +22,9 @@
     "db:reset": "pnpm --filter @speakup/db migrate:reset",
     "db:seed": "pnpm --filter @speakup/db seed",
     "db:studio": "pnpm --filter @speakup/db studio",
-    "cdk:synth": "pnpm --filter @speakup/infra synth",
-    "cdk:diff": "pnpm --filter @speakup/infra diff",
-    "cdk:deploy": "pnpm --filter @speakup/infra deploy"
+    "cdk:synth": "pnpm --filter @speakup/infra run synth",
+    "cdk:diff": "pnpm --filter @speakup/infra run diff",
+    "cdk:deploy": "pnpm --filter @speakup/infra run deploy"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
