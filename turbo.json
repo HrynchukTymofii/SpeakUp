@@ -4,6 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["NEXT_PUBLIC_*", "CLERK_SECRET_KEY"],
       "outputs": ["dist/**", "src/generated/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
