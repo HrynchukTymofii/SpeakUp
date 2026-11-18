@@ -1,0 +1,12 @@
+{
+  // Build config: same as tsconfig.json but without test files in the output.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Incremental: tsc remembers what it emitted, so `tsc --watch` in `pnpm dev` doesn't
+    // rewrite every dist file on start (which made api/worker restart mid-boot and hang).
+    // Stored inside dist/ so deleting dist also forces a full rebuild.
+    "incremental": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "exclude": ["src/**/*.test.ts"]
+}
