@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Outfit } from "next/font/google";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
+import { Mascot } from "@/components/mascot";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -71,8 +72,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
                 <Link
                   href="/"
-                  className="font-display text-[22px] font-semibold tracking-tight text-ink"
+                  className="flex items-center gap-2 font-display text-[22px] font-semibold tracking-tight text-ink"
                 >
+                  <Mascot size={30} />
                   speakup
                 </Link>
                 <nav className="flex items-center gap-2 text-sm">

@@ -204,3 +204,156 @@
     animation: none;
   }
 }
+
+/* Mascot (components/mascot.tsx): gentle idle motion, livelier per mood. */
+.mascot * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes mascot-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-6px) scale(1.02, 0.98);
+  }
+}
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes mascot-glow {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+@keyframes mascot-wave {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+}
+@keyframes mascot-talk {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.55);
+  }
+}
+@keyframes mascot-glance {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(2px, -1.5px);
+  }
+}
+@keyframes mascot-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes mascot-sparkle {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.7) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1) rotate(20deg);
+  }
+}
+.mascot-bob {
+  animation: mascot-bob 4.2s ease-in-out infinite;
+}
+.mascot-happy .mascot-bob {
+  animation: mascot-bounce 1.1s ease-in-out infinite;
+}
+.mascot-listening .mascot-bob {
+  animation-duration: 2.2s;
+}
+.mascot-glow {
+  animation: mascot-glow 4.4s ease-in-out infinite;
+}
+.mascot-listening .mascot-glow {
+  animation-duration: 1.3s;
+}
+.mascot-blink {
+  animation: mascot-blink 5.5s infinite;
+}
+.mascot-wave {
+  animation: mascot-wave 1.4s ease-out infinite;
+}
+.mascot-wave-2 {
+  animation-delay: 0.35s;
+}
+.mascot-mouth-talk {
+  animation: mascot-talk 0.9s ease-in-out infinite;
+}
+.mascot-glance {
+  animation: mascot-glance 2.4s ease-in-out infinite;
+}
+.mascot-dot {
+  animation: mascot-dot 1.2s ease-in-out infinite;
+}
+.mascot-dot-2 {
+  animation-delay: 0.2s;
+}
+.mascot-dot-3 {
+  animation-delay: 0.4s;
+}
+.mascot-sparkle {
+  animation: mascot-sparkle 1.6s ease-in-out infinite;
+}
+.mascot-sparkle-2 {
+  animation-delay: 0.5s;
+}
+.mascot-sparkle-3 {
+  animation-delay: 0.9s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot,
+  .mascot * {
+    animation: none !important;
+  }
+}
