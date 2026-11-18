@@ -3,6 +3,7 @@
 import { ErrorCode, FUNNEL_MAX_RECORDING_SEC } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { Mascot, type MascotMood } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { uploadToS3 } from "@/lib/upload";
 import { useRecorder, type Recording } from "@/lib/use-recorder";
@@ -73,6 +74,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
   if (alreadyDone) {
     return (
       <div className="flex flex-1 flex-col gap-6">
+        <Mascot mood="happy" size={104} className="-ml-2" />
         <StepHeading title="Your recording is in ✓" subtitle="We’re analyzing it now." />
         <ContinueButton onClick={() => onNext()} />
       </div>
@@ -105,39 +107,50 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
 
   const { state } = recorder;
   const text = exercise.data?.exercise.referenceText;
+  const mood: MascotMood =
+    state.kind === "recording" || countdown !== null
+      ? "listening"
+      : state.kind === "recorded"
+        ? "happy"
+        : "idle";
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <StepHeading
-        title="Read this out loud"
-        subtitle={`At your normal pace. Up to ${maxSec} seconds.`}
-      />
+      <div className="flex items-center gap-3">
+        <Mascot mood={mood} size={72} className="-ml-1" />
+        <StepHeading
+          title="Read this out loud"
+          subtitle={`At your normal pace. Up to ${maxSec} seconds.`}
+        />
+      </div>
 
-      <Card className="bg-slate-50 text-lg leading-relaxed text-slate-800">
+      <Card className="border-0 bg-butter text-lg leading-relaxed font-medium text-on-pastel">
         {exercise.isPending
           ? "Loading…"
           : (text ?? "Couldn’t load the text. Please reload the page.")}
       </Card>
 
       <div aria-live="polite" className="flex min-h-16 flex-col items-center justify-center gap-2">
-        {countdown !== null && <p className="text-6xl font-bold tabular-nums">{countdown}</p>}
-        {state.kind === "requesting" && <p className="text-slate-600">Starting microphone…</p>}
+        {countdown !== null && (
+          <p className="font-display text-7xl font-semibold text-peach tabular-nums">{countdown}</p>
+        )}
+        {state.kind === "requesting" && <p className="text-muted">Starting microphone…</p>}
         {state.kind === "recording" && (
           <>
-            <p className="flex items-center gap-2 font-medium text-red-700">
-              <span className="size-2.5 animate-pulse rounded-full bg-red-600" aria-hidden />
+            <p className="flex items-center gap-2 font-bold text-ink tabular-nums">
+              <span className="size-2.5 animate-pulse rounded-full bg-danger" aria-hidden />
               {formatSeconds(state.elapsedMs)} / {formatSeconds(maxSec * 1000)}
             </p>
             <LevelMeter getLevel={recorder.getLevel} />
           </>
         )}
         {state.kind === "recorded" && (
-          <audio controls src={state.recording.url} className="w-full">
+          <audio controls src={state.recording.url} className="w-full rounded-full">
             <track kind="captions" />
           </audio>
         )}
         {(state.kind === "denied" || state.kind === "unsupported" || state.kind === "error") && (
-          <p role="alert" className="text-center text-red-700">
+          <p role="alert" className="text-center font-medium text-danger">
             {state.kind === "denied"
               ? "Microphone access is blocked. Allow it in your browser settings, then try again."
               : state.kind === "unsupported"
@@ -146,7 +159,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
           </p>
         )}
         {error && (
-          <p role="alert" className="text-center text-red-700">
+          <p role="alert" className="text-center font-medium text-danger">
             {error}
           </p>
         )}
@@ -176,7 +189,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
                 recorder.reset();
                 setError(null);
               }}
-              className="py-2 text-sm font-medium text-slate-600 underline-offset-4 hover:underline disabled:opacity-40"
+              className="py-2 text-sm font-bold text-muted underline-offset-4 hover:text-ink hover:underline disabled:opacity-40"
             >
               Record again
             </button>
@@ -214,11 +227,11 @@ function LevelMeter({ getLevel }: { getLevel: () => number }) {
     return () => cancelAnimationFrame(raf);
   }, [getLevel]);
   return (
-    <div ref={barsRef} className="flex h-6 items-end gap-1" aria-hidden>
+    <div ref={barsRef} className="flex h-8 items-end gap-1" aria-hidden>
       {Array.from({ length: 12 }, (_, i) => (
         <span
           key={i}
-          className="w-1.5 rounded-full bg-emerald-600 transition-opacity"
+          className="w-1.5 rounded-full bg-peach transition-opacity"
           style={{ height: `${30 + i * 6}%`, opacity: 0.2 }}
         />
       ))}

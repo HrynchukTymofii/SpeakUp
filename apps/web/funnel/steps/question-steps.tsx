@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Mascot } from "@/components/mascot";
 import { publicEnv } from "@/lib/env";
 import { track } from "../analytics";
 import { useFunnelStore } from "../store";
-import { Card, ContinueButton, OptionButton, StepHeading } from "../ui";
+import { Card, ContinueButton, OptionButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
 
 /** Tiny haptic tick on phones that support it (like the reference funnel). */
@@ -81,8 +82,11 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
   return (
     <div className="flex flex-1 flex-col gap-8">
       <StepHeading title={step.title} />
-      <div className="flex flex-col gap-3">
-        <p className="text-center text-5xl font-semibold tabular-nums" aria-hidden>
+      <Card className="flex flex-col gap-4 py-7">
+        <p
+          className="text-center font-display text-7xl leading-none font-semibold text-peach tabular-nums"
+          aria-hidden
+        >
           {value}
         </p>
         <input
@@ -94,13 +98,13 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
           onChange={(e) => setValue(Number(e.target.value))}
           aria-label={step.title}
           aria-valuetext={`${value} out of 5`}
-          className="w-full accent-slate-900"
+          className="h-2 w-full cursor-pointer accent-peach"
         />
-        <div className="flex justify-between text-sm text-slate-500">
+        <div className="flex justify-between text-sm font-semibold text-muted">
           <span>{step.lowLabel}</span>
           <span>{step.highLabel}</span>
         </div>
-      </div>
+      </Card>
       <ContinueButton
         onClick={() => {
           track("funnel_answer", { step: step.id, value });
@@ -118,11 +122,11 @@ export function ReflectionStep({ step, ctx, onNext }: StepProps<"reflection">) {
   return (
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex flex-1 flex-col justify-center gap-4 py-8">
-        <div aria-hidden className="text-4xl">
-          💬
-        </div>
-        <h1 className="text-2xl leading-tight font-semibold text-balance">{title}</h1>
-        <p className="text-lg text-slate-600">{body}</p>
+        <Mascot mood="happy" size={112} className="-ml-2" />
+        <h1 className="font-display text-[30px] leading-[1.1] font-semibold text-balance">
+          {title}
+        </h1>
+        <p className="text-lg leading-relaxed text-muted">{body}</p>
       </div>
       <ContinueButton
         onClick={() => {
@@ -166,19 +170,18 @@ export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
           playsInline
           preload="metadata"
           onEnded={() => setUnlocked(true)}
-          className="aspect-video w-full rounded-2xl bg-black"
+          className="aspect-video w-full rounded-3xl bg-black shadow-soft"
         />
       ) : (
-        <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">
+        <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-3xl border border-line bg-card text-sm font-semibold text-muted">
+          <Mascot mood="thinking" size={64} />
           Video coming soon
         </div>
       )}
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {step.takeaways.map((t) => (
-          <li key={t} className="flex gap-2 text-slate-700">
-            <span aria-hidden className="text-emerald-600">
-              ✓
-            </span>
+          <li key={t} className="flex gap-3 text-ink/90">
+            <Tick />
             {t}
           </li>
         ))}
@@ -237,23 +240,24 @@ export function MicPermissionStep({ step, onNext }: StepProps<"mic_permission">)
 
   return (
     <div className="flex flex-1 flex-col gap-6">
+      <Mascot mood="listening" size={104} className="-ml-2" />
       <StepHeading
         title="Next: a 45-second speaking check"
         subtitle="You’ll read a short paragraph out loud. We need your microphone to record it."
       />
-      <Card className="flex flex-col gap-2 bg-slate-50">
-        <p className="font-medium">🔒 Your recording is private</p>
-        <p className="text-sm text-slate-600">
+      <Card className="flex flex-col gap-1.5 border-0 bg-sky text-on-pastel">
+        <p className="font-bold">🔒 Your recording is private</p>
+        <p className="text-sm text-on-pastel-muted">
           It’s used only to analyze your speaking, and it’s deleted if you don’t create an account.
         </p>
       </Card>
       {state === "denied" && (
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="font-medium text-danger">
           Microphone access is blocked. {micHelp()}
         </p>
       )}
       {state === "unsupported" && (
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="font-medium text-danger">
           We couldn’t find a microphone, or this browser can’t record audio. Try a recent Chrome,
           Safari, Firefox or Edge.
         </p>

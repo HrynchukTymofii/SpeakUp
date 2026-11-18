@@ -142,12 +142,12 @@ export function FunnelShell({ stepId }: { stepId: string }) {
             onClick={goBack}
             disabled={!canGoBack}
             aria-label="Back"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-lg text-slate-700 hover:bg-slate-100 disabled:invisible"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-lg text-ink transition-colors hover:bg-card-2 disabled:invisible"
           >
             ←
           </button>
           <div
-            className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"
+            className="h-2 flex-1 overflow-hidden rounded-full bg-card-2"
             role="progressbar"
             aria-label="Progress"
             aria-valuemin={0}
@@ -155,7 +155,7 @@ export function FunnelShell({ stepId }: { stepId: string }) {
             aria-valuenow={Math.round(progressOf(steps, step) * 100)}
           >
             <div
-              className="h-full rounded-full bg-slate-900 transition-[width] duration-500 ease-out"
+              className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width] duration-500 ease-out"
               style={{ width: `${progressOf(steps, step) * 100}%` }}
             />
           </div>

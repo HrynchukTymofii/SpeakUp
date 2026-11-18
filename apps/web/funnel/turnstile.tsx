@@ -13,6 +13,7 @@ interface TurnstileApi {
       "expired-callback": () => void;
       "error-callback": () => void;
       appearance?: "always" | "execute" | "interaction-only";
+      theme?: "light" | "dark" | "auto";
       action?: string;
     },
   ): string;
@@ -67,6 +68,7 @@ export function Turnstile({ onToken }: { onToken: (token: string | null) => void
         widgetId = window.turnstile.render(ref.current, {
           sitekey: publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
           appearance: "interaction-only",
+          theme: "dark", // matches the app's black theme when the checkbox does show
           action: "funnel-recording",
           callback: (token) => onTokenRef.current(token),
           "expired-callback": () => onTokenRef.current(null),

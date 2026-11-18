@@ -4,6 +4,7 @@ import { SignUp, useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect } from "react";
+import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
@@ -59,7 +60,7 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
     if (isLoaded && isSignedIn && guestToken && !claimed && isIdle) mutate();
   }, [isLoaded, isSignedIn, guestToken, claimed, isIdle, mutate]);
 
-  if (!isLoaded) return <p className="text-slate-500">Loading…</p>;
+  if (!isLoaded) return <p className="text-muted">Loading…</p>;
 
   if (isSignedIn) {
     if (claim.isError) {
@@ -76,34 +77,39 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
             }
           />
           {!otherAccount && (
-            <button
-              type="button"
-              onClick={() => claim.reset()}
-              className="w-fit rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white"
-            >
+            <button type="button" onClick={() => claim.reset()} className="btn btn-primary w-fit">
               Try again
             </button>
           )}
-          <Link href="/app" className="text-sm text-slate-600 underline">
+          <Link href="/app" className="link text-sm font-bold underline">
             Go to the dashboard
           </Link>
         </div>
       );
     }
-    return <p className="text-slate-600">Preparing your results…</p>;
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-muted">
+        <Mascot mood="thinking" size={96} />
+        Preparing your results…
+      </div>
+    );
   }
 
   const stage = status.data?.attempt.stage;
   return (
     <div className="flex flex-col gap-5">
+      <Mascot mood={stage === "completed" ? "happy" : "thinking"} size={96} className="-ml-2" />
       <StepHeading
         title="Your analysis is being prepared"
         subtitle="Create a free account to see your results."
       />
-      <p aria-live="polite" className="flex items-center gap-2 text-sm text-slate-600">
+      <p
+        aria-live="polite"
+        className="flex w-fit items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-sm font-semibold text-muted"
+      >
         <span
           aria-hidden
-          className={`size-2 rounded-full ${stage === "completed" ? "bg-emerald-600" : "animate-pulse bg-amber-500"}`}
+          className={`size-2 rounded-full ${stage === "completed" ? "bg-sage" : "animate-pulse bg-butter"}`}
         />
         {STAGE_TEXT[stage ?? "queued"]}
       </p>

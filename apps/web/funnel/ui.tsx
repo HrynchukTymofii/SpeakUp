@@ -7,8 +7,10 @@ import type { ReactNode } from "react";
 export function StepHeading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="text-2xl leading-tight font-semibold text-balance">{title}</h1>
-      {subtitle && <p className="text-slate-600">{subtitle}</p>}
+      <h1 className="font-display text-[28px] leading-[1.1] font-semibold text-balance text-ink">
+        {title}
+      </h1>
+      {subtitle && <p className="text-base leading-relaxed text-muted">{subtitle}</p>}
     </div>
   );
 }
@@ -33,18 +35,18 @@ export function OptionButton({
       onClick={onClick}
       aria-pressed={multi ? selected : undefined}
       style={{ animationDelay: `${index * 40}ms` }}
-      className={`funnel-option flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-4 text-left text-base font-medium transition-colors ${
+      className={`funnel-option flex min-h-15 w-full items-center justify-between gap-3 rounded-[20px] border-[1.5px] px-5 py-4 text-left text-base font-bold transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] ${
         selected
-          ? "border-slate-900 bg-slate-900 text-white"
-          : "border-slate-200 bg-white text-slate-900 hover:border-slate-400"
+          ? "border-peach bg-peach text-on-pastel shadow-peach"
+          : "border-line bg-card text-ink hover:border-line-2 hover:bg-card-2"
       }`}
     >
       <span>{label}</span>
       {multi && (
         <span
           aria-hidden
-          className={`flex size-5 shrink-0 items-center justify-center rounded-md border text-xs ${
-            selected ? "border-white bg-white text-slate-900" : "border-slate-300"
+          className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-xs font-extrabold ${
+            selected ? "border-on-pastel bg-on-pastel text-peach" : "border-line-2"
           }`}
         >
           {selected ? "✓" : ""}
@@ -65,12 +67,12 @@ export function ContinueButton({
   children?: ReactNode;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-4 mt-auto bg-gradient-to-t from-white via-white to-white/0 px-4 pt-6 pb-4">
+    <div className="sticky bottom-0 -mx-4 mt-auto bg-gradient-to-t from-page via-page to-page/0 px-4 pt-6 pb-4">
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="w-full rounded-xl bg-slate-900 px-4 py-4 text-base font-semibold text-white transition-opacity hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="btn btn-primary min-h-14 w-full text-[17px]"
       >
         {children}
       </button>
@@ -79,5 +81,22 @@ export function ContinueButton({
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-slate-200 p-5 ${className}`}>{children}</div>;
+  // A caller's own background (e.g. a pastel) replaces the default card surface + border;
+  // two bg-* utilities on one element would fight over CSS order.
+  const surface = /(^|\s)bg-/.test(className) ? "" : "border border-line bg-card";
+  return <div className={`rounded-3xl p-5 shadow-soft-sm ${surface} ${className}`}>{children}</div>;
+}
+
+/** Check mark bullet used in feature / takeaway lists. */
+export function Tick({ tone = "sage" }: { tone?: "sage" | "peach" }) {
+  return (
+    <span
+      aria-hidden
+      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-on-pastel ${
+        tone === "sage" ? "bg-sage" : "bg-peach"
+      }`}
+    >
+      ✓
+    </span>
+  );
 }

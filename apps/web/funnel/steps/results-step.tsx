@@ -3,6 +3,7 @@
 import { AnalysisErrorCode, type AttemptResult } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { Mascot } from "@/components/mascot";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
 import { useFunnelStore } from "../store";
@@ -73,6 +74,7 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
     const noSpeech = data.attempt.errorCode === AnalysisErrorCode.NO_SPEECH;
     return (
       <div className="flex flex-1 flex-col gap-5">
+        <Mascot mood="thinking" size={104} className="-ml-2" />
         <StepHeading
           title="We couldn’t analyze your recording"
           subtitle={
@@ -91,11 +93,12 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
     const stageIndex = data?.stage === "analyzing" ? 2 : 0;
     return (
       <div className="flex flex-1 flex-col gap-6">
+        <Mascot mood="thinking" size={112} className="-ml-2" />
         <StepHeading
           title="Analyzing your speaking…"
           subtitle="This usually takes a few seconds."
         />
-        <ol className="flex flex-col gap-3" aria-live="polite">
+        <ol className="card flex flex-col gap-3.5" aria-live="polite">
           {STAGES.map((label, i) => {
             const done = i < stageIndex;
             const active = i === stageIndex;
@@ -103,17 +106,19 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
               <li key={label} className="flex items-center gap-3">
                 <span
                   aria-hidden
-                  className={`flex size-6 items-center justify-center rounded-full text-xs ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
                     done
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-sage text-on-pastel"
                       : active
-                        ? "animate-pulse bg-slate-900 text-white"
-                        : "bg-slate-200"
+                        ? "animate-pulse bg-peach"
+                        : "border-[1.5px] border-line-2"
                   }`}
                 >
                   {done ? "✓" : ""}
                 </span>
-                <span className={active ? "font-medium" : "text-slate-500"}>{label}</span>
+                <span className={active ? "font-bold text-ink" : done ? "text-ink" : "text-muted"}>
+                  {label}
+                </span>
               </li>
             );
           })}
@@ -140,14 +145,15 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="flex flex-col items-center gap-1 py-2">
-        <p className="text-sm text-slate-500">Your speaking score</p>
+        <Mascot mood="happy" size={96} />
+        <p className="eyebrow mt-1">Your speaking score</p>
         <p
-          className="text-6xl font-bold tabular-nums"
+          className="font-display text-7xl leading-none font-semibold text-peach tabular-nums"
           aria-label={`${result.overallScore} out of 100`}
         >
           {score}
         </p>
-        <p className="text-sm text-slate-500">out of 100</p>
+        <p className="text-sm font-medium text-muted">out of 100</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -161,18 +167,20 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
       </div>
 
       {strength && (
-        <Card className="bg-emerald-50">
-          <p className="text-sm font-medium text-emerald-900">What went well</p>
-          <p className="text-emerald-900">{strength}</p>
+        <Card className="flex flex-col gap-1 border-0 bg-sage text-on-pastel">
+          <p className="text-xs font-extrabold tracking-[0.12em] text-on-pastel-muted uppercase">
+            What went well
+          </p>
+          <p className="font-medium">{strength}</p>
         </Card>
       )}
 
       {issues.map((issue, i) => (
         <Card key={i} className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-slate-500">To work on</p>
-          <p className="text-slate-600 italic">{issue.evidence}</p>
+          <p className="eyebrow">To work on</p>
+          <p className="text-muted italic">{issue.evidence}</p>
           <p>
-            <span className="font-medium">Try this: </span>
+            <span className="font-bold text-peach">Try this: </span>
             {issue.tip}
           </p>
         </Card>
@@ -185,10 +193,10 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
 
 function Metric({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-slate-500">{hint}</p>
+    <div className="rounded-[20px] border border-line bg-card px-2 py-3">
+      <p className="text-xs font-bold text-muted">{label}</p>
+      <p className="font-display text-3xl font-semibold tabular-nums">{value}</p>
+      <p className="text-[11px] leading-tight text-muted">{hint}</p>
     </div>
   );
 }
