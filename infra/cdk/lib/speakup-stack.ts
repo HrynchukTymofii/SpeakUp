@@ -155,6 +155,30 @@ export class SpeakUpStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN, // user recordings outlive the stack
     });
 
+    // ── S3: public media ───────────────────────────────────────────────────────────────
+    // Marketing assets anyone may watch (funnel / lesson videos), uploaded by hand. Kept apart
+    // from the recordings bucket so that one can never be made public by mistake. Only objects
+    // under media/ are readable; nothing can list the bucket.
+    const media = new s3.Bucket(this, "Media", {
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: true,
+        ignorePublicAcls: true,
+        blockPublicPolicy: false,
+        restrictPublicBuckets: false,
+      }),
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    media.addToResourcePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:GetObject"],
+        principals: [new iam.AnyPrincipal()],
+        resources: [media.arnForObjects("media/*")],
+      }),
+    );
+
     // ── App secrets ────────────────────────────────────────────────────────────────────
     // Created once by hand (README "Deploy"), so no API key ever appears in CloudFormation
     // templates or in git. ECS injects each JSON field as an env var when a task starts.
@@ -365,6 +389,12 @@ export class SpeakUpStack extends cdk.Stack {
       description: "Point your API domain (CNAME) here; NEXT_PUBLIC_API_URL uses that domain",
     });
     new cdk.CfnOutput(this, "RecordingsBucket", { value: bucket.bucketName });
+    new cdk.CfnOutput(this, "MediaBaseUrl", {
+      value: `https://${media.bucketRegionalDomainName}/media/`,
+      description:
+        "Public files: upload to s3://<MediaBucket>/media/<name>, link = this URL + <name>",
+    });
+    new cdk.CfnOutput(this, "MediaBucket", { value: media.bucketName });
     new cdk.CfnOutput(this, "DbSecretName", { value: "speakup/db" });
     const subnets = vpc.selectSubnets(appSubnets).subnetIds.join(",");
     new cdk.CfnOutput(this, "MigrateCommand", {

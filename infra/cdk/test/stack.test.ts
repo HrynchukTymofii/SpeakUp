@@ -89,6 +89,34 @@ describe("SpeakUp stack", () => {
     template.hasResource("AWS::S3::Bucket", { DeletionPolicy: "Retain" });
   });
 
+  it("makes only media/* of the media bucket public, read-only", () => {
+    const policies = Object.values(template.findResources("AWS::S3::BucketPolicy"));
+    const publicStatements = policies
+      .flatMap(
+        (p) =>
+          (p as { Properties: { PolicyDocument: { Statement: Record<string, unknown>[] } } })
+            .Properties.PolicyDocument.Statement,
+      )
+      .filter(
+        (s) =>
+          s.Effect === "Allow" &&
+          s.Principal !== undefined &&
+          JSON.stringify(s.Principal).includes('"*"'),
+      );
+    expect(publicStatements).toHaveLength(1);
+    expect(publicStatements[0]?.Action).toBe("s3:GetObject");
+    expect(JSON.stringify(publicStatements[0]?.Resource)).toContain("/media/*");
+    // the recordings bucket still blocks everything public (asserted above); exactly one bucket opens up
+    const buckets = Object.values(template.findResources("AWS::S3::Bucket")) as {
+      Properties: { PublicAccessBlockConfiguration?: { BlockPublicPolicy?: boolean } };
+    }[];
+    expect(
+      buckets.filter(
+        (b) => b.Properties.PublicAccessBlockConfiguration?.BlockPublicPolicy === false,
+      ),
+    ).toHaveLength(1);
+  });
+
   it("passes API keys as ECS secrets, never as plain environment variables", () => {
     for (const [name, secretKeys] of [
       ["api", ["DB_SECRET", "CLERK_SECRET_KEY", "PADDLE_API_KEY", "IP_HASH_SECRET"]],
