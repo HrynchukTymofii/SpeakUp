@@ -170,7 +170,7 @@ export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
           playsInline
           preload="metadata"
           onEnded={() => setUnlocked(true)}
-          className="aspect-video w-full rounded-3xl bg-black shadow-soft"
+          className="aspect-square w-full rounded-3xl bg-black shadow-soft"
         />
       ) : (
         <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-3xl border border-line bg-card text-sm font-semibold text-muted">

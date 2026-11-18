@@ -18,8 +18,12 @@ const PublicEnvSchema = z.object({
     emptyAsUndefined,
     z.string().default(TURNSTILE_TEST_SITE_KEY),
   ),
-  // (M5.5) The funnel's mini-lesson video. Empty → a placeholder is shown.
-  NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL: z.preprocess(emptyAsUndefined, z.url().optional()),
+  // (M5.5) The funnel's mini-lesson video: a full URL, or a path under apps/web/public.
+  // Empty → the bundled video (made in the separate SpeakUp-videos Remotion project).
+  NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL: z.preprocess(
+    emptyAsUndefined,
+    z.union([z.url(), z.string().regex(/^\/[^/]/)]).default("/videos/funnel-fillers.mp4"),
+  ),
   // (M6) Paddle.js client-side token (public by design) + environment. Empty token = checkout hidden.
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: z.preprocess(emptyAsUndefined, z.string().optional()),
   NEXT_PUBLIC_PADDLE_ENV: z.preprocess(
