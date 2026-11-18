@@ -2,8 +2,8 @@
   "app": "tsx bin/speakup.ts",
   "watch": { "include": ["bin/**", "lib/**"] },
   "context": {
-    "speakup:webOrigins": "https://app.example.com",
-    "speakup:certificateArn": "",
+    "speakup:webOrigins": "https://speakup.fibipals.com",
+    "speakup:certificateArn": "arn:aws:acm:us-east-1:780875686809:certificate/1294950d-62d9-4ee9-ae1b-368746323561",
     "speakup:paddleEnv": "sandbox",
     "speakup:appSecretName": "speakup/app",
     "speakup:anthropicModel": "claude-sonnet-5-5",
