@@ -32,6 +32,8 @@ COPY --from=prune /repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY --from=prune /repo/out/full/ ./
+# `turbo prune` copies workspace packages only, not root files; every package tsconfig extends this one.
+COPY tsconfig.base.json ./
 # Builds APP and its workspace dependencies (shared, db incl. `prisma generate`) in order.
 RUN pnpm turbo run build --filter="@speakup/${APP}..."
 
