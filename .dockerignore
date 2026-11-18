@@ -1,0 +1,19 @@
+# Docker build context = repo root. Keep it small and free of secrets.
+# The AWS CDK reads this file too when it packages the images.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+packages/db/src/generated
+.git
+.github
+.env
+.env.*
+!.env.example
+# The CDK app is a workspace member, so `turbo prune` needs its package.json. Its code and
+# cdk.out stay out: infrastructure edits then don't change the images' hash (no rebuild).
+infra/cdk/*
+!infra/cdk/package.json

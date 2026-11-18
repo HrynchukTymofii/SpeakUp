@@ -1,0 +1,23 @@
+{
+  "name": "@speakup/infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AWS CDK app: VPC, RDS, ElastiCache, S3, ECS Fargate (api + worker), Secrets Manager",
+  "type": "module",
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy",
+    "lint": "eslint bin lib test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.275.0",
+    "constructs": "10.8.1"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.1147.0",
+    "tsx": "4.23.15"
+  }
+}
