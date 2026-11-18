@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/*
+ * Typography for markdown lesson bodies (rendered by react-markdown).
+ * Tailwind's reset strips default heading/list styles; a handful of rules here is
+ * simpler than adding the typography plugin for three element types.
+ */
+@layer components {
+  .lesson-body {
+    @apply flex flex-col gap-3 leading-relaxed text-slate-800;
+  }
+  .lesson-body h2 {
+    @apply mt-2 text-lg font-semibold text-slate-900;
+  }
+  .lesson-body ul {
+    @apply list-disc pl-5;
+  }
+  .lesson-body ol {
+    @apply list-decimal pl-5;
+  }
+  .lesson-body li + li {
+    @apply mt-1;
+  }
+  .lesson-body strong {
+    @apply font-semibold;
+  }
+}
+
+/*
+ * Funnel transitions (same feel as the reference funnel): a new step slides in 24px from the
+ * right going forward, from the left going back, and fades in; options fade up with a stagger.
+ * Everything is switched off for people who ask the OS for reduced motion.
+ */
+@keyframes funnel-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes funnel-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+@keyframes funnel-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes funnel-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+.funnel-forward {
+  animation: funnel-in-right 0.32s ease backwards;
+}
+.funnel-back {
+  animation: funnel-in-left 0.32s ease backwards;
+}
+.funnel-option {
+  animation: funnel-pop 0.3s ease backwards;
+}
+.funnel-sheet {
+  animation: funnel-sheet-up 0.3s ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .funnel-forward,
+  .funnel-back,
+  .funnel-option,
+  .funnel-sheet {
+    animation: none;
+  }
+}

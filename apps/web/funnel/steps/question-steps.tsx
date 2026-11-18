@@ -1,0 +1,270 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { publicEnv } from "@/lib/env";
+import { track } from "../analytics";
+import { useFunnelStore } from "../store";
+import { Card, ContinueButton, OptionButton, StepHeading } from "../ui";
+import type { StepProps } from "./props";
+
+/** Tiny haptic tick on phones that support it (like the reference funnel). */
+function vibrate() {
+  try {
+    navigator.vibrate?.(8);
+  } catch {
+    // Not supported or blocked: no-op.
+  }
+}
+
+/** One answer; tapping it saves and moves on immediately (no Continue needed). */
+export function SingleChoiceStep({ step, ctx, onNext }: StepProps<"single_choice">) {
+  const options = typeof step.options === "function" ? step.options(ctx) : step.options;
+  const current = ctx.answers[step.answerKey];
+  return (
+    <div className="flex flex-col gap-6">
+      <StepHeading title={step.title} subtitle={step.subtitle} />
+      <div className="flex flex-col gap-3">
+        {options.map((option, i) => (
+          <OptionButton
+            key={option.value}
+            index={i}
+            label={option.label}
+            selected={current === option.value}
+            onClick={() => {
+              vibrate();
+              track("funnel_answer", { step: step.id, value: option.value });
+              onNext({ [step.answerKey]: option.value });
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function MultiChoiceStep({ step, ctx, onNext }: StepProps<"multi_choice">) {
+  const [picked, setPicked] = useState<string[]>(() => ctx.answers[step.answerKey] ?? []);
+  const toggle = (value: string) =>
+    setPicked((p) => (p.includes(value) ? p.filter((v) => v !== value) : [...p, value]));
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <StepHeading title={step.title} subtitle={step.subtitle} />
+      <div className="flex flex-col gap-3">
+        {step.options.map((option, i) => (
+          <OptionButton
+            key={option.value}
+            index={i}
+            multi
+            label={option.label}
+            selected={picked.includes(option.value)}
+            onClick={() => {
+              vibrate();
+              toggle(option.value);
+            }}
+          />
+        ))}
+      </div>
+      <ContinueButton
+        disabled={picked.length === 0}
+        onClick={() => {
+          track("funnel_answer", { step: step.id, value: picked });
+          onNext({ [step.answerKey]: picked });
+        }}
+      />
+    </div>
+  );
+}
+
+/** 1–5 rating with a native range input (keyboard + screen-reader friendly). */
+export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
+  const [value, setValue] = useState(ctx.answers[step.answerKey] ?? 3);
+  return (
+    <div className="flex flex-1 flex-col gap-8">
+      <StepHeading title={step.title} />
+      <div className="flex flex-col gap-3">
+        <p className="text-center text-5xl font-semibold tabular-nums" aria-hidden>
+          {value}
+        </p>
+        <input
+          type="range"
+          min={1}
+          max={5}
+          step={1}
+          value={value}
+          onChange={(e) => setValue(Number(e.target.value))}
+          aria-label={step.title}
+          aria-valuetext={`${value} out of 5`}
+          className="w-full accent-slate-900"
+        />
+        <div className="flex justify-between text-sm text-slate-500">
+          <span>{step.lowLabel}</span>
+          <span>{step.highLabel}</span>
+        </div>
+      </div>
+      <ContinueButton
+        onClick={() => {
+          track("funnel_answer", { step: step.id, value });
+          onNext({ [step.answerKey]: value });
+        }}
+      />
+    </div>
+  );
+}
+
+/** A calm screen between questions that reacts to an earlier answer. */
+export function ReflectionStep({ step, ctx, onNext }: StepProps<"reflection">) {
+  const markCompleted = useFunnelStore((s) => s.markCompleted);
+  const { title, body } = step.content(ctx);
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="flex flex-1 flex-col justify-center gap-4 py-8">
+        <div aria-hidden className="text-4xl">
+          💬
+        </div>
+        <h1 className="text-2xl leading-tight font-semibold text-balance">{title}</h1>
+        <p className="text-lg text-slate-600">{body}</p>
+      </div>
+      <ContinueButton
+        onClick={() => {
+          markCompleted(step.id);
+          onNext();
+        }}
+      />
+    </div>
+  );
+}
+
+/** Mini-lesson: Continue unlocks after `unlockAfterSec` or when the video ends. */
+export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
+  const markCompleted = useFunnelStore((s) => s.markCompleted);
+  const alreadyDone = useFunnelStore((s) => s.completed.includes(step.id));
+  const [unlocked, setUnlocked] = useState(alreadyDone);
+  const [secondsLeft, setSecondsLeft] = useState(step.unlockAfterSec);
+  const videoUrl = publicEnv.NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL;
+
+  useEffect(() => {
+    if (unlocked) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          setUnlocked(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [unlocked]);
+
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <StepHeading title={step.title} />
+      {videoUrl ? (
+        <video
+          src={videoUrl}
+          controls
+          playsInline
+          preload="metadata"
+          onEnded={() => setUnlocked(true)}
+          className="aspect-video w-full rounded-2xl bg-black"
+        />
+      ) : (
+        <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">
+          Video coming soon
+        </div>
+      )}
+      <ul className="flex flex-col gap-2">
+        {step.takeaways.map((t) => (
+          <li key={t} className="flex gap-2 text-slate-700">
+            <span aria-hidden className="text-emerald-600">
+              ✓
+            </span>
+            {t}
+          </li>
+        ))}
+      </ul>
+      <ContinueButton
+        disabled={!unlocked}
+        onClick={() => {
+          markCompleted(step.id);
+          onNext();
+        }}
+      >
+        {unlocked ? "Continue" : `Continue in ${secondsLeft}s`}
+      </ContinueButton>
+    </div>
+  );
+}
+
+type MicState = "idle" | "asking" | "denied" | "unsupported";
+
+/** Per-browser help for re-enabling a blocked microphone. */
+function micHelp(): string {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua))
+    return "On iPhone: Settings → Safari → Microphone → Allow, then reload this page.";
+  if (/Firefox/.test(ua))
+    return "In Firefox: click the microphone icon in the address bar and remove the block, then try again.";
+  if (/Safari/.test(ua) && !/Chrome/.test(ua))
+    return "In Safari: Safari menu → Settings for This Website → Microphone → Allow.";
+  return "Click the lock or microphone icon next to the address bar, set Microphone to Allow, then try again.";
+}
+
+/** Explains why we need the mic, then asks the browser. The stream is closed right away. */
+export function MicPermissionStep({ step, onNext }: StepProps<"mic_permission">) {
+  const markCompleted = useFunnelStore((s) => s.markCompleted);
+  const [state, setState] = useState<MicState>("idle");
+  const done = useRef(false);
+
+  const ask = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setState("unsupported");
+      return;
+    }
+    setState("asking");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop()); // just checking permission
+      if (done.current) return;
+      done.current = true;
+      markCompleted(step.id);
+      onNext();
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      setState(name === "NotFoundError" ? "unsupported" : "denied");
+    }
+  };
+
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <StepHeading
+        title="Next: a 45-second speaking check"
+        subtitle="You’ll read a short paragraph out loud. We need your microphone to record it."
+      />
+      <Card className="flex flex-col gap-2 bg-slate-50">
+        <p className="font-medium">🔒 Your recording is private</p>
+        <p className="text-sm text-slate-600">
+          It’s used only to analyze your speaking, and it’s deleted if you don’t create an account.
+        </p>
+      </Card>
+      {state === "denied" && (
+        <p role="alert" className="text-red-700">
+          Microphone access is blocked. {micHelp()}
+        </p>
+      )}
+      {state === "unsupported" && (
+        <p role="alert" className="text-red-700">
+          We couldn’t find a microphone, or this browser can’t record audio. Try a recent Chrome,
+          Safari, Firefox or Edge.
+        </p>
+      )}
+      <ContinueButton onClick={() => void ask()} disabled={state === "asking"}>
+        {state === "asking"
+          ? "Waiting for permission…"
+          : state === "idle"
+            ? "Allow microphone"
+            : "Try again"}
+      </ContinueButton>
+    </div>
+  );
+}
