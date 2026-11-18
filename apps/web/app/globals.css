@@ -31,7 +31,7 @@
   --lav: #d9cbee;
   --rose: #f1c9c5;
   --on-pastel: #2b211c;
-  --on-pastel-muted: #6e5f55;
+  --on-pastel-muted: #574840; /* ≥ 4.8:1 on every pastel (WCAG AA for small text) */
   --danger: #f07c72;
 
   /* mascot body: the "Sky" blob from the Genesis funnel */
