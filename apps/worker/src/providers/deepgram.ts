@@ -43,7 +43,9 @@ const DeepgramResponseSchema = z.object({
  * Deepgram pre-recorded transcription over its REST API (one POST — no SDK needed).
  *
  * Options:
- * - `model=nova-3`: Deepgram's current general model.
+ * - `model=nova-2`, NOT nova-3: on our recordings nova-3 dropped almost every "um"/"uh" even
+ *   with filler_words=true (0 of 6 on one test clip), which made fillers invisible to users.
+ *   nova-2 keeps them (long "aaa" sounds come out as "uh"). Re-test before moving to a newer model.
  * - `filler_words=true`: keep "um"/"uh" in the transcript. Off by default — Deepgram REMOVES
  *   them, which would make our filler metric always 0.
  * - `punctuate=true` but NOT `smart_format`: smart formatting rewrites "twenty" as "20",
@@ -53,7 +55,7 @@ export function createDeepgramStt(apiKey: string): SttProvider {
   return {
     async transcribe(audioUrl) {
       const params = new URLSearchParams({
-        model: "nova-3",
+        model: "nova-2",
         language: "en",
         punctuate: "true",
         filler_words: "true",
@@ -101,7 +103,7 @@ export function createDeepgramStt(apiKey: string): SttProvider {
       // Both arrays have .min(1) in the schema, so these exist.
       const best = results.channels[0]?.alternatives[0];
       return {
-        provider: "deepgram:nova-3",
+        provider: "deepgram:nova-2",
         durationSec: metadata.duration,
         text: best?.transcript ?? "",
         words: (best?.words ?? []).map((w) => ({

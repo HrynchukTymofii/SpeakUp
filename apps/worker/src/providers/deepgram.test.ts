@@ -38,7 +38,7 @@ describe("Deepgram STT", () => {
     const result = await createDeepgramStt("dg-key").transcribe("https://s3/audio?sig");
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain("model=nova-3");
+    expect(url).toContain("model=nova-2");
     expect(url).toContain("filler_words=true");
     expect(url).not.toContain("smart_format");
     expect(init.headers).toMatchObject({ Authorization: "Token dg-key" });
