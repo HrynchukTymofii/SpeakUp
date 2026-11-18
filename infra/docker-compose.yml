@@ -1,0 +1,61 @@
+# Local development dependencies only. Apps run on the host via `pnpm dev`.
+# Prod equivalents: AWS RDS (Postgres) and ElastiCache (Redis) — see Milestone 8.
+name: speakup
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: speakup
+      POSTGRES_PASSWORD: speakup # local-only credentials; matches DATABASE_URL in .env.example
+      POSTGRES_DB: speakup
+    ports:
+      # Host port 5433, not 5432: avoids clashing with a locally installed Postgres service.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U speakup -d speakup"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # BullMQ requires that Redis never evicts keys (queue data would silently vanish).
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Local S3 for recordings (prod: a real private S3 bucket). The API reaches it via
+  # S3_ENDPOINT=http://localhost:4566; the bucket is created by infra/localstack/init-s3.sh.
+  # Pinned to 4.9.2: newer LocalStack images require an account token.
+  s3:
+    image: localstack/localstack:4.9.2
+    environment:
+      SERVICES: s3
+      PERSISTENCE: "0" # local recordings are throwaway test data
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sf localhost:4566/_localstack/init/ready | grep -q ''"completed": true''',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  redisdata:
