@@ -13,7 +13,7 @@
 3. **TypeScript strict mode everywhere.** No `any` unless justified in a comment.
 4. **Validate at every boundary** with Zod: env vars, HTTP inputs, webhook payloads, LLM output.
 5. **Check current docs** for third-party SDKs (Clerk, Deepgram, Paddle, Anthropic, AWS SDK v3, Prisma, BullMQ) before using them — APIs change. Pin versions in `package.json`.
-6. **UI polish is out of scope, except the web funnel.** The app (dashboard, lessons, billing) gets clean, functional, accessible UI with Tailwind + a few shadcn/ui components. The **web funnel (§15) is the exception**: it must feel interactive and polished (animated step transitions, progress bar, loaders), modeled on the reference funnel described in §15.
+6. **One visual language across the web app.** Every screen (landing, funnel, dashboard, lessons, results, billing, pricing, sign-in) follows the design system in [`docs/design-system.md`](./docs/design-system.md): the dark · warm theme on true black, design tokens instead of raw colors, Manrope/Outfit, and the SpeakUp mascot. The **web funnel (§15)** additionally must feel interactive (animated step transitions, progress bar, loaders), modeled on the reference funnel described in §15.
 7. Never commit secrets. Every new env var goes into `.env.example` with a comment.
 
 ---
