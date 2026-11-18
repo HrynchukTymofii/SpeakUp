@@ -463,3 +463,45 @@ One section per milestone (SPEC §13). Written to be re-read before technical in
 3. _How do you run DB migrations safely with rolling deploys?_ — Separate step before the deploy, and backward-compatible changes only (expand/contract): add nullable columns or new tables first, deploy code that uses them, remove old columns in a later release. During the rollout, old and new code run against the same schema.
 4. _Why is `X-Forwarded-For` dangerous, and how do you read the client IP behind a load balancer?_ — Clients can send the header themselves; proxies _append_ to it. Trust only the number of hops you control and take the IP that many positions from the right. Never take the leftmost value.
 5. _Why put the database in an isolated subnet if it already has a security group?_ — Defense in depth: with no route to the internet, even a misconfigured security group or a public-access flag can't expose it. The SG still restricts which internal services connect.
+
+---
+
+## Web restyle — design tokens, third-party theming, the mascot, component tests
+
+**What we built:**
+
+- A design system for the whole web app: colors as CSS variables in `apps/web/app/globals.css`, exposed to Tailwind v4 through `@theme`, plus pill-button/card classes ([`docs/design-system.md`](./docs/design-system.md)).
+- Manrope + Outfit through `next/font`; every screen moved from Tailwind's stock palette to tokens on a true-black background.
+- Clerk, Paddle and Turnstile themed to match (Clerk via the `appearance` prop on `<ClerkProvider>`).
+- An original SVG mascot with moods (`components/mascot.tsx`), animated with CSS and switched off for reduced motion.
+- Component tests with React Testing Library + jsdom next to the existing Node tests.
+
+**Key concepts (explain like to a junior):**
+
+- **Design tokens** (`globals.css`): a token is a named design value (`--card: #141414`). Components say `bg-card`, not `#141414`, so changing the theme is a one-line change and nobody picks "almost the same grey". Tailwind v4's `@theme inline { --color-card: var(--card); }` turns each variable into utilities (`bg-card`, `text-card`, `border-card`).
+- **CSS cascade layers** (`@layer base/components`): Tailwind puts utilities in a later layer than components, so `class="btn btn-primary w-full"` lets the utility win without `!important`. The catch we hit: two utilities of the _same_ kind on one element (`bg-card` + `bg-butter`) don't follow class order — whichever comes later in the generated CSS wins. Fix: never emit both (`Card` drops its default background when the caller passes one; regression test in `funnel/ui.test.tsx`).
+- **`next/font`** (`app/layout.tsx`): downloads Google fonts at build time and serves them from our own domain with size-adjusted fallbacks — no request to Google from users' browsers and no layout shift when the font loads.
+- **Contrast ratio (WCAG)**: text must reach 4.5:1 against its background (3:1 for large text). We measured every token pair; the muted text on pastels failed (3.4:1) and was darkened to pass (≥ 4.8:1).
+- **`prefers-reduced-motion`**: an OS setting for people who get dizzy from animation. Every animation (funnel slides, mascot) is wrapped so it stops when the setting is on.
+- **SVG gradients and `useId`** (`components/mascot.tsx`): SVG gradients are referenced by id (`fill="url(#id)"`), and ids are global to the page — two mascots with the same id would share one gradient. React's `useId()` gives each instance a unique, SSR-safe id.
+- **jsdom component tests** (`components/mascot.test.tsx`): jsdom is a browser DOM implemented in Node, so React components render without a real browser. Testing Library queries the way users and screen readers find things (`getByRole("button", { name: "Continue" })`), which also checks accessibility.
+
+**Why this choice / alternatives:**
+
+- **CSS variables + Tailwind `@theme` vs a JS theme object (styled-components, Chakra):** zero runtime cost, works in Server Components, and third-party widgets (Clerk) can read the same variables. A JS theme would need a provider and client-side rendering.
+- **Hand-made SVG mascot vs a Lottie/Rive animation or images:** inline SVG is tiny, themable with tokens, accessible, and needs no extra runtime. Lottie/Rive would allow richer animation if a designer produces it.
+- **jsdom + Testing Library vs Playwright component testing:** jsdom tests run in milliseconds inside the existing Vitest setup; they can't check real layout or pixels. Visual checks (375 px screenshots) are done with Playwright separately.
+
+**Where it breaks at scale & what we'd do:**
+
+- Hand-checked screenshots don't scale → visual regression tests (Playwright screenshots compared in CI, or Chromatic).
+- One theme in one CSS file is fine for one app; with a mobile app (Expo) sharing the brand → move tokens to a shared package (e.g. Style Dictionary) that outputs CSS variables and React Native values.
+- Copy and layout are tuned for English → externalize strings and test long translations before adding languages.
+
+**Likely interview questions:**
+
+1. _How would you implement theming / dark mode in a Tailwind app?_ — Define colors as CSS variables, map them in `@theme`, and swap the variable values per theme (`:root[data-theme="dark"]` or `prefers-color-scheme`). Components never change.
+2. _How do you make sure a UI is accessible?_ — Semantic elements and roles, measured contrast (4.5:1), visible focus, reduced-motion support, labels for meaningful images (decorative ones `aria-hidden`), and tests that query by role so a missing label fails the test.
+3. _What's the difference between unit tests in Node and component tests in jsdom?_ — Node tests run pure logic; jsdom adds a fake DOM so components render and respond to events. jsdom has no layout engine, so sizes and positions need a real browser (Playwright).
+4. _Why can two Tailwind classes like `bg-red-500 bg-blue-500` behave unexpectedly?_ — The winner is decided by order in the generated stylesheet, not in the `class` attribute. Avoid conflicting utilities (or use a merge helper like `tailwind-merge`).
+5. _How did you style a third-party auth widget (Clerk) to match?_ — Its `appearance` API: variables for colors/fonts/radius (pointing at our CSS variables) and per-element overrides. Where the library's own selector was more specific (low-alpha borders on black), we overrode only the unfocused state so its focus ring still shows.
