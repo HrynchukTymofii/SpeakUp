@@ -83,7 +83,7 @@ export function UpgradeButton({
         items: [{ priceId: checkout.priceId, quantity: 1 }],
         customData: checkout.customData,
         ...(checkout.customerEmail && { customer: { email: checkout.customerEmail } }),
-        settings: { displayMode: "overlay", theme: "light" },
+        settings: { displayMode: "overlay", theme: "dark" },
       });
     } catch (err) {
       setPhase("error");
@@ -95,13 +95,13 @@ export function UpgradeButton({
     }
   };
 
-  const base = `w-full rounded-xl px-4 py-4 text-base font-semibold ${className}`;
+  const base = `btn min-h-14 w-full px-5 text-base ${className}`;
 
   if (!isSignedIn) {
     return (
       <Link
         href={`/sign-up?redirect_url=${encodeURIComponent(pathname)}`}
-        className={`${base} block bg-slate-900 text-center text-white hover:bg-slate-700`}
+        className={`${base} bg-peach text-center text-on-pastel shadow-peach hover:bg-peach-2`}
       >
         Create an account to upgrade
       </Link>
@@ -110,7 +110,7 @@ export function UpgradeButton({
 
   if (!paddleConfigured()) {
     return (
-      <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+      <p className="rounded-[20px] bg-butter p-4 text-sm font-medium text-on-pastel">
         Checkout isn’t configured (set NEXT_PUBLIC_PADDLE_CLIENT_TOKEN).
       </p>
     );
@@ -118,7 +118,7 @@ export function UpgradeButton({
 
   if (phase === "active") {
     return (
-      <p role="status" className="rounded-xl bg-emerald-50 p-4 font-medium text-emerald-900">
+      <p role="status" className="rounded-[20px] bg-sage p-4 font-bold text-on-pastel">
         You’re on SpeakUp Pro 🎉 Every lesson is unlocked.
       </p>
     );
@@ -130,7 +130,7 @@ export function UpgradeButton({
         type="button"
         onClick={() => void start()}
         disabled={phase === "opening" || phase === "activating"}
-        className={`${base} bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-60`}
+        className={`${base} bg-peach text-on-pastel shadow-peach hover:bg-peach-2`}
       >
         {phase === "opening"
           ? "Opening checkout…"
@@ -139,13 +139,13 @@ export function UpgradeButton({
             : "Upgrade to Pro"}
       </button>
       {phase === "timeout" && (
-        <p role="status" className="text-sm text-slate-600">
+        <p role="status" className="text-sm text-muted">
           Payment received — activation is taking longer than usual. Refresh in a minute; your plan
           will appear automatically.
         </p>
       )}
       {message && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm font-medium text-danger">
           {message}
         </p>
       )}

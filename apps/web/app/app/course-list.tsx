@@ -9,10 +9,10 @@ export function CourseList() {
   const api = useApi();
   const courses = useQuery({ queryKey: ["courses"], queryFn: () => api.getCourses() });
 
-  if (courses.isPending) return <p className="text-slate-500">Loading lessons…</p>;
+  if (courses.isPending) return <p className="text-muted">Loading lessons…</p>;
   if (courses.isError) {
     return (
-      <p role="alert" className="text-red-700">
+      <p role="alert" className="font-medium text-danger">
         Couldn’t load lessons: {courses.error.message}
       </p>
     );
@@ -21,36 +21,34 @@ export function CourseList() {
   return (
     <>
       {courses.data.courses.map((course) => (
-        <section key={course.slug} className="rounded-lg border border-slate-200 p-4">
-          <h2 className="font-medium">{course.title}</h2>
-          <p className="mb-4 text-sm text-slate-600">{course.summary}</p>
+        <section key={course.slug} className="card">
+          <h2 className="font-display text-xl font-semibold">{course.title}</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">{course.summary}</p>
           <ol className="flex flex-col gap-2">
             {course.lessons.map((lesson) => (
               <li key={lesson.slug}>
                 {lesson.locked ? (
                   <div
-                    className="flex items-center justify-between rounded-md border border-dashed border-slate-300 px-3 py-2 text-slate-500"
+                    className="flex min-h-13 items-center justify-between gap-3 rounded-[18px] border-[1.5px] border-dashed border-line-2 px-4 py-3 text-muted"
                     aria-label={`${lesson.title} (locked, Pro only)`}
                   >
                     <span>
                       {lesson.order}. {lesson.title}
                     </span>
-                    <span className="flex items-center gap-1 text-xs font-medium">
+                    <span className="pill shrink-0 bg-card-2 text-muted">
                       <LockIcon /> Pro
                     </span>
                   </div>
                 ) : (
                   <Link
                     href={`/app/lessons/${lesson.slug}`}
-                    className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 hover:border-slate-400 hover:bg-slate-50"
+                    className="flex min-h-13 items-center justify-between gap-3 rounded-[18px] border-[1.5px] border-line-2 bg-card-2 px-4 py-3 font-semibold transition-colors hover:border-peach"
                   >
                     <span>
                       {lesson.order}. {lesson.title}
                     </span>
                     {lesson.isFree && (
-                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800">
-                        Free
-                      </span>
+                      <span className="pill shrink-0 bg-sage text-on-pastel">Free</span>
                     )}
                   </Link>
                 )}

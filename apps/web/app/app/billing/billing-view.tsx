@@ -23,14 +23,14 @@ export function BillingView() {
   });
 
   const back = (
-    <Link href="/app" className="text-sm text-slate-600 hover:underline">
+    <Link href="/app" className="link w-fit text-sm font-bold">
       ← Back to dashboard
     </Link>
   );
-  if (me.isPending) return <p className="text-slate-500">Loading…</p>;
+  if (me.isPending) return <p className="text-muted">Loading…</p>;
   if (me.isError) {
     return (
-      <p role="alert" className="text-red-700">
+      <p role="alert" className="font-medium text-danger">
         Couldn’t load your plan.
       </p>
     );
@@ -45,26 +45,32 @@ export function BillingView() {
   return (
     <>
       {back}
-      <h1 className="text-2xl font-semibold">Billing</h1>
-      <section className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4">
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-slate-500">Plan</dt>
-          <dd className="font-medium">{isPro ? "SpeakUp Pro" : "Free"}</dd>
+      <h1 className="font-display text-[40px] leading-none font-semibold tracking-tight">
+        Billing
+      </h1>
+      <section className="card flex flex-col gap-4">
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+          <dt className="text-muted">Plan</dt>
+          <dd>
+            <span className={`pill ${isPro ? "bg-peach text-on-pastel" : "bg-card-2 text-ink"}`}>
+              {isPro ? "SpeakUp Pro" : "Free"}
+            </span>
+          </dd>
           {subscription && (
             <>
-              <dt className="text-slate-500">Status</dt>
+              <dt className="text-muted">Status</dt>
               <dd>{STATUS_TEXT[subscription.status] ?? subscription.status}</dd>
             </>
           )}
           {periodEnd && (
             <>
-              <dt className="text-slate-500">
+              <dt className="text-muted">
                 {subscription?.status === "canceled" ? "Access until" : "Current period ends"}
               </dt>
               <dd>{periodEnd}</dd>
             </>
           )}
-          <dt className="text-slate-500">Analyses today</dt>
+          <dt className="text-muted">Analyses today</dt>
           <dd>
             {usage.analysesToday} / {entitlements.dailyAnalysesLimit}
           </dd>
@@ -74,23 +80,26 @@ export function BillingView() {
             type="button"
             onClick={() => portal.mutate()}
             disabled={portal.isPending}
-            className="w-fit rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+            className="btn btn-secondary btn-sm w-fit"
           >
             {portal.isPending ? "Opening…" : "Manage subscription"}
           </button>
         )}
         {portal.isError && (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm font-medium text-danger">
             Couldn’t open the subscription portal. Please try again.
           </p>
         )}
       </section>
       {!isPro && (
-        <section className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4">
-          <h2 className="font-medium">Upgrade to Pro</h2>
-          <p className="text-sm text-slate-600">
+        <section className="card flex flex-col gap-3">
+          <h2 className="font-display text-xl font-semibold">Upgrade to Pro</h2>
+          <p className="text-sm text-muted">
             Every lesson and up to 50 analyses a day.{" "}
-            <Link href="/pricing" className="underline">
+            <Link
+              href="/pricing"
+              className="font-bold text-peach underline-offset-4 hover:underline"
+            >
               See pricing
             </Link>
           </p>

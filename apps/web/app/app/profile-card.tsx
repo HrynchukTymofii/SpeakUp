@@ -11,14 +11,14 @@ export function ProfileCard() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.getMe() });
 
   if (me.isPending) {
-    return <p className="text-slate-500">Loading your profile…</p>;
+    return <p className="text-muted">Loading your profile…</p>;
   }
 
   if (me.isError) {
     const err = me.error;
     return (
-      <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-        <p className="font-medium">Couldn’t load your profile.</p>
+      <div role="alert" className="rounded-3xl bg-rose p-5 text-on-pastel">
+        <p className="font-bold">Couldn’t load your profile.</p>
         <p className="text-sm">
           {err instanceof ApiClientError ? `${err.code}: ${err.message}` : err.message}
         </p>
@@ -28,28 +28,28 @@ export function ProfileCard() {
 
   const { user, entitlements, usage } = me.data;
   return (
-    <section className="rounded-lg border border-slate-200 p-4">
-      <h2 className="mb-3 font-medium">Your profile (from the API)</h2>
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-        <dt className="text-slate-500">Email</dt>
+    <section className="card">
+      <h2 className="mb-4 font-display text-xl font-semibold">Your profile (from the API)</h2>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+        <dt className="text-muted">Email</dt>
         <dd>{user.email ?? "—"}</dd>
-        <dt className="text-slate-500">Plan</dt>
-        <dd className="flex gap-3">
-          <span className="capitalize">{entitlements.plan}</span>
+        <dt className="text-muted">Plan</dt>
+        <dd className="flex items-center gap-3">
+          <span className="pill bg-peach text-on-pastel capitalize">{entitlements.plan}</span>
           <Link
             href={entitlements.plan === "pro" ? "/app/billing" : "/pricing"}
-            className="text-slate-600 underline"
+            className="font-bold text-peach underline-offset-4 hover:underline"
           >
             {entitlements.plan === "pro" ? "Billing" : "Upgrade"}
           </Link>
         </dd>
-        <dt className="text-slate-500">Analyses today</dt>
+        <dt className="text-muted">Analyses today</dt>
         <dd>
           {usage.analysesToday} / {entitlements.dailyAnalysesLimit}
         </dd>
-        <dt className="text-slate-500">Member since</dt>
+        <dt className="text-muted">Member since</dt>
         <dd>{new Date(user.createdAt).toLocaleDateString()}</dd>
-        <dt className="text-slate-500">Onboarding</dt>
+        <dt className="text-muted">Onboarding</dt>
         <dd>
           {user.onboarding ? `${Object.keys(user.onboarding).length} answers` : "Not done yet"}
         </dd>

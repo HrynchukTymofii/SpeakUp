@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import Markdown from "react-markdown";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
+import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 
@@ -18,12 +19,12 @@ export function LessonView({ slug }: { slug: string }) {
   });
 
   const backLink = (
-    <Link href="/app" className="text-sm text-slate-600 hover:underline">
+    <Link href="/app" className="link w-fit text-sm font-bold">
       ← Back to dashboard
     </Link>
   );
 
-  if (lesson.isPending) return <p className="text-slate-500">Loading lesson…</p>;
+  if (lesson.isPending) return <p className="text-muted">Loading lesson…</p>;
 
   if (lesson.isError) {
     const err = lesson.error;
@@ -39,7 +40,7 @@ export function LessonView({ slug }: { slug: string }) {
     return (
       <>
         {backLink}
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="font-medium text-danger">
           {notFound ? "This lesson doesn’t exist." : `Couldn’t load the lesson: ${err.message}`}
         </p>
       </>
@@ -50,11 +51,13 @@ export function LessonView({ slug }: { slug: string }) {
   return (
     <>
       {backLink}
-      <header>
-        <p className="text-sm text-slate-500">
+      <header className="flex flex-col gap-2">
+        <p className="eyebrow">
           {data.course.title} · Lesson {data.order}
         </p>
-        <h1 className="text-2xl font-semibold">{data.title}</h1>
+        <h1 className="font-display text-[36px] leading-[1.05] font-semibold tracking-tight">
+          {data.title}
+        </h1>
       </header>
 
       {data.videoUrl ? (
@@ -63,10 +66,11 @@ export function LessonView({ slug }: { slug: string }) {
           src={data.videoUrl}
           controls
           preload="metadata"
-          className="aspect-video w-full rounded-lg bg-black"
+          className="aspect-video w-full rounded-3xl bg-black shadow-soft"
         />
       ) : (
-        <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">
+        <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-3xl border border-line bg-card text-sm font-semibold text-muted">
+          <Mascot mood="thinking" size={64} />
           Video coming soon
         </div>
       )}
@@ -77,7 +81,7 @@ export function LessonView({ slug }: { slug: string }) {
       </article>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Practice</h2>
+        <h2 className="font-display text-2xl font-semibold">Practice</h2>
         {data.exercises.map((exercise) => (
           <ExerciseCard key={exercise.id} exercise={exercise} />
         ))}
@@ -88,16 +92,16 @@ export function LessonView({ slug }: { slug: string }) {
 
 function ExerciseCard({ exercise }: { exercise: Exercise }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4">
+    <div className="card flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+        <span className="pill bg-lav text-on-pastel uppercase">
           {exercise.type === "read_aloud" ? "Read aloud" : "Free speech"}
         </span>
-        <span className="text-xs text-slate-500">up to {exercise.maxDurationSec}s</span>
+        <span className="text-xs font-semibold text-muted">up to {exercise.maxDurationSec}s</span>
       </div>
-      <p className="font-medium">{exercise.prompt}</p>
+      <p className="font-display text-lg leading-snug font-semibold">{exercise.prompt}</p>
       {exercise.referenceText && (
-        <blockquote className="rounded-md bg-slate-50 p-3 leading-relaxed text-slate-800">
+        <blockquote className="rounded-3xl bg-butter p-5 text-[17px] leading-relaxed font-medium text-on-pastel">
           {exercise.referenceText}
         </blockquote>
       )}
@@ -108,12 +112,17 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
 function LockedLesson() {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-6">
-      <h1 className="text-xl font-semibold">This lesson is part of SpeakUp Pro</h1>
-      <p className="text-slate-700">Upgrade to unlock every lesson and up to 50 analyses a day.</p>
+    <div className="flex flex-col items-start gap-3 rounded-[28px] bg-butter p-6 text-on-pastel shadow-soft">
+      <Mascot mood="thinking" size={80} />
+      <h1 className="font-display text-2xl leading-tight font-semibold">
+        This lesson is part of SpeakUp Pro
+      </h1>
+      <p className="text-on-pastel-muted">
+        Upgrade to unlock every lesson and up to 50 analyses a day.
+      </p>
       <Link
         href="/pricing"
-        className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700"
+        className="btn btn-sm mt-1 bg-on-pastel px-5 text-butter hover:opacity-90"
       >
         See Pro plans
       </Link>
