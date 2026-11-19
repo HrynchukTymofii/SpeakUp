@@ -4,13 +4,19 @@ import { AnalysisErrorCode, type AttemptResult } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
+import { SkillBars } from "@/components/skill-bars";
+import { CATEGORY_LABEL, hesitationSummary } from "@/lib/report";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, StepHeading } from "../ui";
 import type { StepProps } from "./props";
 
-const STAGES = ["Transcribing", "Measuring pace", "Writing your feedback"] as const;
+const STAGES = [
+  "Transcribing",
+  "Analyzing your voice and pauses",
+  "Writing your feedback",
+] as const;
 
 /** Counts up from 0 to `to` with an ease-out, skipped for reduced motion. */
 function useCountUp(to: number, durationMs = 1200): number {
@@ -34,7 +40,8 @@ function useCountUp(to: number, durationMs = 1200): number {
 /**
  * Funnel results (SPEC §15.2 step 13): the claimed baseline, now read through the signed-in API.
  * While the worker is still running: a staged loader. Then the short "funnel variant" of the
- * report: animated score, 3 metric cards, top 2 issues with tips, one strength.
+ * report: animated score, skill bars, 3 metric cards, one strength, then EVERY issue the analysis
+ * found (most important first) — the point of the check is to show what to work on.
  */
 export function ResultsStep({ step, onNext }: StepProps<"results">) {
   const api = useApi();
@@ -134,7 +141,8 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
   const score = useCountUp(result.overallScore);
   const { metrics, feedback } = result;
   const strength = feedback.strengths[0];
-  const issues = feedback.issues.slice(0, 2);
+  const { issues } = feedback;
+  const hesitations = hesitationSummary(metrics);
   const paceVerdict =
     metrics.wpm < metrics.wpmTarget.min
       ? "a bit slow"
@@ -156,6 +164,8 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
         <p className="text-sm font-medium text-muted">out of 100</p>
       </div>
 
+      <SkillBars feedback={feedback} />
+
       <div className="grid grid-cols-3 gap-2 text-center">
         <Metric label="Pace" value={`${metrics.wpm}`} hint={`wpm · ${paceVerdict}`} />
         <Metric
@@ -163,7 +173,11 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
           value={`${metrics.fillers.count}`}
           hint={`${metrics.fillers.perMinute.toFixed(1)}/min`}
         />
-        <Metric label="Long pauses" value={`${metrics.pauses.longCount}`} hint="over 1.5 s" />
+        <Metric
+          label="Hesitations"
+          value={`${hesitations.count}`}
+          hint={metrics.pauses.hesitationCount === undefined ? "over 1.5 s" : "mid-sentence"}
+        />
       </div>
 
       {strength && (
@@ -175,9 +189,14 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
         </Card>
       )}
 
+      {issues.length > 0 && (
+        <h2 className="font-display text-xl font-semibold">
+          {issues.length === 1 ? "1 thing to work on" : `${issues.length} things to work on`}
+        </h2>
+      )}
       {issues.map((issue, i) => (
         <Card key={i} className="flex flex-col gap-1">
-          <p className="eyebrow">To work on</p>
+          <p className="eyebrow">{CATEGORY_LABEL[issue.category] ?? issue.category}</p>
           <p className="text-muted italic">{issue.evidence}</p>
           <p>
             <span className="font-bold text-peach">Try this: </span>
