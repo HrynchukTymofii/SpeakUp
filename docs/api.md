@@ -104,15 +104,23 @@ portal is available. `PUT /v1/me/onboarding` body: `{ "answers": { "<question-id
 
 ## Courses and exercises
 
-| Method | Path                     | Auth | Description                                                                                   |
-| ------ | ------------------------ | ---- | --------------------------------------------------------------------------------------------- |
-| GET    | `/v1/courses`            | user | Courses with lesson summaries and a per-user `locked` flag                                    |
-| GET    | `/v1/lessons/:slug`      | user | Full lesson: video URL, markdown body, exercises. `403 LESSON_LOCKED` for Pro lessons on Free |
-| GET    | `/v1/exercises/baseline` | user | The speaking-check exercise                                                                   |
-| GET    | `/v1/exercises/practice` | user | Standalone practice exercises (`drill-*`, `legend-*`, `challenge-*`), open to every plan      |
+| Method | Path                      | Auth | Description                                                                                   |
+| ------ | ------------------------- | ---- | --------------------------------------------------------------------------------------------- |
+| GET    | `/v1/courses`             | user | Courses with lesson summaries and a per-user `locked` flag                                    |
+| GET    | `/v1/lessons/:slug`       | user | Full lesson: video URL, markdown body, exercises. `403 LESSON_LOCKED` for Pro lessons on Free |
+| GET    | `/v1/exercises/baseline`  | user | The speaking-check exercise                                                                   |
+| GET    | `/v1/exercises/practice`  | user | Standalone practice exercises (`drill-*`, `legend-*`, `challenge-*`), open to every plan      |
+| GET    | `/v1/practice/:mode/next` | user | A practice mode's exercise plus a topic the user hasn't answered yet (see below)              |
 
 Each lesson summary in `/v1/courses` also lists its `exerciseSlugs`, so the app can tell from the
 attempt history which lessons are done.
+
+**Practice modes** — `mode` is `topic`, `questions`, `convince` or `twister`. One exercise per mode
+(`mode-<mode>`); the topics live in `MODE_TOPICS` (`@speakup/shared`). The response is
+`{ exercise, topic, done, total }`: a random topic among the ones the user has used least (unused
+first, so nothing repeats until the whole bank is done), `done` of `total` topics answered.
+`?skip=<topic>` avoids the topic the user just passed on. The app sends the topic back with the
+attempt (below), which is how it counts as answered.
 
 An exercise: `{ id, slug, type: "read_aloud" | "free_speech", prompt, referenceText (read-aloud only), maxDurationSec }`.
 
@@ -131,8 +139,10 @@ completed; `problems` are the concrete issues found by `detectProblems` (see
 [`features.md`](./features.md#problem-detection-lesson-suggestions)). The app derives progress,
 streaks, the profile and lesson suggestions from this list.
 
-**1. Create** — body `{ "exerciseId": "…", "mimeType": "audio/webm;codecs=opus" }` (base types
-`audio/webm`, `audio/mp4`, `audio/ogg`). Checks, in order: per-user burst limit (`429 RATE_LIMITED`),
+**1. Create** — body `{ "exerciseId": "…", "mimeType": "audio/webm;codecs=opus", "topic"?: "…" }`
+(base types `audio/webm`, `audio/mp4`, `audio/ogg`; `topic` only for practice modes, ≤ 300 chars,
+stored on the attempt and given to the analysis: a free-speech prompt gains the topic, a
+read-aloud is compared against it). Checks, in order: per-user burst limit (`429 RATE_LIMITED`),
 exercise exists (`404`), plan allows it (`402 PAYWALL`), quota left (`429 QUOTA_EXCEEDED`). → `201`:
 
 ```json
@@ -143,6 +153,7 @@ exercise exists (`404`), plan allows it (`402 PAYWALL`), quota left (`429 QUOTA_
     "status": "awaiting_upload",
     "durationMs": null,
     "errorCode": null,
+    "topic": null,
     "createdAt": "…"
   },
   "upload": {

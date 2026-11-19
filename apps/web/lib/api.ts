@@ -12,6 +12,7 @@ import {
   LessonResponseSchema,
   MeResponseSchema,
   PortalResponseSchema,
+  NextTopicResponseSchema,
   PracticeExercisesResponseSchema,
   type AttemptDetailResponse,
   type AttemptResponse,
@@ -19,6 +20,8 @@ import {
   type BillingPlansResponse,
   type CheckoutResponse,
   type PortalResponse,
+  type NextTopicResponse,
+  type PracticeMode,
   type PracticeExercisesResponse,
   type ClaimFunnelResponse,
   type CoursesResponse,
@@ -96,6 +99,12 @@ export function createApiClient(getToken: GetToken) {
       request("/v1/exercises/baseline", ExerciseResponseSchema),
     getPracticeExercises: (): Promise<PracticeExercisesResponse> =>
       request("/v1/exercises/practice", PracticeExercisesResponseSchema),
+    /** A practice mode's exercise and a topic the user hasn't answered (`skip` = pass on one). */
+    getNextTopic: (mode: PracticeMode, skip?: string): Promise<NextTopicResponse> =>
+      request(
+        `/v1/practice/${mode}/next${skip ? `?skip=${encodeURIComponent(skip)}` : ""}`,
+        NextTopicResponseSchema,
+      ),
     /** The user's practice history, newest first (progress, streak, profile, suggestions). */
     getAttempts: (limit = 100): Promise<AttemptsListResponse> =>
       request(`/v1/attempts?limit=${limit}`, AttemptsListResponseSchema),

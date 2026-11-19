@@ -73,5 +73,15 @@ export type ExerciseResponse = z.infer<typeof ExerciseResponseSchema>;
 export const PracticeExercisesResponseSchema = z.object({ exercises: z.array(ExerciseSchema) });
 export type PracticeExercisesResponse = z.infer<typeof PracticeExercisesResponseSchema>;
 
+/** GET /v1/practice/:mode/next: the mode's exercise and a topic the user hasn't done yet. */
+export const NextTopicResponseSchema = z.object({
+  exercise: ExerciseSchema,
+  topic: z.string(),
+  /** How many topics of the bank the user has done, of how many. */
+  done: z.number().int(),
+  total: z.number().int(),
+});
+export type NextTopicResponse = z.infer<typeof NextTopicResponseSchema>;
+
 /** Slug prefixes of the standalone practice exercises. */
 export const PRACTICE_SLUG_PREFIXES = ["drill-", "legend-", "challenge-"] as const;

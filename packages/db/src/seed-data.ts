@@ -982,95 +982,71 @@ export const courses: SeedCourse[] = [
 ];
 
 // ---------------------------------------------------------------------------------------------
-// Standalone practice exercises (no lesson, open to every plan): the Practice feed's quick
-// drills, the "speak like a legend" read-alouds and the 7-day story challenge.
-
-const topic = (slug: string, subject: string, order: number) =>
-  speak(
-    `drill-topic-${slug}`,
-    order,
-    `One-minute topic: talk about ${subject} for a full minute. No preparation — just start.`,
-    75,
-  );
-const questions = (slug: string, subject: string, order: number) =>
-  speak(
-    `drill-questions-${slug}`,
-    order,
-    `Question storm: ask as many questions as you can about ${subject} in 45 seconds. Don’t answer them — just keep asking.`,
-    45,
-  );
-const convince = (slug: string, claim: string, order: number) =>
-  speak(`drill-convince-${slug}`, order, `Convince me: ${claim}`, 45);
+// Standalone practice exercises (no lesson, open to every plan).
+//
+// Practice modes: ONE exercise per mode. The topic comes from the bank in @speakup/shared
+// (`MODE_TOPICS`) and is stored on the attempt, so adding topics needs no new rows.
+// Older per-topic drills (`drill-*`) and the first legends stay in existing databases (attempts
+// reference them; the seed never deletes) but are no longer shown.
 
 export const practiceExercises: SeedExercise[] = [
-  topic("coffee", "coffee", 1),
-  topic("advice", "the best advice you ever got", 2),
-  topic("hometown", "your hometown", 3),
-  topic("social-media", "social media", 4),
-  topic("weekend", "your perfect weekend", 5),
-  topic("robots", "robots", 6),
-  questions("ocean", "the ocean", 10),
-  questions("space", "space travel", 11),
-  questions("food", "food", 12),
-  convince("umbrella", "the umbrella is the most underrated object you own.", 20),
-  convince("stairs", "taking the stairs will change your life.", 21),
-  convince("boredom", "being bored is good for you.", 22),
-  convince("spoon", "the spoon beats the fork.", 23),
-  read(
-    "drill-twister-sea",
-    30,
-    "Tongue twister sprint: read it clearly, then faster each time — three times in one take.",
-    "She sells seashells by the seashore, and the shells she sells are surely seashells.",
-    30,
+  speak(
+    "mode-topic",
+    1,
+    "One-minute topic: talk about the topic for a full minute. No preparation, just start.",
+    75,
+  ),
+  speak(
+    "mode-questions",
+    2,
+    "Question storm: ask as many questions as you can about the topic in 45 seconds. Don’t answer them.",
+    45,
+  ),
+  speak(
+    "mode-convince",
+    3,
+    "Convince me: argue that the claim is true and that it matters, as persuasively as you can.",
+    60,
   ),
   read(
-    "drill-twister-bug",
-    31,
-    "Tongue twister sprint: read it clearly, then faster each time — three times in one take.",
-    "A big black bug bit a big black bear, and the big black bear bled blood.",
-    30,
-  ),
-  read(
-    "drill-twister-toy",
-    32,
-    "Tongue twister sprint: read it clearly, then faster each time — three times in one take.",
-    "Toy boat, toy boat, toy boat. Fresh French fried fish. Truly rural, truly rural.",
+    "mode-twister",
+    4,
+    "Tongue twister: say it three times in one take, clearly first, then faster.",
+    // Replaced by the twister the user got (the attempt's topic); kept for the rule
+    // "every read-aloud has reference text".
+    "She sells seashells by the seashore.",
     30,
   ),
   speak(
     "challenge-your-story",
     40,
-    "7-day story challenge: tell your story — the one you wrote yourself. Same story, every day, a little better each time.",
+    "7-day story challenge: tell your story, the one you wrote yourself. Same story, every day, a little better each time.",
     90,
   ),
-  // Public-domain speeches (US government works). Later: compare the user's delivery with the
-  // original recording.
-  read(
-    "legend-gettysburg",
+  // Speak like a legend: watch the opening of a famous talk (the video plays in the app), then
+  // repeat it in your own voice. No transcripts here: the talks are copyrighted.
+  speak(
+    "legend-jobs-stanford",
     50,
-    "Speak like a legend — Abraham Lincoln, 1863. Read it slowly, with weight, and pause at every comma.",
-    "Four score and seven years ago our fathers brought forth on this continent, a new nation, " +
-      "conceived in Liberty, and dedicated to the proposition that all men are created equal. " +
-      "Now we are engaged in a great civil war, testing whether that nation, or any nation so " +
-      "conceived and so dedicated, can long endure.",
-    75,
+    "Speak like Steve Jobs (Stanford, 2005): repeat his opening as closely as you can. Short sentences, calm pace, a real pause between ideas.",
+    90,
   ),
-  read(
-    "legend-ask-not",
+  speak(
+    "legend-sinek-why",
     51,
-    "Speak like a legend — John F. Kennedy, 1961. Build up to the famous line and land it.",
-    "And so, my fellow Americans: ask not what your country can do for you, ask what you can " +
-      "do for your country. My fellow citizens of the world: ask not what America will do for " +
-      "you, but what together we can do for the freedom of man.",
-    60,
+    "Speak like Simon Sinek (TED): repeat his opening. Start with the question, slow down on the key idea.",
+    90,
   ),
-  read(
-    "legend-fear-itself",
+  speak(
+    "legend-hale-pitch",
     52,
-    "Speak like a legend — Franklin D. Roosevelt, 1933. Calm, firm, and a long pause before the key line.",
-    "So, first of all, let me assert my firm belief that the only thing we have to fear is fear " +
-      "itself, nameless, unreasoning, unjustified terror which paralyzes needed efforts to " +
-      "convert retreat into advance.",
-    60,
+    "Pitch like Y Combinator teaches (Kevin Hale): say what your idea does in one clear sentence, then who it’s for and why now.",
+    90,
+  ),
+  speak(
+    "legend-brown-story",
+    53,
+    "Speak like Brené Brown (TED): open with a short, honest story about yourself, with a bit of humor, that leads to your point.",
+    90,
   ),
 ];

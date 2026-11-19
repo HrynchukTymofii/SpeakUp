@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FeedbackSchema, MetricsSchema, TranscriptSchema } from "../analysis.js";
+import { MAX_TOPIC_LENGTH } from "../practice-modes.js";
 import { ProblemSchema } from "../problems.js";
 import { ExerciseSchema } from "./courses.js";
 
@@ -43,6 +44,8 @@ export type AttemptStatus = z.infer<typeof AttemptStatusSchema>;
 export const CreateAttemptBodySchema = z.strictObject({
   exerciseId: z.string().min(1).max(64),
   mimeType: AudioMimeTypeSchema,
+  /** Practice modes: the topic the user spoke about (one exercise serves many topics). */
+  topic: z.string().trim().min(1).max(MAX_TOPIC_LENGTH).optional(),
 });
 export type CreateAttemptBody = z.input<typeof CreateAttemptBodySchema>;
 
@@ -66,6 +69,8 @@ export const AttemptSchema = z.object({
   status: AttemptStatusSchema,
   durationMs: z.number().int().nullable(),
   errorCode: z.string().nullable(),
+  /** The practice-mode topic, or null for exercises with a fixed prompt. */
+  topic: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });
 export type Attempt = z.infer<typeof AttemptSchema>;

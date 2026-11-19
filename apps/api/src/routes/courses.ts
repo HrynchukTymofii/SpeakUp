@@ -4,7 +4,13 @@ import {
   ErrorCode,
   ExerciseResponseSchema,
   LessonResponseSchema,
+  MAX_TOPIC_LENGTH,
+  MODE_EXERCISE_SLUG,
+  MODE_TOPICS,
+  NextTopicResponseSchema,
+  PRACTICE_MODES,
   PRACTICE_SLUG_PREFIXES,
+  pickTopic,
   PracticeExercisesResponseSchema,
   SlugSchema,
 } from "@speakup/shared";
@@ -144,6 +150,40 @@ export const courseRoutes: FastifyPluginAsyncZod<CourseRoutesOptions> = async (
         select: exerciseSelect,
       });
       return { exercises };
+    },
+  );
+
+  /**
+   * Practice modes: the mode's exercise plus a random topic the user hasn't answered yet
+   * (topics come back only after the whole bank is done). `skip` = the topic the user just
+   * passed on, so "another topic" never returns the same one.
+   */
+  app.get(
+    "/practice/:mode/next",
+    {
+      schema: {
+        params: z.object({ mode: z.enum(PRACTICE_MODES) }),
+        querystring: z.object({ skip: z.string().max(MAX_TOPIC_LENGTH).optional() }),
+        response: { 200: NextTopicResponseSchema },
+      },
+    },
+    async (request) => {
+      const { mode } = request.params;
+      const exercise = await db.exercise.findUnique({
+        where: { slug: MODE_EXERCISE_SLUG[mode] },
+        select: exerciseSelect,
+      });
+      if (!exercise) throw new AppError(404, ErrorCode.NOT_FOUND, "Practice mode not found");
+
+      // Every attempt counts as "answered", even a failed one: the user did see the topic.
+      const rows = await db.attempt.findMany({
+        where: { userId: currentUser(request).id, exerciseId: exercise.id, topic: { not: null } },
+        select: { topic: true },
+      });
+      const used = new Map<string, number>();
+      for (const { topic } of rows) if (topic) used.set(topic, (used.get(topic) ?? 0) + 1);
+
+      return { exercise, ...pickTopic(MODE_TOPICS[mode], used, request.query.skip) };
     },
   );
 };

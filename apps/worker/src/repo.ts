@@ -9,6 +9,7 @@ import {
   type TranscriptWord,
 } from "@speakup/shared";
 import { z } from "zod";
+import { withTopic } from "./topic.js";
 
 export interface AttemptForAnalysis {
   id: string;
@@ -62,6 +63,7 @@ export function createPrismaRepo(db: DbClient): AnalysisRepo {
           status: true,
           audioKey: true,
           durationMs: true,
+          topic: true,
           exercise: { select: { type: true, prompt: true, referenceText: true } },
           user: { select: { onboarding: true } },
           funnelSession: { select: { answers: true } },
@@ -74,7 +76,7 @@ export function createPrismaRepo(db: DbClient): AnalysisRepo {
         status: row.status,
         audioKey: row.audioKey,
         durationMs: row.durationMs,
-        exercise: row.exercise,
+        exercise: withTopic(row.exercise, row.topic),
         goal: goalFrom(row.user?.onboarding) ?? goalFrom(row.funnelSession?.answers),
         transcript: row.transcript && {
           provider: row.transcript.provider,

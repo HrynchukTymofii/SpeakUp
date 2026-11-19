@@ -38,6 +38,7 @@ export const attemptSelect = {
   status: true,
   durationMs: true,
   errorCode: true,
+  topic: true,
   createdAt: true,
 } as const;
 
@@ -47,6 +48,7 @@ export function toApiAttempt(row: {
   status: AttemptStatus;
   durationMs: number | null;
   errorCode: string | null;
+  topic: string | null;
   createdAt: Date;
 }): Attempt {
   // Fields listed explicitly (no `...row`): rows loaded with extra columns such as `audioKey`
@@ -57,6 +59,7 @@ export function toApiAttempt(row: {
     status: row.status,
     durationMs: row.durationMs,
     errorCode: row.errorCode,
+    topic: row.topic,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -76,7 +79,14 @@ export type AttemptOwner = { userId: string } | { funnelSessionId: string };
  */
 export async function createAttemptWithUpload(
   deps: { db: DbClient; storage: Storage },
-  input: { owner: AttemptOwner; exerciseId: string; mimeType: AudioMimeType; keyPrefix: string },
+  input: {
+    owner: AttemptOwner;
+    exerciseId: string;
+    mimeType: AudioMimeType;
+    keyPrefix: string;
+    /** Practice modes only: the topic the user is speaking about. */
+    topic?: string;
+  },
 ): Promise<{ attempt: Attempt; upload: PresignedUpload }> {
   // We pick the id ourselves because the S3 key must contain it before the row exists.
   const id = randomUUID();
@@ -91,6 +101,7 @@ export async function createAttemptWithUpload(
       exerciseId: input.exerciseId,
       mimeType: input.mimeType,
       audioKey,
+      ...(input.topic ? { topic: input.topic } : {}),
     },
     select: attemptSelect,
   });

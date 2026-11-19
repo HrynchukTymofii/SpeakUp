@@ -514,6 +514,7 @@ The repo owner is preparing for technical interviews. After each milestone appen
 | REST | Simple, cacheable, fits mobile; few clients, simple data shapes | GraphQL if many clients need very different data shapes |
 | Postgres + Prisma | Relational data (users, subscriptions, attempts), transactions for billing; Prisma = typed client + migrations | Drizzle for thinner SQL-like layer; raw SQL for hot paths |
 | Redis + BullMQ | Async audio jobs with retries; rate limits; same Redis | AWS SQS + Lambda/ECS consumers at larger scale |
+| Practice topics on the attempt (`Attempt.topic`), one exercise per mode | Thousands of topics without thousands of rows; "already answered" is a query on attempts; the analysis sees the real topic | A `Topic` table when topics get metadata (difficulty, language, AI-generated batches) |
 | S3 direct upload | Offloads bandwidth from API, secure via pre-signed URLs | — |
 | Clerk | Auth is security-critical and solved; supports web + Expo | Own auth / Cognito / Better Auth if cost or control requires |
 | Deepgram | Fast, cheap, word timestamps + filler detection | Whisper (self-host) to cut cost at scale |
