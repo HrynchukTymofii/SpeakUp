@@ -30,7 +30,9 @@ function submitError(err: unknown): string {
 }
 
 /**
- * The anonymous baseline (SPEC §15.2 step 11): ready → 3-2-1 → recording (timer, live level,
+ * The anonymous speaking check (SPEC §15.2 step 11). Usually an impromptu question picked by the
+ * visitor's goal ("tell me about yourself", a 30-second pitch…); a read-aloud text is still
+ * supported. Flow: ready → 3-2-1 → recording (timer, live level,
  * max 45 s) → review (play back / re-record / submit). Submit = Turnstile token → create the
  * attempt → upload straight to S3 → submit. The analysis starts now, while they sign up.
  */
@@ -106,7 +108,10 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
   };
 
   const { state } = recorder;
-  const text = exercise.data?.exercise.referenceText;
+  const data = exercise.data?.exercise;
+  const isReading = data?.type === "read_aloud";
+  // What's on the card: the text to read, or the question to answer.
+  const text = isReading ? data?.referenceText : data?.prompt;
   const mood: MascotMood =
     state.kind === "recording" || countdown !== null
       ? "listening"
@@ -119,8 +124,14 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
       <div className="flex items-center gap-3">
         <Mascot mood={mood} size={72} className="-ml-1" />
         <StepHeading
-          title="Read this out loud"
-          subtitle={`At your normal pace. Up to ${maxSec} seconds.`}
+          title={
+            !data ? "Your speaking check" : isReading ? "Read this out loud" : "Answer out loud"
+          }
+          subtitle={
+            isReading
+              ? `At your normal pace. Up to ${maxSec} seconds.`
+              : `No script, just talk. Take a moment to think if you need it. Up to ${maxSec} seconds.`
+          }
         />
       </div>
 

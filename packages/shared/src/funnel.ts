@@ -17,6 +17,7 @@ const opts = <const V extends string>(...pairs: [V, string][]) =>
 export const FUNNEL_OPTIONS = {
   goal: opts(
     ["job-interviews", "Job interviews"],
+    ["pitching", "Pitching (investors, clients, demo day)"],
     ["presentations", "Presentations & public speaking"],
     ["meetings", "Meetings & calls at work"],
     ["conversations", "Everyday conversations"],
@@ -57,10 +58,23 @@ export const FUNNEL_OPTIONS = {
     ["clarity", "Clarity"],
     ["accuracy", "Accuracy"],
     ["structure", "Structure"],
+    ["voice", "Vocal variety"],
+    ["content", "What I say"],
     ["confidence", "Overall confidence"],
   ),
   yesNo: opts(["yes", "Yes"], ["no", "No"]),
 } as const;
+
+/**
+ * The funnel's speaking check depends on the goal: answering "tell me about yourself" for an
+ * interview is a different skill from a 30-second pitch. Each goal has its own impromptu
+ * exercise (`check-<goal>`, seeded in packages/db); unknown or missing goal → `check-general`.
+ */
+export const GENERAL_SPEAKING_CHECK = "check-general";
+export function speakingCheckSlug(goal: string | undefined): string {
+  const known = FUNNEL_OPTIONS.goal.some((o) => o.value === goal);
+  return known && goal ? `check-${goal}` : GENERAL_SPEAKING_CHECK;
+}
 
 type Values<K extends keyof typeof FUNNEL_OPTIONS> = (typeof FUNNEL_OPTIONS)[K][number]["value"];
 const oneOf = <K extends keyof typeof FUNNEL_OPTIONS>(key: K) =>

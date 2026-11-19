@@ -258,6 +258,11 @@ export class FakeDb {
       },
     ],
     baseline: fakeExercise("baseline", "read_aloud") as ReturnType<typeof fakeExercise> | null,
+    /** The funnel's speaking checks (`check-<goal>`), standalone like the baseline. */
+    speakingChecks: [
+      fakeExercise("check-general", "free_speech"),
+      fakeExercise("check-job-interviews", "free_speech"),
+    ],
   };
 
   course = {
@@ -289,14 +294,17 @@ export class FakeDb {
       const exercise = lesson.exercises.find((e) => e.id === id);
       if (exercise) return { ...exercise, lesson: { isFree: lesson.isFree } };
     }
-    const baseline = this.content.baseline;
-    return baseline?.id === id ? { ...baseline, lesson: null } : null;
+    const standalone = [this.content.baseline, ...this.content.speakingChecks].find(
+      (e) => e?.id === id,
+    );
+    return standalone ? { ...standalone, lesson: null } : null;
   }
 
   exercise = {
     findUnique: async ({ where }: { where: { slug?: string; id?: string } }) => {
       if (where.id !== undefined) return this.findExercise(where.id);
-      return where.slug === "baseline" ? this.content.baseline : null;
+      if (where.slug === "baseline") return this.content.baseline;
+      return this.content.speakingChecks.find((e) => e.slug === where.slug) ?? null;
     },
   };
 

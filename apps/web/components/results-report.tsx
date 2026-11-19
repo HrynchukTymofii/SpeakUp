@@ -1,16 +1,15 @@
 import type { AttemptResult, Exercise, Metrics } from "@speakup/shared";
 import type { ReactNode } from "react";
+import {
+  CATEGORY_LABEL,
+  hesitationSummary,
+  punctuationSummary,
+  scoreSurface,
+  voiceVerdict,
+} from "@/lib/report";
 import { Mascot } from "./mascot";
+import { SkillBars } from "./skill-bars";
 import { TranscriptView } from "./transcript-view";
-
-const CATEGORY_LABEL: Record<string, string> = {
-  pace: "Pace",
-  pauses: "Pauses",
-  fillers: "Filler words",
-  clarity: "Clarity",
-  accuracy: "Accuracy",
-  structure: "Structure",
-};
 
 const SEVERITY_STYLE: Record<string, string> = {
   low: "bg-sky text-on-pastel",
@@ -18,19 +17,16 @@ const SEVERITY_STYLE: Record<string, string> = {
   high: "bg-rose text-on-pastel",
 };
 
-/** Score tile: pastel by band (pastel surfaces keep dark ink). */
-function scoreSurface(score: number): string {
-  if (score >= 75) return "bg-sage";
-  if (score >= 55) return "bg-butter";
-  return "bg-rose";
-}
-
 /**
  * The analysis report (SPEC §11 /results): score, metric cards, AI feedback, transcript.
  * Presentational only (data in, markup out), so the funnel's results step can reuse it.
  */
 export function ResultsReport({ exercise, result }: { exercise: Exercise; result: AttemptResult }) {
   const { metrics, feedback, transcript } = result;
+  const voice = voiceVerdict(metrics);
+  const punctuation = punctuationSummary(metrics);
+  const hesitations = hesitationSummary(metrics);
+  const language = metrics.language;
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-4 rounded-[28px] border border-line bg-card p-5 shadow-soft">
@@ -53,17 +49,42 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
           <p className="text-sm font-semibold text-muted">{exercise.prompt}</p>
           <p className="text-[17px] leading-relaxed text-ink">{feedback.summary}</p>
         </div>
+        {feedback.subscores && feedback.subscores.length > 0 && (
+          <div className="border-t border-line pt-4">
+            <SkillBars feedback={feedback} />
+          </div>
+        )}
       </header>
 
       <section aria-label="Metrics" className="grid gap-3 sm:grid-cols-2">
         <PaceCard metrics={metrics} />
-        <Card title="Pauses">
-          <Big>{metrics.pauses.count}</Big>
-          <Small>
-            {metrics.pauses.longCount} long (over 1.5 s)
-            {metrics.pauses.count > 0 && ` · longest ${metrics.pauses.longestSec.toFixed(1)} s`}
-          </Small>
-        </Card>
+        {punctuation ? (
+          <Card title="Pauses at punctuation">
+            <Big>{punctuation.honoredPct}%</Big>
+            <Small>{punctuation.detail}</Small>
+          </Card>
+        ) : (
+          <Card title="Hesitations">
+            <Big>{hesitations.count}</Big>
+            <Small>{hesitations.detail}</Small>
+          </Card>
+        )}
+        {voice && (
+          <Card title="Voice">
+            <Big>{voice.label}</Big>
+            <Small>{voice.detail}</Small>
+          </Card>
+        )}
+        {language && (
+          <Card title="Wording">
+            <Big>{language.hedges.count}</Big>
+            <Small>
+              hedges like “I think”, “kind of”
+              {language.repeatedPhrases.length > 0 &&
+                ` · ${language.repeatedPhrases.length} repeated phrases`}
+            </Small>
+          </Card>
+        )}
         <Card title="Filler words">
           <Big>{metrics.fillers.count}</Big>
           <Small>{metrics.fillers.perMinute.toFixed(1)} per minute</Small>
@@ -109,7 +130,7 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
               >
                 <div className="flex items-center gap-2">
                   <span className="font-display text-lg font-semibold">
-                    {CATEGORY_LABEL[issue.category]}
+                    {CATEGORY_LABEL[issue.category] ?? issue.category}
                   </span>
                   <span className={`pill ${SEVERITY_STYLE[issue.severity]}`}>{issue.severity}</span>
                 </div>
@@ -150,6 +171,24 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
             )}
           </section>
         )}
+
+      {language && (language.repeatedPhrases.length > 0 || language.restarts.length > 0) && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-display text-2xl font-semibold">Wording details</h2>
+          {language.repeatedPhrases.length > 0 && (
+            <p className="text-sm text-ink/85">
+              <span className="font-bold text-ink">Said more than once: </span>
+              {language.repeatedPhrases.map((r) => `“${r.phrase}” ×${r.count}`).join(", ")}
+            </p>
+          )}
+          {language.restarts.length > 0 && (
+            <p className="text-sm text-ink/85">
+              <span className="font-bold text-ink">Restarts: </span>
+              {language.restarts.map((r) => `“${r.phrase}”`).join(", ")}
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="font-display text-2xl font-semibold">Transcript</h2>

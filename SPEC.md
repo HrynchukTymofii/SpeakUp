@@ -274,7 +274,7 @@ model WebhookEvent {
 
 **Entitlements rule:** a user is `pro` if they have any `Subscription` with `status in (active, trialing)` and (`currentPeriodEnd` is null or in the future). Computed in one function `getEntitlements(userId)` in the API. `source` exists so App Store / Play subscriptions (via RevenueCat webhooks later) map into the same table.
 
-**Seed** (`packages/db/seed.ts`): 1 course "Speak with Confidence", 3 lessons (Lesson 1 free), each with 1–2 exercises; 1 baseline `read_aloud` exercise (`slug: baseline`) with a ~70-word paragraph. Use placeholder video URLs (configurable).
+**Seed** (`packages/db/seed.ts`): 1 course "Speak with Confidence", 3 lessons (Lesson 1 free), each with 1–2 exercises; 1 baseline `read_aloud` exercise (`slug: baseline`, dashboard) with a ~70-word paragraph; the funnel's impromptu speaking checks, one per goal (`check-<goal>`) plus `check-general`. Use placeholder video URLs (configurable).
 
 ---
 
@@ -554,7 +554,7 @@ Before building M5.5:
 | 8 | `time` | single choice | **How much time can you practice per day?** 5 min · 10 min · 15 min · 20+ min |
 | 9 | `mini-lesson` | video lesson | 45–60 s video (URL from `NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL`, placeholder for now) "How we'll measure your speaking: pace, pauses, filler words, clarity" + 3 bullet takeaways. Continue button activates after 10 s or at video end |
 | 10 | `mic` | permission | Explain why we need the mic + privacy line ("Your recording is private and deleted if you don't create an account"). Request permission; handle denial with instructions per browser |
-| 11 | `exercise` | recording | Read-aloud baseline (seeded `baseline` exercise text, ~70 words). States: ready → 3-2-1 countdown → recording (timer, live level meter, max 45 s) → review (play back / re-record / submit). On submit: Turnstile → `POST /v1/funnel/attempts` → upload → submit. Analysis starts now |
+| 11 | `exercise` | recording | **Impromptu speaking check picked by the goal** (`check-<goal>`, e.g. "tell me about yourself" for interviews, a 30-second pitch for pitching; fallback `check-general`). Reading a text aloud is easy and hid the real problems; answering without a script shows hesitations, fillers, a flat voice and rambling. States: ready → 3-2-1 countdown → recording (timer, live level meter, max 45 s) → review (play back / re-record / submit). On submit: Turnstile → `POST /v1/funnel/attempts` → upload → submit. Analysis starts now |
 | 12 | `auth` | auth gate | "Your analysis is being prepared. Create a free account to see your results." Clerk sign-up embedded (Google + email). A small live status line shows the analysis progressing. On success: `POST /v1/funnel/claim` |
 | 13 | `results` | results | Same report component as `/results/[attemptId]`, funnel variant: score with animated count-up, 3 metric cards (pace vs target band, filler words, pauses), top 2 issues with tips, one strength. If analysis still running: staged loader ("Transcribing → Measuring pace → Writing your feedback") |
 | 14 | `deadline` | single choice | **Do you have an important speaking moment coming up?** Within a week · Within a month · In a few months · No, just improving |

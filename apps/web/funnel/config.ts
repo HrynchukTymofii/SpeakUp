@@ -67,9 +67,9 @@ export const FUNNEL_STEPS: FunnelStep[] = [
     type: "video_lesson",
     title: "How we’ll measure your speaking",
     takeaways: [
-      "Pace — how many words per minute you speak",
-      "Pauses — where you stop, and for how long",
-      "Filler words and clarity — “um”, “uh”, and words that get lost",
+      "Pace and pauses — how fast you speak, and where you stop or hesitate",
+      "Your voice — whether pitch and volume move, or stay flat",
+      "Filler words and wording — “um”, “like”, “I think”, repeated phrases",
     ],
     unlockAfterSec: 10,
   },
