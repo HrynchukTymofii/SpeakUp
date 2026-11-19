@@ -100,6 +100,14 @@ A bottom tab bar (`components/app-tab-bar.tsx`) switches between **Learn · Prac
 Profile**; every `/app` page leaves room for it. Data for all tabs comes from one hook,
 `learn/use-learn-data.ts` (`GET /v1/me`, `/v1/courses`, `/v1/attempts`), so the tabs share one cache.
 
+## Practice feed (`/app/practice`)
+
+A vertical, snap-scrolling feed of quick drills — one screen per drill, swipe up for the next,
+record inline (`app/(product)/app/practice/practice-feed.tsx`). Drill families
+(`learn/practice.ts`): one-minute topic, question storm, convince me, tongue twister; filter chips
+narrow the feed to one family. The order is shuffled with the date as the seed: fresh each day,
+stable while scrolling.
+
 ## Lessons
 
 Content lives in [`packages/db/src/seed-data.ts`](../packages/db/src/seed-data.ts) (`pnpm db:seed`).
