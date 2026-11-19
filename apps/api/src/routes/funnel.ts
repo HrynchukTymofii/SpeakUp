@@ -10,6 +10,8 @@ import {
   FUNNEL_MAX_RECORDING_SEC,
   FunnelAnswersSchema,
   FunnelAttemptStatusResponseSchema,
+  GENERAL_SPEAKING_CHECK,
+  speakingCheckSlug,
   OnboardingAnswersSchema,
   SubmitAttemptBodySchema,
   UpdateFunnelSessionBodySchema,
@@ -48,6 +50,22 @@ interface FunnelRoutesOptions {
 function storedAnswers(raw: unknown) {
   const parsed = FunnelAnswersSchema.safeParse(raw);
   return parsed.success ? parsed.data : {};
+}
+
+/**
+ * The funnel's speaking check for this visitor's goal (`check-<goal>`), falling back to the
+ * general one. Both the exercise screen and the attempt use this, so they always agree.
+ */
+async function findSpeakingCheck(db: DbClient, answers: unknown) {
+  const slug = speakingCheckSlug(storedAnswers(answers).goal);
+  const exercise =
+    (await db.exercise.findUnique({ where: { slug }, select: exerciseSelect })) ??
+    (await db.exercise.findUnique({
+      where: { slug: GENERAL_SPEAKING_CHECK },
+      select: exerciseSelect,
+    }));
+  if (!exercise) throw new Error("Speaking check exercises missing — run `pnpm db:seed`");
+  return exercise;
 }
 
 const notFound = () => new AppError(404, ErrorCode.NOT_FOUND, "Attempt not found");
@@ -100,16 +118,12 @@ export const funnelGuestRoutes: FastifyPluginAsyncZod<FunnelRoutesOptions> = asy
       },
     );
 
-    /** The baseline text to read aloud (the signed-in /exercises/baseline needs an account). */
+    /** The speaking check for the visitor's goal (an impromptu answer, no script). */
     guest.get(
       "/funnel/exercise",
       { schema: { response: { 200: ExerciseResponseSchema } } },
-      async () => {
-        const exercise = await db.exercise.findUnique({
-          where: { slug: "baseline" },
-          select: exerciseSelect,
-        });
-        if (!exercise) throw new Error("Baseline exercise missing — run `pnpm db:seed`");
+      async (request) => {
+        const exercise = await findSpeakingCheck(db, currentGuest(request).answers);
         // The funnel caps recordings at 45 s even if the exercise allows longer.
         return {
           exercise: {
@@ -177,11 +191,7 @@ export const funnelGuestRoutes: FastifyPluginAsyncZod<FunnelRoutesOptions> = asy
           }
         }
 
-        const baseline = await db.exercise.findUnique({
-          where: { slug: "baseline" },
-          select: { id: true },
-        });
-        if (!baseline) throw new Error("Baseline exercise missing — run `pnpm db:seed`");
+        const check = await findSpeakingCheck(db, session.answers);
 
         // Re-take before submit: drop the unsubmitted attempt and start a fresh one (new key,
         // possibly new format). Its S3 object, if any, still has the "pending" tag → auto-deleted.
@@ -191,7 +201,7 @@ export const funnelGuestRoutes: FastifyPluginAsyncZod<FunnelRoutesOptions> = asy
           { db, storage },
           {
             owner: { funnelSessionId: session.id },
-            exerciseId: baseline.id,
+            exerciseId: check.id,
             mimeType,
             keyPrefix: `recordings/funnel/${session.id}`,
           },

@@ -49,6 +49,51 @@ export const baselineExercise: SeedExercise = {
   order: 0,
 };
 
+/**
+ * The funnel's speaking check, one per goal (`check-<goal>`, see `speakingCheckSlug` in
+ * packages/shared). Impromptu on purpose: reading a text aloud is easy and hides the real
+ * problems; answering without a script shows hesitations, fillers, a flat voice, rambling.
+ * Max 45 s (the anonymous-recording cap, SPEC §9).
+ */
+const check = (goal: string, prompt: string): SeedExercise => ({
+  slug: `check-${goal}`,
+  type: "free_speech",
+  prompt,
+  maxDurationSec: 45,
+  order: 0,
+});
+
+export const speakingChecks: SeedExercise[] = [
+  check(
+    "general",
+    "Tell me about yourself: who you are, what you do, and one thing you’re proud of. About 30 seconds.",
+  ),
+  check(
+    "job-interviews",
+    "The interviewer says: “So, tell me about yourself.” Answer as you would in a real interview. About 30 seconds.",
+  ),
+  check(
+    "pitching",
+    "You have 30 seconds with an investor. Pitch something you’re working on — or an idea you believe in: the problem, your solution, and what you’re asking for.",
+  ),
+  check(
+    "presentations",
+    "Open a talk: in about 30 seconds, tell the audience what you’ll talk about and why it matters to them. Pick any topic you know well.",
+  ),
+  check(
+    "meetings",
+    "Your manager asks for a quick update in a meeting. In about 30 seconds: what you’re working on, how it’s going, and what you need.",
+  ),
+  check(
+    "conversations",
+    "You just met someone at a friend’s party and they ask: “So, what’s your story?” Answer naturally. About 30 seconds.",
+  ),
+  check(
+    "clarity",
+    "Describe your typical day, from morning to evening, so a stranger could picture it. About 30 seconds.",
+  ),
+];
+
 export const course: SeedCourse = {
   slug: "speak-with-confidence",
   title: "Speak with Confidence",

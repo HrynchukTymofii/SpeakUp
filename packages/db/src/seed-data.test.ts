@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { baselineExercise, course, type SeedExercise } from "./seed-data.js";
+import { FUNNEL_OPTIONS, speakingCheckSlug } from "@speakup/shared";
+import { baselineExercise, course, speakingChecks, type SeedExercise } from "./seed-data.js";
 
 const wordCount = (text: string) => text.trim().split(/\s+/).length;
 const allExercises: SeedExercise[] = [
   baselineExercise,
+  ...speakingChecks,
   ...course.lessons.flatMap((lesson) => lesson.exercises),
 ];
 
@@ -15,6 +17,18 @@ describe("seed data", () => {
     const words = wordCount(baselineExercise.referenceText ?? "");
     expect(words).toBeGreaterThanOrEqual(60);
     expect(words).toBeLessThanOrEqual(80);
+  });
+
+  it("has an impromptu speaking check for every funnel goal, plus a general one", () => {
+    const slugs = new Set(speakingChecks.map((c) => c.slug));
+    for (const goal of FUNNEL_OPTIONS.goal) {
+      expect(slugs.has(speakingCheckSlug(goal.value)), goal.value).toBe(true);
+    }
+    expect(slugs.has(speakingCheckSlug(undefined))).toBe(true);
+    for (const c of speakingChecks) {
+      expect(c.type).toBe("free_speech");
+      expect(c.maxDurationSec).toBeLessThanOrEqual(45);
+    }
   });
 
   it("has 3 lessons and only Lesson 1 is free", () => {

@@ -88,6 +88,7 @@ describe("personalize", () => {
   it("reflection 1 follows the goal, with a fallback", () => {
     expect(goalReflection({ goal: "job-interviews" }).title).toMatch(/Interviews reward/);
     expect(goalReflection({}).title).toMatch(/skill/);
+    expect(goalReflection({ goal: "pitching" }).title).toMatch(/pitch/);
   });
 
   it("reflection 2 follows the FIRST selected symptom", () => {
