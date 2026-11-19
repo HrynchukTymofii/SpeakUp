@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FUNNEL_STEPS } from "./config";
 import { furthestAllowedIndex, progressOf, visibleSteps, type EngineState } from "./engine";
+import { funnelExerciseKey } from "./query-keys";
 import { buildPlan, focusOptions, goalReflection, symptomReflection } from "./personalize";
 
 const empty: EngineState = {
@@ -118,5 +119,14 @@ describe("personalize", () => {
     expect(plan.weeks[0]?.title).toMatch(/filler words/);
     expect(JSON.stringify(plan)).not.toMatch(/\d+ ?%/); // no invented statistics
     expect(buildPlan({}).headline).toBe("Your 4-week speaking plan");
+  });
+});
+
+describe("funnelExerciseKey", () => {
+  it("depends on the goal, so changing the goal fetches the matching speaking check", () => {
+    // The server picks the check (and records the attempt) by goal; a cached question from
+    // another goal would show one question but record against another.
+    expect(funnelExerciseKey("pitching")).not.toEqual(funnelExerciseKey("job-interviews"));
+    expect(funnelExerciseKey(undefined)).toEqual(funnelExerciseKey(undefined));
   });
 });

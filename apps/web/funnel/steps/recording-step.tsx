@@ -9,6 +9,7 @@ import { uploadToS3 } from "@/lib/upload";
 import { useRecorder, type Recording } from "@/lib/use-recorder";
 import { track } from "../analytics";
 import { funnelApi } from "../api";
+import { funnelExerciseKey } from "../query-keys";
 import { useFunnelStore } from "../store";
 import { Turnstile } from "../turnstile";
 import { Card, ContinueButton, StepHeading } from "../ui";
@@ -37,11 +38,12 @@ function submitError(err: unknown): string {
  * attempt → upload straight to S3 → submit. The analysis starts now, while they sign up.
  */
 export function RecordingStep({ step, onNext }: StepProps<"recording">) {
-  const { guestToken, attemptId, completed, setAttemptId, markCompleted } = useFunnelStore();
+  const { guestToken, attemptId, completed, setAttemptId, markCompleted, answers } =
+    useFunnelStore();
   const alreadyDone = attemptId !== null && completed.includes(step.id);
 
   const exercise = useQuery({
-    queryKey: ["funnel-exercise"],
+    queryKey: funnelExerciseKey(answers.goal),
     queryFn: () => funnelApi.getExercise(guestToken ?? ""),
     enabled: guestToken !== null && !alreadyDone,
     staleTime: Infinity,

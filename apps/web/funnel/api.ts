@@ -56,6 +56,7 @@ export const funnelApi = {
       body: JSON.stringify(body),
     }),
 
+  /** The speaking check for the session's saved goal (cache it under funnelExerciseKey, query-keys.ts). */
   getExercise: (token: string) =>
     guestRequest("/v1/funnel/exercise", ExerciseResponseSchema, { token }),
 
