@@ -24,7 +24,7 @@ export default function ProductLayout({ children }: { children: ReactNode }) {
           </Show>
           <Show when="signed-in">
             <Link href="/app" className="btn btn-secondary btn-sm">
-              Dashboard
+              Learn
             </Link>
             <UserButton />
           </Show>

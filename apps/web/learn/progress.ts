@@ -1,4 +1,4 @@
-import type { AttemptSummary } from "@speakup/shared";
+import { ProblemSchema, type AttemptSummary, type Problem, type Skill } from "@speakup/shared";
 
 /**
  * Progress, streak and XP — all derived from the attempt history (GET /v1/attempts), so there
@@ -87,4 +87,44 @@ export function levelFor(xp: number): { level: number; intoLevel: number; perLev
     intoLevel: xp % XP_PER_LEVEL,
     perLevel: XP_PER_LEVEL,
   };
+}
+
+/** How many recent analyses the profile summarizes. */
+const PROFILE_WINDOW = 10;
+
+const recentCompleted = (attempts: AttemptSummary[]) =>
+  attempts.filter((a) => a.status === "completed").slice(0, PROFILE_WINDOW);
+
+/** Average score per skill over the recent analyses that measured it (history is newest first). */
+export function averageSkills(attempts: AttemptSummary[]): { skill: Skill; score: number }[] {
+  const sums = new Map<Skill, { total: number; count: number }>();
+  for (const a of recentCompleted(attempts)) {
+    for (const { skill, score } of a.subscores ?? []) {
+      const entry = sums.get(skill) ?? { total: 0, count: 0 };
+      sums.set(skill, { total: entry.total + score, count: entry.count + 1 });
+    }
+  }
+  return [...sums.entries()].map(([skill, { total, count }]) => ({
+    skill,
+    score: Math.round(total / count),
+  }));
+}
+
+/** Recent overall scores, oldest → newest (for a left-to-right chart). */
+export function scoreTrend(attempts: AttemptSummary[]): number[] {
+  return recentCompleted(attempts)
+    .flatMap((a) => (a.overallScore === null ? [] : [a.overallScore]))
+    .reverse();
+}
+
+/** Problems found in recent analyses, most frequent first. */
+export function recentProblems(attempts: AttemptSummary[]): { problem: Problem; count: number }[] {
+  const counts = new Map<Problem, number>();
+  for (const a of recentCompleted(attempts)) {
+    for (const p of a.problems) counts.set(p, (counts.get(p) ?? 0) + 1);
+  }
+  const order = ProblemSchema.options;
+  return [...counts.entries()]
+    .map(([problem, count]) => ({ problem, count }))
+    .sort((a, b) => b.count - a.count || order.indexOf(a.problem) - order.indexOf(b.problem));
 }

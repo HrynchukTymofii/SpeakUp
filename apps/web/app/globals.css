@@ -387,3 +387,22 @@
     animation: none !important;
   }
 }
+
+/* Learn path: the lesson to do next gently pulses (off for reduced motion). */
+@keyframes path-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--peach) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--peach) 0%, transparent);
+  }
+}
+.path-current {
+  animation: path-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .path-current {
+    animation: none;
+  }
+}

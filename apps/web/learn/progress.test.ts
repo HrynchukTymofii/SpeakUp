@@ -1,7 +1,10 @@
 import type { AttemptSummary } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
 import {
+  averageSkills,
   completedSlugs,
+  recentProblems,
+  scoreTrend,
   levelFor,
   lessonState,
   pathStates,
@@ -109,5 +112,50 @@ describe("XP and levels", () => {
   it("levels up every 100 XP", () => {
     expect(levelFor(0)).toEqual({ level: 1, intoLevel: 0, perLevel: 100 });
     expect(levelFor(250)).toEqual({ level: 3, intoLevel: 50, perLevel: 100 });
+  });
+});
+
+describe("profile helpers", () => {
+  const scored = (
+    score: number,
+    subscores: AttemptSummary["subscores"],
+    problems: AttemptSummary["problems"] = [],
+  ) => ({
+    ...attempt("x", day(1), { score }),
+    subscores,
+    problems,
+  });
+
+  it("averages each skill over the recent analyses that have it", () => {
+    const history = [
+      scored(70, [
+        { skill: "pace", score: 80 },
+        { skill: "voice", score: 40 },
+      ]),
+      scored(60, [{ skill: "pace", score: 60 }]),
+      scored(50, null),
+    ];
+    expect(averageSkills(history)).toEqual([
+      { skill: "pace", score: 70 },
+      { skill: "voice", score: 40 },
+    ]);
+  });
+
+  it("lists recent scores oldest → newest", () => {
+    const history = [
+      scored(90, null),
+      scored(70, null),
+      attempt("q", day(1), { status: "queued" }),
+      scored(50, null),
+    ];
+    expect(scoreTrend(history)).toEqual([50, 70, 90]);
+  });
+
+  it("counts recent problems, most frequent first", () => {
+    const history = [scored(70, null, ["fillers"]), scored(70, null, ["fillers", "monotone"])];
+    expect(recentProblems(history)).toEqual([
+      { problem: "fillers", count: 2 },
+      { problem: "monotone", count: 1 },
+    ]);
   });
 });

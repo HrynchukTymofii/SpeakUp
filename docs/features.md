@@ -13,17 +13,20 @@ for read-aloud tasks — reading accuracy, then practice with short lessons.
 Marketing pages are served on the site host (`speakup.fibipals.com`), everything else on the app
 host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects to the right one.
 
-| Route                           | Host | Who              | What                                                                    |
-| ------------------------------- | ---- | ---------------- | ----------------------------------------------------------------------- |
-| `/`                             | site | everyone         | Landing: value proposition, "how it works", entry to the funnel         |
-| `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`) |
-| `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                           |
-| `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                        |
-| `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button          |
-| `/app`                          | app  | signed in        | Dashboard: speaking check, course and lessons, profile and usage        |
-| `/app/lessons/<slug>`           | app  | signed in        | Lesson: video, text, practice exercises with the recorder               |
-| `/results/<attemptId>`          | app  | signed in, owner | Analysis report for one recording                                       |
-| `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"          |
+| Route                           | Host | Who              | What                                                                                               |
+| ------------------------------- | ---- | ---------------- | -------------------------------------------------------------------------------------------------- |
+| `/`                             | site | everyone         | Landing: value proposition, "how it works", entry to the funnel                                    |
+| `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`)                            |
+| `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                                                      |
+| `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                                   |
+| `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                     |
+| `/app`                          | app  | signed in        | Learn tab: streak / level / daily goal, "Picked for you" lessons, course chips and the lesson path |
+| `/app/lessons/<slug>`           | app  | signed in        | Lesson: step-by-step (why → example → try this → exercises → done); in-app confidence lessons      |
+| `/app/practice`                 | app  | signed in        | Practice feed: vertical swipe through quick drills, record inline                                  |
+| `/app/challenges`               | app  | signed in        | 7-day story challenge, "speak like a legend", contests (coming soon)                               |
+| `/app/profile`                  | app  | signed in        | Stats, goal picker, skills, score trend, recurring problems, recent recordings                     |
+| `/results/<attemptId>`          | app  | signed in, owner | Analysis report for one recording, with links to the lessons that fix its problems                 |
+| `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                     |
 
 ## The onboarding funnel (`/start`)
 
@@ -90,6 +93,12 @@ LLM), so the same recording always suggests the same lessons. Thresholds live in
 | `trailing-off`        | ≥ 30 % of sentences fade at the end                                   |
 | `hedges`              | ≥ 2 hedges ("I think", "kind of", "maybe"…)                           |
 | `structure`           | the feedback flags structure as a medium or high issue                |
+
+## The signed-in app
+
+A bottom tab bar (`components/app-tab-bar.tsx`) switches between **Learn · Practice · Challenges ·
+Profile**; every `/app` page leaves room for it. Data for all tabs comes from one hook,
+`learn/use-learn-data.ts` (`GET /v1/me`, `/v1/courses`, `/v1/attempts`), so the tabs share one cache.
 
 ## Lessons
 
