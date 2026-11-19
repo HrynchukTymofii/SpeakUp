@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { Mascot } from "@/components/mascot";
 import { useMyStory } from "@/learn/local-progress";
+import { legendTitle } from "@/learn/practice";
 import { STORY_CHALLENGE_DAYS, STORY_CHALLENGE_SLUG, storyChallenge } from "@/learn/progress";
 import { learnKeys, useLearnData } from "@/learn/use-learn-data";
 import { useApi } from "@/lib/use-api";
@@ -146,7 +147,7 @@ function Legends({ legends }: { legends: Exercise[] }) {
       <ul className="flex flex-col gap-3">
         {legends.map((legend) => {
           const isOpen = open === legend.slug;
-          const [who] = legend.prompt.replace("Speak like a legend — ", "").split(".");
+          const who = legendTitle(legend.prompt);
           return (
             <li key={legend.slug} className="card flex flex-col gap-3">
               <button

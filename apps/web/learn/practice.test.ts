@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drillKind, feedExercises } from "./practice";
+import { drillKind, feedExercises, legendTitle } from "./practice";
 
 const ex = (slug: string) => ({
   id: slug,
@@ -59,5 +59,17 @@ describe("feedExercises", () => {
         .join(),
     );
     expect(others.some((o) => o !== a.join())).toBe(true);
+  });
+});
+
+describe("legendTitle", () => {
+  it("takes the speaker and year, keeping initials intact", () => {
+    expect(
+      legendTitle("Speak like a legend — John F. Kennedy, 1961. Build up to the famous line."),
+    ).toBe("John F. Kennedy, 1961");
+    expect(legendTitle("Speak like a legend — Abraham Lincoln, 1863. Read it slowly.")).toBe(
+      "Abraham Lincoln, 1863",
+    );
+    expect(legendTitle("Some other prompt")).toBe("Some other prompt");
   });
 });

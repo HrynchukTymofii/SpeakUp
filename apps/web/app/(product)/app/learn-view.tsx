@@ -128,7 +128,7 @@ function CoursePicker({ data }: { data: LearnData }) {
         Courses
       </h2>
       {/* Horizontal chips; the page itself never scrolls sideways (375 px rule). */}
-      <div className="-mx-4 overflow-x-auto px-4 pb-1">
+      <div className="no-scrollbar -mx-4 overflow-x-auto px-4 pb-1">
         <ul className="flex w-max gap-2" role="list">
           {data.courses.map((c) => {
             const meta = COURSE_META[c.slug] ?? DEFAULT_META;

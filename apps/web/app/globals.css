@@ -420,29 +420,30 @@
 /* Square breathing: the dot travels the square's four sides, one side per phase. */
 @keyframes breath-around {
   0% {
-    top: 4px;
-    left: 4px;
+    top: 6px;
+    left: 6px;
   }
   25% {
-    top: 4px;
-    left: calc(100% - 28px);
+    top: 6px;
+    left: calc(100% - 30px);
   }
   50% {
-    top: calc(100% - 28px);
-    left: calc(100% - 28px);
+    top: calc(100% - 30px);
+    left: calc(100% - 30px);
   }
   75% {
-    top: calc(100% - 28px);
-    left: 4px;
+    top: calc(100% - 30px);
+    left: 6px;
   }
   100% {
-    top: 4px;
-    left: 4px;
+    top: 6px;
+    left: 6px;
   }
 }
+/* The square is inset 16px with a 4px border: the 24px dot is centred on that line. */
 .breath-dot {
-  top: 4px;
-  left: 4px;
+  top: 6px;
+  left: 6px;
   animation: breath-around linear infinite;
 }
 
@@ -469,4 +470,12 @@
   .yes-pop {
     animation: none;
   }
+}
+
+/* Horizontal chip rows and the practice feed scroll by swipe; hide the desktop scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

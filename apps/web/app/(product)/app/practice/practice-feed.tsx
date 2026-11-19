@@ -44,7 +44,7 @@ export function PracticeFeed() {
         </h1>
         <p className="text-xs font-semibold text-muted">Swipe up for the next drill</p>
       </div>
-      <div className="-mx-4 overflow-x-auto px-4">
+      <div className="no-scrollbar -mx-4 overflow-x-auto px-4">
         <ul className="flex w-max gap-2" role="list">
           <FilterChip active={!kind} onClick={() => setKind(undefined)}>
             All
@@ -57,10 +57,14 @@ export function PracticeFeed() {
         </ul>
       </div>
 
-      {/* Height = viewport minus header (3.5rem), title + chips (~6rem) and tab bar (4rem). */}
+      {/*
+        Height = viewport minus the header (3.5rem), top padding + title + chips with gaps
+        (~6.5rem) and the layout's bottom padding for the tab bar (6rem): the page itself
+        never scrolls, only the feed does.
+      */}
       <ol
         aria-label="Drills"
-        className="flex h-[calc(100dvh-14rem)] snap-y snap-mandatory flex-col gap-4 overflow-y-auto overscroll-contain"
+        className="no-scrollbar flex h-[calc(100dvh-16.5rem)] snap-y snap-mandatory flex-col gap-4 overflow-y-auto overscroll-contain"
       >
         {items.map((exercise, i) => (
           <li key={exercise.id} className="h-full shrink-0 snap-start">
@@ -111,7 +115,7 @@ function DrillCard({
   return (
     <article
       aria-label={`${info.label}, drill ${position} of ${total}`}
-      className="flex h-full flex-col gap-4 overflow-y-auto rounded-[28px] border border-line bg-card p-5 shadow-soft"
+      className="no-scrollbar flex h-full flex-col gap-4 overflow-y-auto rounded-[28px] border border-line bg-card p-5 shadow-soft"
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`pill ${TONE_SURFACE[info.tone]}`}>

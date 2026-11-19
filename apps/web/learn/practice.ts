@@ -69,3 +69,11 @@ export function feedExercises(exercises: Exercise[], seed: string, kind?: DrillK
   }
   return shuffled;
 }
+
+/**
+ * "Speak like a legend — John F. Kennedy, 1961. Build up…" → "John F. Kennedy, 1961".
+ * Cut at the year, not at the first period (initials have periods).
+ */
+export function legendTitle(prompt: string): string {
+  return /—\s*(.+?,\s*\d{4})/.exec(prompt)?.[1] ?? prompt;
+}
