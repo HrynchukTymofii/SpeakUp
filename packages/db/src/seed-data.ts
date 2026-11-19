@@ -104,7 +104,18 @@ export const speakingChecks: SeedExercise[] = [
 // ---------------------------------------------------------------------------------------------
 // Helpers: keep the content below readable.
 
-const md = (...lines: string[]) => lines.join("\n");
+/**
+ * Joins lesson lines into markdown. Markdown merges consecutive lines into one paragraph, so a
+ * prose line directly followed by another ("Vague: …" / "Sharp: …") gets a blank line between;
+ * list items (`- …`) stay together as one list.
+ */
+const md = (...lines: string[]) =>
+  lines.reduce((out, line, i) => {
+    if (i === 0) return line;
+    const prev = lines[i - 1] ?? "";
+    const bothProse = prev !== "" && line !== "" && !line.startsWith("- ");
+    return out + (bothProse ? "\n\n" : "\n") + line;
+  }, "");
 
 const read = (
   slug: string,

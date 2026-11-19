@@ -79,6 +79,14 @@ describe("seed data", () => {
     }
   });
 
+  it("every line of prose is its own paragraph (markdown would merge single line breaks)", () => {
+    for (const lesson of lessons) {
+      // A text line directly followed by another text line (not a list item) renders as one
+      // run-on paragraph, e.g. "Vague: … Sharp: …" in an example.
+      expect(lesson.body, lesson.slug).not.toMatch(/[^\n]\n(?!- |\n)[^\n]/);
+    }
+  });
+
   it("lesson orders are 1..n within each course", () => {
     for (const course of courses) {
       expect(course.lessons.map((l) => l.order)).toEqual(course.lessons.map((_, i) => i + 1));
