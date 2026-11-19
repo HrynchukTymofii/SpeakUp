@@ -35,6 +35,10 @@ export class SpeakUpStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: SpeakUpStackProps) {
     super(scope, id, props);
     const { config } = props;
+    const { loadTest } = config;
+    // The throwaway load-test stack must delete cleanly; production keeps its data.
+    const disposable = loadTest ? cdk.RemovalPolicy.DESTROY : undefined;
+    const dbSecretName = loadTest ? "speakup-loadtest/db" : "speakup/db";
 
     // ── Network ────────────────────────────────────────────────────────────────────────
     // Three subnet tiers in 2 AZs: public (load balancer, NAT), app (containers: outbound
@@ -67,20 +71,20 @@ export class SpeakUpStack extends cdk.Stack {
       ),
       vpc,
       vpcSubnets: dataSubnets,
-      credentials: rds.Credentials.fromGeneratedSecret("speakup", { secretName: "speakup/db" }),
+      credentials: rds.Credentials.fromGeneratedSecret("speakup", { secretName: dbSecretName }),
       databaseName: "speakup",
       allocatedStorage: 20,
       maxAllocatedStorage: 100, // storage autoscaling
       storageEncrypted: true,
       multiAz: false, // turn on for production HA (standby in a 2nd AZ, ~2× cost)
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: cdk.Duration.days(loadTest ? 0 : 7),
       // Refuse unencrypted connections; apps connect with sslmode=verify-full.
       parameters: { "rds.force_ssl": "1" },
       cloudwatchLogsExports: ["postgresql"],
       cloudwatchLogsRetention: logs.RetentionDays.ONE_MONTH,
       // User data: no accidental `cdk destroy`; if the stack is deleted, keep a final snapshot.
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+      deletionProtection: !loadTest,
+      removalPolicy: disposable ?? cdk.RemovalPolicy.SNAPSHOT,
     });
     const dbSecret = db.secret;
     if (!dbSecret) throw new Error("RDS did not create a credentials secret");
@@ -152,7 +156,8 @@ export class SpeakUpStack extends cdk.Stack {
           abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
         },
       ],
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // user recordings outlive the stack
+      removalPolicy: disposable ?? cdk.RemovalPolicy.RETAIN, // user recordings outlive the stack
+      autoDeleteObjects: loadTest,
     });
 
     // ── S3: public media ───────────────────────────────────────────────────────────────
@@ -169,7 +174,8 @@ export class SpeakUpStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: disposable ?? cdk.RemovalPolicy.RETAIN,
+      autoDeleteObjects: loadTest,
     });
     media.addToResourcePolicy(
       new iam.PolicyStatement({
@@ -182,11 +188,28 @@ export class SpeakUpStack extends cdk.Stack {
     // ── App secrets ────────────────────────────────────────────────────────────────────
     // Created once by hand (README "Deploy"), so no API key ever appears in CloudFormation
     // templates or in git. ECS injects each JSON field as an env var when a task starts.
-    const appSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      "AppSecret",
-      config.appSecretName,
-    );
+    // The load-test stack never reads the production keys: it generates its own secret with
+    // dummy values (nothing calls Clerk/Paddle/Turnstile there) plus a random
+    // LOAD_TEST_AUTH_SECRET that k6 reads after deploy (docs/load-testing.md).
+    const appSecret: secretsmanager.ISecret = loadTest
+      ? new secretsmanager.Secret(this, "LoadTestAppSecret", {
+          secretName: "speakup-loadtest/app",
+          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          generateSecretString: {
+            secretStringTemplate: JSON.stringify({
+              CLERK_SECRET_KEY: "sk_test_loadtest_unused",
+              PADDLE_API_KEY: "loadtest-unused",
+              PADDLE_WEBHOOK_SECRET: "loadtest-unused",
+              PADDLE_PRICE_ID_PRO_MONTHLY: "pri_loadtest_unused",
+              TURNSTILE_SECRET_KEY: "loadtest-unused",
+              IP_HASH_SECRET: "loadtest-unused-ip-hash-secret",
+            }),
+            generateStringKey: "LOAD_TEST_AUTH_SECRET",
+            passwordLength: 48,
+            excludePunctuation: true,
+          },
+        })
+      : secretsmanager.Secret.fromSecretNameV2(this, "AppSecret", config.appSecretName);
     const fromAppSecret = (key: string) => ecs.Secret.fromSecretsManager(appSecret, key);
 
     // ── ECS cluster + images ───────────────────────────────────────────────────────────
@@ -260,9 +283,17 @@ export class SpeakUpStack extends cdk.Stack {
           CORS_ORIGINS: config.webOrigins.join(","),
           PADDLE_ENV: config.paddleEnv,
           TRUST_PROXY_HOPS: "1", // the ALB
+          ...(loadTest && {
+            LOAD_TEST_STACK: "true",
+            // k6 runs from a few IPs and each virtual user records many times: the per-IP
+            // limit and the daily quota would measure themselves, not the system.
+            RATE_LIMIT_PER_MINUTE: "1000000",
+            FREE_DAILY_ANALYSES: "100000",
+          }),
         },
         secrets: {
           ...dbSecretEnv,
+          ...(loadTest && { LOAD_TEST_AUTH_SECRET: fromAppSecret("LOAD_TEST_AUTH_SECRET") }),
           CLERK_SECRET_KEY: fromAppSecret("CLERK_SECRET_KEY"),
           PADDLE_API_KEY: fromAppSecret("PADDLE_API_KEY"),
           PADDLE_WEBHOOK_SECRET: fromAppSecret("PADDLE_WEBHOOK_SECRET"),
@@ -298,14 +329,18 @@ export class SpeakUpStack extends cdk.Stack {
         ...sharedEnv,
         WORKER_CONCURRENCY: "4",
         ANTHROPIC_MODEL: config.anthropicModel,
+        // Load tests: simulated Deepgram/Claude, no network calls, no provider cost.
+        ...(loadTest && { ANALYSIS_PROVIDERS: "fake" }),
         PRICE_STT_USD_PER_MIN: "0.0043",
         PRICE_LLM_INPUT_USD_PER_MTOK: "2",
         PRICE_LLM_OUTPUT_USD_PER_MTOK: "10",
       },
       secrets: {
         ...dbSecretEnv,
-        DEEPGRAM_API_KEY: fromAppSecret("DEEPGRAM_API_KEY"),
-        ANTHROPIC_API_KEY: fromAppSecret("ANTHROPIC_API_KEY"),
+        ...(!loadTest && {
+          DEEPGRAM_API_KEY: fromAppSecret("DEEPGRAM_API_KEY"),
+          ANTHROPIC_API_KEY: fromAppSecret("ANTHROPIC_API_KEY"),
+        }),
       },
       // After SIGTERM the worker finishes in-flight analyses (STT + LLM can take ~1 min)
       // before ECS force-kills it. 120 s is the Fargate maximum.
@@ -395,7 +430,13 @@ export class SpeakUpStack extends cdk.Stack {
         "Public files: upload to s3://<MediaBucket>/media/<name>, link = this URL + <name>",
     });
     new cdk.CfnOutput(this, "MediaBucket", { value: media.bucketName });
-    new cdk.CfnOutput(this, "DbSecretName", { value: "speakup/db" });
+    new cdk.CfnOutput(this, "DbSecretName", { value: dbSecretName });
+    if (loadTest) {
+      new cdk.CfnOutput(this, "LoadTestSecretName", {
+        value: "speakup-loadtest/app",
+        description: "k6 reads LOAD_TEST_AUTH_SECRET from here (docs/load-testing.md)",
+      });
+    }
     const subnets = vpc.selectSubnets(appSubnets).subnetIds.join(",");
     new cdk.CfnOutput(this, "MigrateCommand", {
       description: "Applies Prisma migrations as a one-off Fargate task",

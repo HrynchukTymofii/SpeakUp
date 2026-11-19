@@ -186,6 +186,57 @@ describe("SpeakUp stack", () => {
   }, 60_000);
 });
 
+describe("load-test stack (speakup:loadTest=true)", () => {
+  let prod: Template;
+  let lt: Template;
+  beforeAll(() => {
+    prod = synth().template;
+    lt = synth({ "speakup:loadTest": "true" }).template;
+  }, 120_000);
+
+  const env = (t: Template, name: string) =>
+    Object.fromEntries(
+      ((container(t, name).Environment ?? []) as unknown as { Name: string; Value: string }[]).map(
+        (e) => [e.Name, e.Value],
+      ),
+    );
+  const secrets = (t: Template, name: string) => container(t, name).Secrets.map((s) => s.Name);
+
+  it("never sends work to the paid providers and holds no provider keys", () => {
+    expect(env(lt, "worker").ANALYSIS_PROVIDERS).toBe("fake");
+    expect(secrets(lt, "worker")).not.toContain("DEEPGRAM_API_KEY");
+    expect(secrets(lt, "worker")).not.toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("turns on load-test auth and lifts the per-IP and daily limits", () => {
+    expect(secrets(lt, "api")).toContain("LOAD_TEST_AUTH_SECRET");
+    expect(env(lt, "api")).toMatchObject({ LOAD_TEST_STACK: "true" });
+    expect(Number(env(lt, "api").RATE_LIMIT_PER_MINUTE)).toBeGreaterThan(100_000);
+    expect(Number(env(lt, "api").FREE_DAILY_ANALYSES)).toBeGreaterThan(10_000);
+  });
+
+  it("generates its own secrets instead of reading the production ones", () => {
+    lt.hasResourceProperties("AWS::SecretsManager::Secret", { Name: "speakup-loadtest/app" });
+    lt.hasResourceProperties("AWS::SecretsManager::Secret", { Name: "speakup-loadtest/db" });
+    expect(JSON.stringify(lt.toJSON())).not.toContain("speakup/app");
+  });
+
+  it("can be deleted completely (no protection, no retained data)", () => {
+    lt.hasResourceProperties("AWS::RDS::DBInstance", { DeletionProtection: false });
+    lt.hasResource("AWS::RDS::DBInstance", { DeletionPolicy: "Delete" });
+    for (const bucket of Object.values(lt.findResources("AWS::S3::Bucket"))) {
+      expect(bucket.DeletionPolicy).toBe("Delete");
+    }
+  });
+
+  it("leaves the production stack untouched by any load-test setting", () => {
+    expect(env(prod, "worker").ANALYSIS_PROVIDERS).toBeUndefined();
+    expect(env(prod, "api").LOAD_TEST_STACK).toBeUndefined();
+    expect(secrets(prod, "api")).not.toContain("LOAD_TEST_AUTH_SECRET");
+    expect(secrets(prod, "worker")).toContain("ANTHROPIC_API_KEY");
+  });
+});
+
 describe("config", () => {
   it("rejects a web origin with a path", () => {
     const app = new cdk.App({ context: { "speakup:webOrigins": "https://speakup.app/start" } });

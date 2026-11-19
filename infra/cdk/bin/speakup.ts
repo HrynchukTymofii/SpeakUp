@@ -12,10 +12,14 @@ import { SpeakUpStack } from "../lib/speakup-stack.js";
 const app = new cdk.App();
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
-new SpeakUpStack(app, "SpeakUp", {
+const config = readConfig(app.node, repoRoot);
+// The load-test variant is a different stack name, so it can never update production.
+new SpeakUpStack(app, config.loadTest ? "SpeakUp-LoadTest" : "SpeakUp", {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: "us-east-1" },
-  description: "SpeakUp: API + worker on ECS Fargate, RDS Postgres, ElastiCache Redis, S3",
-  config: readConfig(app.node, repoRoot),
+  description: config.loadTest
+    ? "SpeakUp LOAD TEST (throwaway): fake STT/LLM, delete after the run"
+    : "SpeakUp: API + worker on ECS Fargate, RDS Postgres, ElastiCache Redis, S3",
+  config,
 });
 
 cdk.Tags.of(app).add("project", "speakup");
