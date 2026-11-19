@@ -156,7 +156,7 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
         <Mascot mood="happy" size={96} />
         <p className="eyebrow mt-1">Your speaking score</p>
         <p
-          className="font-display text-7xl leading-none font-semibold text-peach tabular-nums"
+          className="font-display text-7xl leading-none font-semibold text-brand tabular-nums"
           aria-label={`${result.overallScore} out of 100`}
         >
           {score}
@@ -199,7 +199,7 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
           <p className="eyebrow">{CATEGORY_LABEL[issue.category] ?? issue.category}</p>
           <p className="text-muted italic">{issue.evidence}</p>
           <p>
-            <span className="font-bold text-peach">Try this: </span>
+            <span className="font-bold text-brand">Try this: </span>
             {issue.tip}
           </p>
         </Card>

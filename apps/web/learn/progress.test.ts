@@ -12,6 +12,7 @@ import {
   streakDays,
   todayCount,
   totalXp,
+  nextUp,
 } from "./progress";
 
 let n = 0;
@@ -183,5 +184,35 @@ describe("storyChallenge", () => {
       attempt("challenge-your-story", day(i + 1)),
     );
     expect(storyChallenge(history, day(9)).daysDone).toBe(7);
+  });
+});
+
+describe("nextUp", () => {
+  const lesson = (slug: string, locked = false) => ({
+    slug,
+    title: slug,
+    locked,
+    exerciseSlugs: [`${slug}-ex`],
+  });
+  const course = (slug: string, lessons: ReturnType<typeof lesson>[]) => ({
+    slug,
+    title: slug,
+    summary: "",
+    lessons,
+  });
+
+  it("is the first unfinished lesson of the first course that has one", () => {
+    const courses = [
+      course("a", [lesson("a1")]),
+      course("b", [lesson("b1"), lesson("b2"), lesson("b3")]),
+    ];
+    const up = nextUp(courses, new Set(["a1-ex", "b1-ex"]));
+    expect(up).toMatchObject({ course: { slug: "b" }, lesson: { slug: "b2" }, number: 2 });
+    expect(up?.done).toBe(1);
+  });
+
+  it("skips locked lessons and is null when nothing is left", () => {
+    const courses = [course("a", [lesson("a1"), lesson("a2", true)])];
+    expect(nextUp(courses, new Set(["a1-ex"]))).toBeNull();
   });
 });

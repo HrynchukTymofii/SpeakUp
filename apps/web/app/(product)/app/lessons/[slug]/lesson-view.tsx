@@ -126,7 +126,7 @@ function LessonStepper({
           className="h-3 flex-1 overflow-hidden rounded-full bg-card-2"
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width] duration-300"
+            className="h-full rounded-full bg-ink transition-[width] duration-300"
             style={{ width: `${((index + 1) / steps.length) * 100}%` }}
           />
         </div>
@@ -200,8 +200,8 @@ function StepNav({
 
 /** Each section gets its own surface, so "example" and "try this" are recognizable at a glance. */
 const STEP_SURFACE: Record<string, string> = {
-  Example: "rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft",
-  "Try this": "rounded-[28px] bg-sage p-5 text-on-pastel shadow-soft",
+  Example: "paper rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft",
+  "Try this": "paper rounded-[28px] bg-sage p-5 text-on-pastel shadow-soft",
 };
 
 function ReadStep({

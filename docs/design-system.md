@@ -1,8 +1,20 @@
 # Design system (web)
 
 How the SpeakUp web app (`apps/web`) looks and why, and how to build new UI that matches.
-The style is the **dark · warm** theme of the Holy Hush / Lumen design kit, adapted to a
-**true-black** background, plus SpeakUp's own mascot.
+
+Two themes share one set of token names:
+
+- **The app** (everything under the `(product)` layout: funnel, sign-in, `/app`, results,
+  pricing) uses the **SAT Learner** design: lavender, butter and black on a light lavender page,
+  graph-paper texture on pastel cards, a floating black tab bar. Light by default, dark when the
+  OS asks for it. The `(product)` layout renders `.app-theme`, and `:root:has(.app-theme)`
+  redefines the tokens (see "App theme" below).
+- **The marketing site** keeps the **dark · warm** theme of the Holy Hush / Lumen design kit on a
+  true-black background (the `:root` values below).
+
+Both use SpeakUp's own mascot.
+
+- App theme source (outside this repo): `SAT/app/constants/palette.ts`, `SAT/redesign-previews/v3/app.html`
 
 - Source kit (outside this repo): `FPG/design/kit/kit.css`, `FPG/design/app.html`, `FPG/design/web.html`
 - Mascot reference (outside this repo): `Genesis/Funnel/index.html` (the `blob()` mascot)
@@ -53,6 +65,26 @@ the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2
 
 Shadows: `shadow-soft` (cards), `shadow-soft-sm` (small cards), `shadow-peach` (peach buttons).
 
+Also: `brand` (accent for text, links and focus rings: pastels are surfaces, too light for text),
+`grid` / `dot` (graph-paper lines, path dots) and `edge` (the ledge under raised buttons).
+
+### App theme (SAT Learner)
+
+| Token                        | Light                             | Dark                  |
+| ---------------------------- | --------------------------------- | --------------------- |
+| `page` / `bg`                | `#f4f1f9`                         | `#0b0a0f`             |
+| `card` / `card-2`            | `#ffffff` / `#efeaf7`             | `#17151c` / `#221f29` |
+| `line` / `line-2`            | `#e5dfee` / `#d8d0e6`             | `#2b2733` / `#3a3544` |
+| `ink` / `muted`              | `#0b0a0f` / `#6b6577`             | `#f4f1f8` / `#9c95a8` |
+| `brand`                      | `#7a4bdb`                         | `#c9aafb`             |
+| `peach` (the accent surface) | `#c9aafb` (lavender)              | same                  |
+| `butter` / `sage` / `lav`    | `#fee7a6` / `#cdefd9` / `#e4cdff` | same                  |
+| `sky` / `rose`               | `#cfe3f7` / `#ffd6de`             | same                  |
+| `on-pastel` / `-muted`       | `#0b0a0f` / `#4a4553`             | same                  |
+
+The token keeps its old name (`peach`) so every component follows without edits; in the app it
+is lavender.
+
 **Adding a token:** add the variable to `:root`, then map it in `@theme inline`
 (`--color-<name>: var(--<name>);`). Keep values in one place — the `@theme` entry only points at the variable.
 
@@ -89,6 +121,15 @@ same element override them (utilities come later in the cascade).
 | `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                     |
 | `pill`          | small rounded badge; add a `bg-*` and text color                                                           |
 | `link`          | muted text link that brightens on hover                                                                    |
+| `paper`         | graph-paper texture (SAT Learner); put it on pastel cards and icon tiles                                   |
+| `dots`          | dotted canvas (behind the lesson path)                                                                     |
+| `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                           |
+
+App building blocks: `IconTile` (pastel square on graph paper with an emoji) and `PlayCircle`
+(the black play button in white "Continue" pills) in `components/icon-tile.tsx`; the floating
+black tab bar `components/app-tab-bar.tsx`; the Learn status row (LVL · 🔥 streak · ⚡ today) in
+`app/(product)/app/learn-view.tsx`; the lesson path with its START bubble and mascot in
+`app/(product)/app/course-path.tsx`.
 
 > Tailwind v4 cannot `@apply` a custom class, so variants are composed in markup
 > (`className="btn btn-primary"`), not inside CSS.

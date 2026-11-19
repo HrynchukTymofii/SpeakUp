@@ -76,7 +76,7 @@ function StoryChallenge({
             <li
               key={i}
               className={`flex aspect-square flex-col items-center justify-center rounded-2xl text-xs font-extrabold ${
-                done ? "bg-on-pastel text-peach" : "border-[1.5px] border-on-pastel/25"
+                done ? "bg-on-pastel text-brand" : "border-[1.5px] border-on-pastel/25"
               }`}
             >
               <span>{done ? "✓" : i + 1}</span>
@@ -119,7 +119,7 @@ function StoryChallenge({
         <button
           type="button"
           onClick={() => setRecording(true)}
-          className="btn bg-on-pastel text-peach hover:opacity-90"
+          className="btn bg-on-pastel text-brand hover:opacity-90"
         >
           Record day {daysDone + 1}
         </button>

@@ -84,7 +84,7 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
       <StepHeading title={step.title} />
       <Card className="flex flex-col gap-4 py-7">
         <p
-          className="text-center font-display text-7xl leading-none font-semibold text-peach tabular-nums"
+          className="text-center font-display text-7xl leading-none font-semibold text-brand tabular-nums"
           aria-hidden
         >
           {value}

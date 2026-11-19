@@ -154,3 +154,34 @@ export function storyChallenge(
     scores: days.slice(0, STORY_CHALLENGE_DAYS).map((d) => bestPerDay.get(d) ?? 0),
   };
 }
+
+/**
+ * The lesson the "Continue" card offers: the first unfinished, unlocked lesson of the first
+ * course (in goal order) that still has one. Null when everything open is done.
+ */
+export function nextUp<
+  C extends { slug: string; lessons: { slug: string; locked: boolean; exerciseSlugs: string[] }[] },
+>(
+  courses: C[],
+  completed: Set<string>,
+): { course: C; lesson: C["lessons"][number]; number: number; done: number } | null {
+  for (const course of courses) {
+    const states = pathStates(
+      course.lessons.map((l) => ({
+        state: lessonState(l.exerciseSlugs, completed),
+        locked: l.locked,
+      })),
+    );
+    const index = states.indexOf("current");
+    const lesson = course.lessons[index];
+    if (lesson) {
+      return {
+        course,
+        lesson,
+        number: index + 1,
+        done: states.filter((s) => s === "done").length,
+      };
+    }
+  }
+  return null;
+}

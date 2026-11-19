@@ -98,7 +98,7 @@ export function BillingView() {
             Every lesson and up to 50 analyses a day.{" "}
             <Link
               href="/pricing"
-              className="font-bold text-peach underline-offset-4 hover:underline"
+              className="font-bold text-brand underline-offset-4 hover:underline"
             >
               See pricing
             </Link>

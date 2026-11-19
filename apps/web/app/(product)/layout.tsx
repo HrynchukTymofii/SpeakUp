@@ -1,5 +1,4 @@
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { SiteHeader } from "@/components/site-header";
 
@@ -9,7 +8,8 @@ import { SiteHeader } from "@/components/site-header";
  */
 export default function ProductLayout({ children }: { children: ReactNode }) {
   return (
-    <>
+    // `.app-theme` switches the whole document to the app palette (globals.css, `:has`).
+    <div className="app-theme contents">
       {/* "/" on the app host leads to the dashboard (or sign-in); without the split, to the landing. */}
       <SiteHeader homeHref="/">
         {/* <Show> reads the request, so it must sit inside <Suspense>. */}
@@ -23,14 +23,11 @@ export default function ProductLayout({ children }: { children: ReactNode }) {
             </SignUpButton>
           </Show>
           <Show when="signed-in">
-            <Link href="/app" className="btn btn-secondary btn-sm">
-              Learn
-            </Link>
             <UserButton />
           </Show>
         </Suspense>
       </SiteHeader>
       {children}
-    </>
+    </div>
   );
 }

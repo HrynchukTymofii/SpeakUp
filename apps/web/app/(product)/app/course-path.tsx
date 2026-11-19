@@ -1,24 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import { Mascot } from "@/components/mascot";
 import { COURSE_META, DEFAULT_META } from "@/learn/catalog";
 import type { LearnCourse } from "@/learn/personalize";
 import { lessonState, pathStates, type PathState } from "@/learn/progress";
 
 /** Zig-zag offsets (px) for the path nodes, like a winding trail. */
-const OFFSETS = [0, 44, 64, 44, 0, -44, -64, -44];
+const OFFSETS = [0, 56, 80, 56, 0, -56, -80, -56];
 
-/** A course's page: a short header, then its lessons as a winding path. */
+/**
+ * A course's page: a short header, then its lessons as a winding path of raised buttons on a
+ * dotted canvas. The lesson to do next carries a bubble with its title and START; the mascot
+ * sits beside it.
+ */
 export function CoursePath({ course, completed }: { course: LearnCourse; completed: Set<string> }) {
   const meta = COURSE_META[course.slug] ?? DEFAULT_META;
-  const lessonStates = course.lessons.map((l) => lessonState(l.exerciseSlugs, completed));
   const states = pathStates(
-    course.lessons.map((l, i) => ({ state: lessonStates[i] ?? "new", locked: l.locked })),
+    course.lessons.map((l) => ({
+      state: lessonState(l.exerciseSlugs, completed),
+      locked: l.locked,
+    })),
   );
   const doneCount = states.filter((s) => s === "done").length;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <h1 className="font-display text-[30px] leading-[1.05] font-semibold tracking-tight">
           <span aria-hidden>{meta.icon} </span>
@@ -29,25 +36,73 @@ export function CoursePath({ course, completed }: { course: LearnCourse; complet
         </p>
       </header>
 
-      <ol className="flex flex-col items-center gap-5" aria-label={`${course.title} lessons`}>
-        {course.lessons.map((lesson, i) => (
-          <li
-            key={lesson.slug}
-            className="flex flex-col items-center gap-1.5"
-            style={{ transform: `translateX(${OFFSETS[i % OFFSETS.length] ?? 0}px)` }}
-          >
-            <PathNode
-              href={`/app/lessons/${lesson.slug}`}
-              state={states[i] ?? "open"}
-              index={i + 1}
-              title={lesson.title}
-            />
-            <span className="max-w-40 text-center text-sm leading-tight font-bold">
-              {lesson.title}
-            </span>
-          </li>
-        ))}
+      <ol
+        className="dots -mx-4 flex flex-col items-center gap-9 px-4 py-10"
+        aria-label={`${course.title} lessons`}
+      >
+        {course.lessons.map((lesson, i) => {
+          const state = states[i] ?? "open";
+          const offset = OFFSETS[i % OFFSETS.length] ?? 0;
+          return (
+            <li
+              key={lesson.slug}
+              className="relative flex flex-col items-center"
+              style={{ transform: `translateX(${offset}px)` }}
+            >
+              {state === "current" && (
+                <StartBubble
+                  href={`/app/lessons/${lesson.slug}`}
+                  title={lesson.title}
+                  offset={offset}
+                />
+              )}
+              {/* The node and (next to the lesson to do) the mascot, placed against the node. */}
+              <span className="relative flex">
+                <PathNode
+                  href={`/app/lessons/${lesson.slug}`}
+                  state={state}
+                  index={i + 1}
+                  title={lesson.title}
+                />
+                {state === "current" && (
+                  <Mascot
+                    mood="happy"
+                    size={56}
+                    className={`absolute top-1 ${offset > 0 ? "right-full mr-3" : "left-full ml-3"}`}
+                  />
+                )}
+              </span>
+            </li>
+          );
+        })}
       </ol>
+    </div>
+  );
+}
+
+/**
+ * The speech bubble over the next lesson: its title and a big START. It stays centered on the
+ * page (undoing the node's zig-zag offset, so it never overflows a phone screen); the arrow
+ * points at the node.
+ */
+function StartBubble({ href, title, offset }: { href: string; title: string; offset: number }) {
+  return (
+    <div
+      className="relative mb-4 flex w-60 flex-col gap-3 rounded-[22px] bg-ink p-4 text-page shadow-soft"
+      style={{ transform: `translateX(${-offset}px)` }}
+    >
+      <p className="font-display text-lg leading-tight font-semibold">{title}</p>
+      <Link
+        href={href}
+        className="flex min-h-11 items-center justify-center rounded-2xl bg-page font-extrabold tracking-wide text-ink uppercase"
+      >
+        Start
+      </Link>
+      <span
+        aria-hidden
+        className="absolute -bottom-2 size-4 -translate-x-1/2 rotate-45 bg-ink"
+        style={{ left: `calc(50% + ${offset}px)` }}
+      />
     </div>
   );
 }
@@ -72,25 +127,18 @@ function PathNode({
 }) {
   const look: Record<PathState, string> = {
     done: "bg-sage text-on-pastel",
-    current: "path-current bg-peach text-on-pastel shadow-peach",
-    open: "border-[1.5px] border-line-2 bg-card-2 text-ink",
-    locked: "border-[1.5px] border-dashed border-line-2 bg-card text-muted",
+    current: "path-current bg-peach text-on-pastel",
+    open: "bg-card text-ink",
+    locked: "bg-card-2 text-muted",
   };
   return (
     <Link
       href={href}
       aria-label={`${index}. ${title} (${NODE_LABEL[state]})`}
-      className={`flex size-[72px] items-center justify-center rounded-full font-display text-2xl font-semibold transition-transform active:scale-95 ${look[state]}`}
+      title={title}
+      className={`raised flex h-[64px] w-[84px] items-center justify-center rounded-[50%] font-display text-2xl font-semibold ${look[state]}`}
     >
-      {state === "done" ? (
-        "✓"
-      ) : state === "locked" ? (
-        <LockIcon />
-      ) : state === "current" ? (
-        "★"
-      ) : (
-        index
-      )}
+      {state === "done" ? "✓" : state === "locked" ? <LockIcon /> : index}
     </Link>
   );
 }

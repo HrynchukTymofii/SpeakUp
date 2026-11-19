@@ -145,7 +145,7 @@ export function ResultsReport({
                 </div>
                 <p className="text-sm text-muted italic">{issue.evidence}</p>
                 <p className="text-ink">
-                  <span className="font-bold text-peach">Try this: </span>
+                  <span className="font-bold text-brand">Try this: </span>
                   {issue.tip}
                 </p>
               </div>

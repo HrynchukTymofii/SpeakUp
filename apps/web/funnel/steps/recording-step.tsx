@@ -145,7 +145,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
 
       <div aria-live="polite" className="flex min-h-16 flex-col items-center justify-center gap-2">
         {countdown !== null && (
-          <p className="font-display text-7xl font-semibold text-peach tabular-nums">{countdown}</p>
+          <p className="font-display text-7xl font-semibold text-brand tabular-nums">{countdown}</p>
         )}
         {state.kind === "requesting" && <p className="text-muted">Starting microphone…</p>}
         {state.kind === "recording" && (

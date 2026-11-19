@@ -23,7 +23,7 @@ const TABS: Tab[] = [
     href: "/app",
     label: "Learn",
     icon: icon("M4 19V6a2 2 0 0 1 2-2h12v13H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h12"),
-    match: (p) => p === "/app" || p.startsWith("/app/lessons"),
+    match: (p) => p === "/app" || p.startsWith("/app/lessons") || p.startsWith("/app/courses"),
   },
   {
     href: "/app/practice",
@@ -49,15 +49,18 @@ const TABS: Tab[] = [
   },
 ];
 
-/** Bottom navigation of the signed-in app (thumb-reachable on phones, like most learning apps). */
+/**
+ * Bottom navigation of the signed-in app: a floating black pill with icons (SAT Learner style),
+ * the active tab in a light circle. Thumb-reachable on phones; labels are for screen readers.
+ */
 export function AppTabBar() {
   const path = usePathname();
   return (
     <nav
       aria-label="App"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-page/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(16px,env(safe-area-inset-bottom))]"
     >
-      <ul className="mx-auto grid max-w-2xl grid-cols-4">
+      <ul className="flex items-center gap-1 rounded-full bg-ink p-1.5 shadow-soft">
         {TABS.map((tab) => {
           const active = tab.match(path);
           return (
@@ -65,12 +68,13 @@ export function AppTabBar() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-[11.5px] font-extrabold transition-colors ${
-                  active ? "text-peach" : "text-muted hover:text-ink"
+                aria-label={tab.label}
+                title={tab.label}
+                className={`flex size-13 items-center justify-center rounded-full transition-colors ${
+                  active ? "bg-page text-ink" : "text-page/65 hover:text-page"
                 }`}
               >
                 {tab.icon}
-                {tab.label}
               </Link>
             </li>
           );
