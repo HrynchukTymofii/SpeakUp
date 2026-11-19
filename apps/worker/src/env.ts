@@ -12,28 +12,54 @@ const price = z.preprocess(emptyAsUndefined, z.coerce.number().min(0).default(0)
  * Worker config, validated at boot (exit on invalid). Same pattern as apps/api/src/env.ts.
  * AWS credentials are not listed: the AWS SDK finds them itself (env locally, IAM role in prod).
  */
-export const EnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  REDIS_URL: z.url(),
-  DATABASE_URL: z.url(),
-  // Jobs mostly wait on network I/O (STT, LLM), so a few in parallel per process is cheap.
-  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(2),
+export const EnvSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    REDIS_URL: z.url(),
+    DATABASE_URL: z.url(),
+    // Jobs mostly wait on network I/O (STT, LLM), so a few in parallel per process is cheap.
+    WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(2),
 
-  AWS_REGION: z.string().min(1).default("us-east-1"),
-  S3_BUCKET: z.string().min(3),
-  S3_ENDPOINT: z.preprocess(emptyAsUndefined, z.url().optional()),
+    AWS_REGION: z.string().min(1).default("us-east-1"),
+    S3_BUCKET: z.string().min(3),
+    S3_ENDPOINT: z.preprocess(emptyAsUndefined, z.url().optional()),
 
-  // Audio decoding for pitch/loudness/pause analysis. The Docker image ships ffmpeg on PATH.
-  FFMPEG_PATH: z.preprocess(emptyAsUndefined, z.string().min(1).default("ffmpeg")),
+    // Audio decoding for pitch/loudness/pause analysis. The Docker image ships ffmpeg on PATH.
+    FFMPEG_PATH: z.preprocess(emptyAsUndefined, z.string().min(1).default("ffmpeg")),
 
-  DEEPGRAM_API_KEY: z.string().min(10, "DEEPGRAM_API_KEY is required (see .env.example)"),
-  ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-", "must be an Anthropic API key (sk-ant-...)"),
-  ANTHROPIC_MODEL: z.preprocess(emptyAsUndefined, z.string().default("claude-sonnet-5-5")),
+    // "fake" = simulated Deepgram/Claude for load tests (docs/load-testing.md): no network calls,
+    // no provider cost, results marked with llmModel "fake-llm". Never set it in production.
+    ANALYSIS_PROVIDERS: z.enum(["real", "fake"]).default("real"),
+    FAKE_STT_MEDIAN_MS: z.coerce.number().int().min(0).default(1000),
+    FAKE_LLM_MEDIAN_MS: z.coerce.number().int().min(0).default(2000),
+    FAKE_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0),
 
-  PRICE_STT_USD_PER_MIN: price,
-  PRICE_LLM_INPUT_USD_PER_MTOK: price,
-  PRICE_LLM_OUTPUT_USD_PER_MTOK: price,
-});
+    // Required only with the real providers (checked below).
+    DEEPGRAM_API_KEY: z.preprocess(emptyAsUndefined, z.string().optional()),
+    ANTHROPIC_API_KEY: z.preprocess(emptyAsUndefined, z.string().optional()),
+    ANTHROPIC_MODEL: z.preprocess(emptyAsUndefined, z.string().default("claude-sonnet-5-5")),
+
+    PRICE_STT_USD_PER_MIN: price,
+    PRICE_LLM_INPUT_USD_PER_MTOK: price,
+    PRICE_LLM_OUTPUT_USD_PER_MTOK: price,
+  })
+  .superRefine((env, ctx) => {
+    if (env.ANALYSIS_PROVIDERS === "fake") return;
+    if ((env.DEEPGRAM_API_KEY ?? "").length < 10) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["DEEPGRAM_API_KEY"],
+        message: "DEEPGRAM_API_KEY is required (see .env.example)",
+      });
+    }
+    if (!env.ANTHROPIC_API_KEY?.startsWith("sk-ant-")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ANTHROPIC_API_KEY"],
+        message: "must be an Anthropic API key (sk-ant-...)",
+      });
+    }
+  });
 
 export type Env = z.infer<typeof EnvSchema>;
 

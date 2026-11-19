@@ -162,9 +162,10 @@ All variables are documented in [`.env.example`](./.env.example). Each app valid
 variables with Zod at startup and exits with a readable error if something is missing.
 Only `NEXT_PUBLIC_*` variables are exposed to the browser.
 
-| Variable                                       | Where              | Purpose                                                                                                                                                                                                                 |
-| ---------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL` | web, Vercel (Prod) | Domain split: origin of the marketing site and of the product app. Set both or neither. With both set, `proxy.ts` redirects each page to its host (see `docs/architecture.md`, "Two hosts"). Empty in dev and previews. |
+| Variable                                                                              | Where              | Purpose                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL`                                        | web, Vercel (Prod) | Domain split: origin of the marketing site and of the product app. Set both or neither. With both set, `proxy.ts` redirects each page to its host (see `docs/architecture.md`, "Two hosts"). Empty in dev and previews.     |
+| `ANALYSIS_PROVIDERS`, `FAKE_STT_MEDIAN_MS`, `FAKE_LLM_MEDIAN_MS`, `FAKE_FAILURE_RATE` | worker             | Load testing only. `fake` replaces Deepgram and Claude with simulated providers (realistic delays, optional failure rate, no network calls, no keys). See [`docs/load-testing.md`](./docs/load-testing.md). Default `real`. |
 
 ## Deploy (AWS + Vercel)
 

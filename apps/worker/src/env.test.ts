@@ -48,6 +48,29 @@ describe("worker parseEnv", () => {
     expect(() => parseEnv({ ...base, ANTHROPIC_API_KEY: "nope" })).toThrow(/ANTHROPIC_API_KEY/);
   });
 
+  it("uses the real providers unless fake ones are asked for", () => {
+    expect(parseEnv(base).ANALYSIS_PROVIDERS).toBe("real");
+  });
+
+  it("fake providers need no API keys and have latency defaults", () => {
+    const env = parseEnv({
+      ...base,
+      DEEPGRAM_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      ANALYSIS_PROVIDERS: "fake",
+    });
+    expect(env.ANALYSIS_PROVIDERS).toBe("fake");
+    expect(env.FAKE_STT_MEDIAN_MS).toBe(1000);
+    expect(env.FAKE_LLM_MEDIAN_MS).toBe(2000);
+    expect(env.FAKE_FAILURE_RATE).toBe(0);
+  });
+
+  it("rejects a failure rate outside 0–1", () => {
+    expect(() =>
+      parseEnv({ ...base, ANALYSIS_PROVIDERS: "fake", FAKE_FAILURE_RATE: "1.5" }),
+    ).toThrow(/FAKE_FAILURE_RATE/);
+  });
+
   it("requires REDIS_URL", () => {
     expect(() => parseEnv({})).toThrow(/REDIS_URL/);
   });
