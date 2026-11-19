@@ -523,6 +523,7 @@ The repo owner is preparing for technical interviews. After each milestone appen
 | Paddle (MoR) | Handles global tax; available to Ukrainian sellers | Stripe if company entity is in a Stripe country |
 | One Vercel project for two hosts (marketing `speakup.` / product `app.`), routed by host in `proxy.ts` | One build, one set of env vars, shared components and design tokens; the split can be switched on/off with two env vars | Two projects (or Next multi-zones) if the marketing site moves to a CMS/site builder or gets its own release cycle |
 | ECS Fargate | Containers without managing servers; same images as local | Kubernetes (EKS) only with a platform team |
+| Learning progress, streak, XP and lesson suggestions derived from the attempt history in the app (no progress tables); fine-grained problems from metrics by fixed rules (`detectProblems`) | Nothing new to keep in sync; deterministic, testable suggestions; content is still changing, so no schema churn | Progress tables (or a materialized view) when history gets long, lessons gain non-recorded steps that must sync across devices, or challenges/contests need server-side state |
 
 ---
 
