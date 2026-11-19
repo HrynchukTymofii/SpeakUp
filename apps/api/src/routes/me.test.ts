@@ -39,6 +39,20 @@ describe("GET /v1/me — authentication", () => {
 });
 
 describe("GET /v1/me — lazy provisioning + profile", () => {
+  it("survives concurrent first requests (the losing upsert hits the unique constraint)", async () => {
+    // Regression: a new user's first screen fires several requests at once. Each saw "no user",
+    // each upserted, and Postgres rejected all but one with P2002 → 500 on the others.
+    const db = new FakeDb();
+    db.simulateProvisioningRace = true;
+    const app = await buildTestServer({ db, auth: new FakeAuth() });
+
+    const res = await app.inject({ method: "GET", url: "/v1/me", headers: auth("clerk_1") });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.id).toBe("user_1");
+    expect(db.users).toHaveLength(1);
+  });
+
   it("creates the user on first request (with email) and reuses it afterwards", async () => {
     const db = new FakeDb();
     const fakeAuth = new FakeAuth();
