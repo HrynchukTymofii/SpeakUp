@@ -387,3 +387,95 @@
     animation: none !important;
   }
 }
+
+/* Learn path: the lesson to do next gently pulses (off for reduced motion). */
+@keyframes path-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--peach) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--peach) 0%, transparent);
+  }
+}
+.path-current {
+  animation: path-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .path-current {
+    animation: none;
+  }
+}
+
+/* Lesson sections on a pastel card keep dark ink (kit rule). */
+.lesson-body-pastel,
+.lesson-body-pastel strong,
+.lesson-body-pastel h2 {
+  color: var(--on-pastel);
+}
+.lesson-body-pastel li::marker {
+  color: var(--on-pastel-muted);
+}
+
+/* Square breathing: the dot travels the square's four sides, one side per phase. */
+@keyframes breath-around {
+  0% {
+    top: 6px;
+    left: 6px;
+  }
+  25% {
+    top: 6px;
+    left: calc(100% - 30px);
+  }
+  50% {
+    top: calc(100% - 30px);
+    left: calc(100% - 30px);
+  }
+  75% {
+    top: calc(100% - 30px);
+    left: 6px;
+  }
+  100% {
+    top: 6px;
+    left: 6px;
+  }
+}
+/* The square is inset 16px with a 4px border: the 24px dot is centred on that line. */
+.breath-dot {
+  top: 6px;
+  left: 6px;
+  animation: breath-around linear infinite;
+}
+
+/* "Yes!" button: a satisfying squash on press. */
+@keyframes yes-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.88);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.yes-pop {
+  animation: yes-pop 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .breath-dot,
+  .yes-pop {
+    animation: none;
+  }
+}
+
+/* Horizontal chip rows and the practice feed scroll by swipe; hide the desktop scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

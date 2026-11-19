@@ -26,6 +26,11 @@ export const LessonSummarySchema = z.object({
   order: z.number().int(),
   isFree: z.boolean(),
   locked: z.boolean(),
+  /**
+   * The lesson's exercise slugs, so the app can tell which lessons are done from the attempt
+   * history. Optional: the web app may be deployed before the API that sends it.
+   */
+  exerciseSlugs: z.array(z.string()).optional(),
 });
 export type LessonSummary = z.infer<typeof LessonSummarySchema>;
 
@@ -59,3 +64,14 @@ export type LessonResponse = z.infer<typeof LessonResponseSchema>;
 /** GET /v1/exercises/baseline */
 export const ExerciseResponseSchema = z.object({ exercise: ExerciseSchema });
 export type ExerciseResponse = z.infer<typeof ExerciseResponseSchema>;
+
+/**
+ * GET /v1/exercises/practice — standalone exercises for the Practice feed and Challenges:
+ * quick drills (`drill-*`), "speak like a legend" read-alouds (`legend-*`) and challenge
+ * exercises (`challenge-*`). Open to every plan, like the baseline.
+ */
+export const PracticeExercisesResponseSchema = z.object({ exercises: z.array(ExerciseSchema) });
+export type PracticeExercisesResponse = z.infer<typeof PracticeExercisesResponseSchema>;
+
+/** Slug prefixes of the standalone practice exercises. */
+export const PRACTICE_SLUG_PREFIXES = ["drill-", "legend-", "challenge-"] as const;

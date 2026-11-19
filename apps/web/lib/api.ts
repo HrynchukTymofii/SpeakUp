@@ -2,6 +2,7 @@ import {
   ApiErrorSchema,
   AttemptDetailResponseSchema,
   AttemptResponseSchema,
+  AttemptsListResponseSchema,
   BillingPlansResponseSchema,
   CheckoutResponseSchema,
   ClaimFunnelResponseSchema,
@@ -11,11 +12,14 @@ import {
   LessonResponseSchema,
   MeResponseSchema,
   PortalResponseSchema,
+  PracticeExercisesResponseSchema,
   type AttemptDetailResponse,
   type AttemptResponse,
+  type AttemptsListResponse,
   type BillingPlansResponse,
   type CheckoutResponse,
   type PortalResponse,
+  type PracticeExercisesResponse,
   type ClaimFunnelResponse,
   type CoursesResponse,
   type CreateAttemptBody,
@@ -90,6 +94,11 @@ export function createApiClient(getToken: GetToken) {
       request(`/v1/lessons/${encodeURIComponent(slug)}`, LessonResponseSchema),
     getBaselineExercise: (): Promise<ExerciseResponse> =>
       request("/v1/exercises/baseline", ExerciseResponseSchema),
+    getPracticeExercises: (): Promise<PracticeExercisesResponse> =>
+      request("/v1/exercises/practice", PracticeExercisesResponseSchema),
+    /** The user's practice history, newest first (progress, streak, profile, suggestions). */
+    getAttempts: (limit = 100): Promise<AttemptsListResponse> =>
+      request(`/v1/attempts?limit=${limit}`, AttemptsListResponseSchema),
 
     createAttempt: (body: CreateAttemptBody): Promise<CreateAttemptResponse> =>
       request("/v1/attempts", CreateAttemptResponseSchema, {

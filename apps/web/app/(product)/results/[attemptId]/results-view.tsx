@@ -1,11 +1,19 @@
 "use client";
 
-import { AnalysisErrorCode, type AnalysisStage } from "@speakup/shared";
+import {
+  AnalysisErrorCode,
+  detectProblems,
+  type AnalysisStage,
+  type AttemptResult,
+} from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { ResultsReport } from "@/components/results-report";
+import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
+import { lessonsFixing } from "@/learn/personalize";
+import { TONE_SURFACE } from "@/learn/tone";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 
@@ -56,7 +64,7 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
 
   const backLink = (
     <Link href="/app" className="link w-fit text-sm font-bold">
-      ← Back to dashboard
+      ← Back to Learn
     </Link>
   );
 
@@ -83,6 +91,7 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
       <>
         {backLink}
         <ResultsReport exercise={exercise} result={result} />
+        <FixWithLessons result={result} />
       </>
     );
   }
@@ -149,5 +158,57 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
         )}
       </div>
     </>
+  );
+}
+
+/** Each problem found in this recording, linked to the lesson that fixes it. */
+function FixWithLessons({ result }: { result: AttemptResult }) {
+  const api = useApi();
+  const courses = useQuery({ queryKey: ["courses"], queryFn: () => api.getCourses() });
+  if (!courses.data) return null;
+
+  const problems = detectProblems(result.metrics, result.feedback);
+  const links = lessonsFixing(
+    problems,
+    courses.data.courses.map((c) => ({
+      ...c,
+      lessons: c.lessons.map((l) => ({ ...l, exerciseSlugs: l.exerciseSlugs ?? [] })),
+    })),
+  );
+  if (links.length === 0) return null;
+
+  return (
+    <section className="card flex flex-col gap-3" aria-labelledby="fix-heading">
+      <h2 id="fix-heading" className="font-display text-xl font-semibold">
+        Fix it with a lesson
+      </h2>
+      <ul className="flex flex-col gap-2">
+        {links.map(({ problem, lesson, course }) => {
+          const meta = COURSE_META[course.slug] ?? DEFAULT_META;
+          return (
+            <li key={lesson.slug}>
+              <Link
+                href={`/app/lessons/${lesson.slug}`}
+                className="flex items-center gap-3 rounded-[20px] border-[1.5px] border-line-2 bg-card-2 p-3 transition-colors hover:border-peach"
+              >
+                <span
+                  aria-hidden
+                  className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl ${TONE_SURFACE[meta.tone]}`}
+                >
+                  {meta.icon}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-bold">{lesson.title}</span>
+                  <span className="text-xs font-semibold text-muted">
+                    Fixes: {PROBLEM_LABEL[problem].toLowerCase()}
+                  </span>
+                </span>
+                {lesson.locked && <span className="pill bg-card text-muted">Pro</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

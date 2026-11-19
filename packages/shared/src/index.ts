@@ -2,6 +2,7 @@
 // Only re-exports — keep logic in focused modules so each file is easy to explain.
 export * from "./queue.js";
 export * from "./analysis.js";
+export * from "./problems.js";
 export * from "./api/errors.js";
 export * from "./api/me.js";
 export * from "./api/courses.js";

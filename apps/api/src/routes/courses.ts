@@ -4,6 +4,8 @@ import {
   ErrorCode,
   ExerciseResponseSchema,
   LessonResponseSchema,
+  PRACTICE_SLUG_PREFIXES,
+  PracticeExercisesResponseSchema,
   SlugSchema,
 } from "@speakup/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
@@ -47,7 +49,13 @@ export const courseRoutes: FastifyPluginAsyncZod<CourseRoutesOptions> = async (
           summary: true,
           lessons: {
             orderBy: { order: "asc" },
-            select: { slug: true, title: true, order: true, isFree: true },
+            select: {
+              slug: true,
+              title: true,
+              order: true,
+              isFree: true,
+              exercises: { orderBy: { order: "asc" }, select: { slug: true } },
+            },
           },
         },
       }),
@@ -56,9 +64,10 @@ export const courseRoutes: FastifyPluginAsyncZod<CourseRoutesOptions> = async (
     return {
       courses: courses.map((course) => ({
         ...course,
-        lessons: course.lessons.map((lesson) => ({
+        lessons: course.lessons.map(({ exercises, ...lesson }) => ({
           ...lesson,
           locked: !canAccessLesson(lesson, plan),
+          exerciseSlugs: exercises.map((e) => e.slug),
         })),
       })),
     };
@@ -115,6 +124,26 @@ export const courseRoutes: FastifyPluginAsyncZod<CourseRoutesOptions> = async (
       // Missing baseline = DB wasn't seeded. That's a server problem, not a client one.
       if (!exercise) throw new Error("Baseline exercise missing — run `pnpm db:seed`");
       return { exercise };
+    },
+  );
+
+  /**
+   * Standalone practice exercises (Practice feed, Challenges). They have no lesson, so — like
+   * the baseline — every plan may record them; the daily analysis quota still applies.
+   */
+  app.get(
+    "/exercises/practice",
+    { schema: { response: { 200: PracticeExercisesResponseSchema } } },
+    async () => {
+      const exercises = await db.exercise.findMany({
+        where: {
+          lessonId: null,
+          OR: PRACTICE_SLUG_PREFIXES.map((prefix) => ({ slug: { startsWith: prefix } })),
+        },
+        orderBy: [{ order: "asc" }, { slug: "asc" }],
+        select: exerciseSelect,
+      });
+      return { exercises };
     },
   );
 };

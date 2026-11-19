@@ -5,7 +5,13 @@
  * updates content instead of creating duplicates or failing. Safe to re-run after editing copy.
  */
 import { createDbClient } from "../src/client.js";
-import { baselineExercise, course, speakingChecks, type SeedExercise } from "../src/seed-data.js";
+import {
+  baselineExercise,
+  courses,
+  practiceExercises,
+  speakingChecks,
+  type SeedExercise,
+} from "../src/seed-data.js";
 
 const databaseUrl = process.env.DATABASE_URL; // loaded by prisma.config.ts
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
@@ -29,7 +35,7 @@ function exerciseFields(ex: SeedExercise, lessonId: string | null) {
 /**
  * Prisma's defaults (wait 2 s to start a transaction, 5 s to finish it) are made for request
  * handlers. The seed runs against remote databases too: a serverless Postgres (Neon) can take
- * several seconds to wake up, and ~20 upserts each cross the network. Content seeding is rare
+ * several seconds to wake up, and ~100 upserts each cross the network. Content seeding is rare
  * and one-off, so generous limits cost nothing.
  */
 const SEED_TRANSACTION_OPTIONS = { maxWait: 30_000, timeout: 120_000 } as const;
@@ -37,28 +43,29 @@ const SEED_TRANSACTION_OPTIONS = { maxWait: 30_000, timeout: 120_000 } as const;
 async function main(): Promise<void> {
   // One transaction: the content is either fully seeded or not at all.
   await db.$transaction(async (tx) => {
-    const { lessons, ...courseFields } = course;
-    const dbCourse = await tx.course.upsert({
-      where: { slug: course.slug },
-      create: courseFields,
-      update: courseFields,
-    });
-
-    for (const { exercises, ...lesson } of lessons) {
-      const lessonFields = { ...lesson, courseId: dbCourse.id, videoUrl };
-      const dbLesson = await tx.lesson.upsert({
-        where: { slug: lesson.slug },
-        create: lessonFields,
-        update: lessonFields,
+    for (const { lessons, ...courseFields } of courses) {
+      const dbCourse = await tx.course.upsert({
+        where: { slug: courseFields.slug },
+        create: courseFields,
+        update: courseFields,
       });
 
-      for (const ex of exercises) {
-        const fields = exerciseFields(ex, dbLesson.id);
-        await tx.exercise.upsert({
-          where: { slug: ex.slug },
-          create: { slug: ex.slug, ...fields },
-          update: fields,
+      for (const { exercises, ...lesson } of lessons) {
+        const lessonFields = { ...lesson, courseId: dbCourse.id, videoUrl };
+        const dbLesson = await tx.lesson.upsert({
+          where: { slug: lesson.slug },
+          create: lessonFields,
+          update: lessonFields,
         });
+
+        for (const ex of exercises) {
+          const fields = exerciseFields(ex, dbLesson.id);
+          await tx.exercise.upsert({
+            where: { slug: ex.slug },
+            create: { slug: ex.slug, ...fields },
+            update: fields,
+          });
+        }
       }
     }
 
@@ -70,8 +77,9 @@ async function main(): Promise<void> {
       update: baselineFields,
     });
 
-    // The funnel's speaking checks (one per goal), also standalone.
-    for (const ex of speakingChecks) {
+    // The funnel's speaking checks (one per goal) and the practice exercises (drills, legends,
+    // challenges): standalone, like the baseline.
+    for (const ex of [...speakingChecks, ...practiceExercises]) {
       const fields = exerciseFields(ex, null);
       await tx.exercise.upsert({
         where: { slug: ex.slug },
@@ -81,12 +89,14 @@ async function main(): Promise<void> {
     }
   }, SEED_TRANSACTION_OPTIONS);
 
-  const [courses, lessonCount, exerciseCount] = await Promise.all([
+  const [courseCount, lessonCount, exerciseCount] = await Promise.all([
     db.course.count(),
     db.lesson.count(),
     db.exercise.count(),
   ]);
-  console.log(`Seeded: ${courses} course(s), ${lessonCount} lessons, ${exerciseCount} exercises`);
+  console.log(
+    `Seeded: ${courseCount} course(s), ${lessonCount} lessons, ${exerciseCount} exercises`,
+  );
 }
 
 main()

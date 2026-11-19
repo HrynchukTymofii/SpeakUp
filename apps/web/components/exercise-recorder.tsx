@@ -43,10 +43,20 @@ const isPlanLimit = (err: Error) =>
 
 /**
  * Record → preview → submit for one exercise (SPEC §6.1–6.2).
+ *
+ * After a submit the recorder opens the results page by default. Inside a lesson stepper or the
+ * practice feed (`afterSubmit="stay"`) it stays put and offers a link instead, so the flow
+ * isn't interrupted.
  * Submit = 3 calls: create the attempt (API returns a pre-signed upload) → upload the audio
  * straight to S3 → confirm with the API, which verifies the file and queues the analysis.
  */
-export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
+export function ExerciseRecorder({
+  exercise,
+  afterSubmit = "open-results",
+}: {
+  exercise: Exercise;
+  afterSubmit?: "open-results" | "stay";
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -67,9 +77,14 @@ export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
       return submitted.attempt;
     },
     // The results page polls the attempt until the worker is done.
-    onSuccess: (attempt) => router.push(`/results/${attempt.id}`),
-    // Today's usage (shown on the dashboard) changed.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
+    onSuccess: (attempt) => {
+      if (afterSubmit === "open-results") router.push(`/results/${attempt.id}`);
+    },
+    // Today's usage and the practice history (progress, streak) changed.
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
+      void queryClient.invalidateQueries({ queryKey: ["attempts"] });
+    },
   });
 
   const recordAgain = () => {
@@ -98,7 +113,9 @@ export function ExerciseRecorder({ exercise }: { exercise: Exercise }) {
           <p className="font-display text-lg font-semibold">Recording submitted ✓</p>
         </div>
         <p className="text-sm font-medium text-on-pastel-muted">
-          Opening your results…{" "}
+          {afterSubmit === "open-results"
+            ? "Opening your results… "
+            : "We’re analyzing it — your results will be ready in a few seconds. "}
           <Link
             href={`/results/${submission.data.id}`}
             className="font-bold text-on-pastel underline"

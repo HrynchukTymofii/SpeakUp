@@ -115,3 +115,27 @@ describe("GET /v1/exercises/baseline", () => {
     expect(res.body).not.toContain("db:seed");
   });
 });
+
+describe("lesson summaries", () => {
+  it("include the lesson's exercise slugs (for progress)", async () => {
+    const { app } = await setup();
+    const res = await app.inject({ method: "GET", url: "/v1/courses", headers: auth });
+    expect(res.json().courses[0].lessons[0].exerciseSlugs).toEqual(["find-your-pace-read"]);
+  });
+});
+
+describe("GET /v1/exercises/practice", () => {
+  it("returns the standalone practice exercises to a free user", async () => {
+    const { app } = await setup();
+    const res = await app.inject({ method: "GET", url: "/v1/exercises/practice", headers: auth });
+    expect(res.statusCode).toBe(200);
+    const slugs = res.json().exercises.map((e: { slug: string }) => e.slug);
+    expect(slugs).toEqual(["drill-topic-coffee", "legend-gettysburg"]);
+  });
+
+  it("requires auth", async () => {
+    const { app } = await setup();
+    const res = await app.inject({ method: "GET", url: "/v1/exercises/practice" });
+    expect(res.statusCode).toBe(401);
+  });
+});

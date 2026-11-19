@@ -1,15 +1,39 @@
 "use client";
 
-import { ErrorCode, type Exercise } from "@speakup/shared";
+import { ErrorCode, type Exercise, type LessonResponse } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { Mascot } from "@/components/mascot";
+import { findLocalLesson } from "@/learn/catalog";
+import { splitLessonBody } from "@/learn/lesson-steps";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { LocalLessonView } from "./local-lessons";
+import { StoryWriter } from "./story-writer";
+
+const backLink = (
+  <Link href="/app" className="link w-fit text-sm font-bold">
+    ← Back to Learn
+  </Link>
+);
 
 export function LessonView({ slug }: { slug: string }) {
+  const local = findLocalLesson(slug);
+  if (local) {
+    return (
+      <>
+        {backLink}
+        <LocalLessonView lesson={local} />
+      </>
+    );
+  }
+  return <RecordedLesson slug={slug} />;
+}
+
+function RecordedLesson({ slug }: { slug: string }) {
   const api = useApi();
   const lesson = useQuery({
     queryKey: ["lesson", slug],
@@ -17,12 +41,6 @@ export function LessonView({ slug }: { slug: string }) {
     // A 403/404 won't change by retrying — fail fast so the user sees the right screen.
     retry: (count, err) => !(err instanceof ApiClientError && err.status < 500) && count < 1,
   });
-
-  const backLink = (
-    <Link href="/app" className="link w-fit text-sm font-bold">
-      ← Back to dashboard
-    </Link>
-  );
 
   if (lesson.isPending) return <p className="text-muted">Loading lesson…</p>;
 
@@ -47,55 +65,181 @@ export function LessonView({ slug }: { slug: string }) {
     );
   }
 
-  const { lesson: data } = lesson.data;
+  return <LessonStepper lesson={lesson.data.lesson} />;
+}
+
+type Step =
+  | { kind: "read"; title: string; body: string }
+  | { kind: "write-story" }
+  | { kind: "exercise"; exercise: Exercise; number: number; of: number }
+  | { kind: "done" };
+
+/** Lessons where the user writes something of their own (never the AI) before recording it. */
+const WRITING_LESSONS = new Set(["your-story"]);
+
+function buildSteps(lesson: LessonResponse["lesson"]): Step[] {
+  const steps: Step[] = splitLessonBody(lesson.body).map((s) => ({ kind: "read", ...s }));
+  if (WRITING_LESSONS.has(lesson.slug)) steps.push({ kind: "write-story" });
+  lesson.exercises.forEach((exercise, i) =>
+    steps.push({ kind: "exercise", exercise, number: i + 1, of: lesson.exercises.length }),
+  );
+  steps.push({ kind: "done" });
+  return steps;
+}
+
+/**
+ * One card at a time, like a learning app: why it matters → example → try this → each
+ * exercise → done. A progress bar shows how far along the lesson the user is.
+ */
+function LessonStepper({ lesson }: { lesson: LessonResponse["lesson"] }) {
+  const steps = buildSteps(lesson);
+  const [index, setIndex] = useState(0);
+  const step: Step = steps[index] ?? { kind: "done" };
+  const next = () => setIndex((i) => Math.min(i + 1, steps.length - 1));
+  const back = () => setIndex((i) => Math.max(i - 1, 0));
+
   return (
     <>
-      {backLink}
-      <header className="flex flex-col gap-2">
-        <p className="eyebrow">
-          {data.course.title} · Lesson {data.order}
-        </p>
-        <h1 className="font-display text-[36px] leading-[1.05] font-semibold tracking-tight">
-          {data.title}
+      <div className="flex items-center gap-3">
+        <Link
+          href="/app"
+          aria-label="Close lesson"
+          className="link flex size-10 items-center justify-center text-2xl leading-none font-bold"
+        >
+          ×
+        </Link>
+        <div
+          role="progressbar"
+          aria-label="Lesson progress"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={index + 1}
+          className="h-3 flex-1 overflow-hidden rounded-full bg-card-2"
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width] duration-300"
+            style={{ width: `${((index + 1) / steps.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      <header className="flex flex-col gap-1">
+        <p className="eyebrow">{lesson.course.title}</p>
+        <h1 className="font-display text-[30px] leading-[1.05] font-semibold tracking-tight">
+          {lesson.title}
         </h1>
       </header>
 
-      {data.videoUrl ? (
+      {/* key: each step mounts fresh (resets the recorder, replays the entry animation). */}
+      <div key={index} className="funnel-forward flex flex-col gap-4">
+        {step.kind === "read" && (
+          <ReadStep
+            title={step.title}
+            body={step.body}
+            videoUrl={index === 0 ? lesson.videoUrl : null}
+          />
+        )}
+        {step.kind === "write-story" && <StoryWriter />}
+        {step.kind === "exercise" && (
+          <ExerciseStep exercise={step.exercise} number={step.number} of={step.of} />
+        )}
+        {step.kind === "done" && <DoneStep title={lesson.title} />}
+      </div>
+
+      {step.kind !== "done" && (
+        <StepNav onBack={index > 0 ? back : undefined} onNext={next}>
+          {step.kind === "exercise"
+            ? step.number < step.of
+              ? "Next exercise"
+              : "Finish lesson"
+            : "Continue"}
+        </StepNav>
+      )}
+    </>
+  );
+}
+
+function StepNav({
+  onBack,
+  onNext,
+  children,
+}: {
+  onBack?: () => void;
+  onNext: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-2">
+      {onBack && (
+        <button type="button" onClick={onBack} className="btn btn-secondary px-5" aria-label="Back">
+          ←
+        </button>
+      )}
+      <button type="button" onClick={onNext} className="btn btn-primary flex-1">
+        {children}
+      </button>
+    </div>
+  );
+}
+
+/** Each section gets its own surface, so "example" and "try this" are recognizable at a glance. */
+const STEP_SURFACE: Record<string, string> = {
+  Example: "rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft",
+  "Try this": "rounded-[28px] bg-sage p-5 text-on-pastel shadow-soft",
+};
+
+function ReadStep({
+  title,
+  body,
+  videoUrl,
+}: {
+  title: string;
+  body: string;
+  videoUrl: string | null;
+}) {
+  const pastel = title in STEP_SURFACE;
+  return (
+    <>
+      {videoUrl && (
         // MVP: a plain video file URL. Later: CloudFront-hosted HLS (SPEC §5).
         <video
-          src={data.videoUrl}
+          src={videoUrl}
           controls
           preload="metadata"
           className="aspect-video w-full rounded-3xl bg-black shadow-soft"
         />
-      ) : (
-        <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-3xl border border-line bg-card text-sm font-semibold text-muted">
-          <Mascot mood="thinking" size={64} />
-          Video coming soon
-        </div>
       )}
-
-      {/* react-markdown renders to React elements and ignores raw HTML by default (no XSS). */}
-      <article className="lesson-body">
-        <Markdown>{data.body}</Markdown>
-      </article>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="font-display text-2xl font-semibold">Practice</h2>
-        {data.exercises.map((exercise) => (
-          <ExerciseCard key={exercise.id} exercise={exercise} />
-        ))}
+      <section className={STEP_SURFACE[title] ?? "card"}>
+        {title && (
+          <p
+            className={`mb-2 text-[11.5px] font-extrabold tracking-[0.12em] uppercase ${pastel ? "text-on-pastel-muted" : "text-muted"}`}
+          >
+            {title}
+          </p>
+        )}
+        {/* react-markdown renders to React elements and ignores raw HTML by default (no XSS). */}
+        <article className={pastel ? "lesson-body lesson-body-pastel" : "lesson-body"}>
+          <Markdown>{body}</Markdown>
+        </article>
       </section>
     </>
   );
 }
 
-function ExerciseCard({ exercise }: { exercise: Exercise }) {
+function ExerciseStep({
+  exercise,
+  number,
+  of,
+}: {
+  exercise: Exercise;
+  number: number;
+  of: number;
+}) {
   return (
     <div className="card flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="pill bg-lav text-on-pastel uppercase">
-          {exercise.type === "read_aloud" ? "Read aloud" : "Free speech"}
+          Exercise {number} of {of} · {exercise.type === "read_aloud" ? "Read aloud" : "Speak"}
         </span>
         <span className="text-xs font-semibold text-muted">up to {exercise.maxDurationSec}s</span>
       </div>
@@ -105,7 +249,31 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
           {exercise.referenceText}
         </blockquote>
       )}
-      <ExerciseRecorder exercise={exercise} />
+      <ExerciseRecorder exercise={exercise} afterSubmit="stay" />
+    </div>
+  );
+}
+
+function DoneStep({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-[28px] bg-sage p-8 text-center text-on-pastel shadow-soft">
+      <Mascot mood="happy" size={110} label="The mascot celebrates" />
+      <h2 className="font-display text-3xl font-semibold">Lesson complete!</h2>
+      <p className="text-on-pastel-muted">
+        You practiced “{title}”. Your analyses appear on your profile — and every recording keeps
+        your streak alive.
+      </p>
+      <div className="flex w-full flex-col gap-2">
+        <Link href="/app" className="btn bg-on-pastel text-sage hover:opacity-90">
+          Back to Learn
+        </Link>
+        <Link
+          href="/app/profile"
+          className="btn border-[1.5px] border-on-pastel/25 hover:bg-on-pastel/5"
+        >
+          See my results
+        </Link>
+      </div>
     </div>
   );
 }
