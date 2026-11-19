@@ -69,9 +69,22 @@ export const EnvSchema = z
       z.string().startsWith("pri_").optional(),
     ),
     IP_HASH_SECRET: z.preprocess(emptyAsUndefined, z.string().min(16).default(DEV_IP_HASH_SECRET)),
+
+    // Load testing only (docs/load-testing.md): also accept HMAC-signed tokens for
+    // `loadtest_*` users, so k6 can sign in thousands of users without Clerk.
+    LOAD_TEST_AUTH_SECRET: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),
+    // Set only by the throwaway load-test CDK stack; production refuses the secret without it.
+    LOAD_TEST_STACK: z.preprocess(emptyAsUndefined, z.enum(["true", "false"]).default("false")),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
+    if (env.LOAD_TEST_AUTH_SECRET && env.LOAD_TEST_STACK !== "true") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["LOAD_TEST_AUTH_SECRET"],
+        message: "load-test auth is not allowed in production (only with LOAD_TEST_STACK=true)",
+      });
+    }
     if (env.TURNSTILE_SECRET_KEY === TURNSTILE_TEST_SECRET) {
       ctx.addIssue({
         code: "custom",

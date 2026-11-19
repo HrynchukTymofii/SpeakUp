@@ -5,6 +5,7 @@ import { buildServer } from "./server.js";
 import { createBullAnalysisQueue } from "./services/analysis-queue.js";
 import { createClerkAuthProvider } from "./services/auth-provider.js";
 import { createTurnstileBotCheck } from "./services/bot-check.js";
+import { withLoadTestAuth } from "./services/load-test-auth.js";
 import { createPaddleProvider } from "./services/payments/paddle.js";
 import { createRedisRateLimiter } from "./services/rate-limiter.js";
 import { createS3Storage } from "./services/storage.js";
@@ -33,11 +34,15 @@ async function main(): Promise<void> {
     bucket: env.S3_BUCKET,
     endpoint: env.S3_ENDPOINT,
   });
-  const auth = createClerkAuthProvider({
+  const clerkAuth = createClerkAuthProvider({
     secretKey: env.CLERK_SECRET_KEY,
     // Only accept tokens minted for our own web origins.
     authorizedParties: env.CORS_ORIGINS,
   });
+  // Load tests only: also accept signed tokens for loadtest_* users (docs/load-testing.md).
+  const auth = env.LOAD_TEST_AUTH_SECRET
+    ? withLoadTestAuth(clerkAuth, env.LOAD_TEST_AUTH_SECRET)
+    : clerkAuth;
 
   // Billing is optional in dev: without all three Paddle values the billing routes answer 503.
   const payments =
@@ -92,6 +97,9 @@ async function main(): Promise<void> {
   process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
   // 0.0.0.0 so the API is reachable from outside its container in Docker/ECS.
+  if (env.LOAD_TEST_AUTH_SECRET) {
+    app.log.warn("LOAD-TEST AUTH ENABLED: signed loadtest_* tokens are accepted");
+  }
   await app.listen({ host: "0.0.0.0", port: env.API_PORT });
 }
 
