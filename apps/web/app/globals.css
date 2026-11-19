@@ -406,3 +406,67 @@
     animation: none;
   }
 }
+
+/* Lesson sections on a pastel card keep dark ink (kit rule). */
+.lesson-body-pastel,
+.lesson-body-pastel strong,
+.lesson-body-pastel h2 {
+  color: var(--on-pastel);
+}
+.lesson-body-pastel li::marker {
+  color: var(--on-pastel-muted);
+}
+
+/* Square breathing: the dot travels the square's four sides, one side per phase. */
+@keyframes breath-around {
+  0% {
+    top: 4px;
+    left: 4px;
+  }
+  25% {
+    top: 4px;
+    left: calc(100% - 28px);
+  }
+  50% {
+    top: calc(100% - 28px);
+    left: calc(100% - 28px);
+  }
+  75% {
+    top: calc(100% - 28px);
+    left: 4px;
+  }
+  100% {
+    top: 4px;
+    left: 4px;
+  }
+}
+.breath-dot {
+  top: 4px;
+  left: 4px;
+  animation: breath-around linear infinite;
+}
+
+/* "Yes!" button: a satisfying squash on press. */
+@keyframes yes-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.88);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.yes-pop {
+  animation: yes-pop 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .breath-dot,
+  .yes-pop {
+    animation: none;
+  }
+}

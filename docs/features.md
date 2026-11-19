@@ -115,6 +115,20 @@ the markdown body) — and 2–3 recorded exercises. The first lesson of each co
 | Job interviews                 | “Tell me about yourself” · “Why should we hire you?”                                                                                                                 |
 | Meetings and updates           | The 30-second update · Propose an idea                                                                                                                               |
 
+**Lesson flow** (`app/(product)/app/lessons/[slug]/lesson-view.tsx`): one card at a time with a
+progress bar — Why it matters → Example (butter card) → Try this (sage card) → each exercise
+(recorder stays on the page; the analysis runs in the background) → "Lesson complete" with the
+mascot. _Build your story_ adds a writing step: the user writes their own story (saved on the
+device, never generated).
+
+**Confidence before you speak** — three lessons that run fully in the app, because a microphone
+can't measure them (finishing one is remembered on the device):
+
+- _Square breathing_: 4 rounds of in-hold-out-hold, 4 s each, a dot travelling around a square.
+- _The "Yes!" button_: press, say a power phrase out loud, three times.
+- _Look as confident as you are_: posture, eye contact, gestures, energy dial (tips; the mobile
+  app will coach these with the camera).
+
 **Practice exercises** (standalone, every plan, `GET /v1/exercises/practice`): one-minute topics
 (`drill-topic-*`), question storms (`drill-questions-*`), "convince me" (`drill-convince-*`), tongue
 twisters (`drill-twister-*`), the 7-day story challenge (`challenge-your-story`) and "speak like a
