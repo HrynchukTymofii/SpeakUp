@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ProPrice } from "@/components/pro-price";
 import { UpgradeButton } from "@/components/upgrade-button";
+import { useMe } from "@/lib/use-me";
 import { track } from "../analytics";
 import { PRO_FEATURES } from "../plans";
 import { buildPlan } from "../personalize";
@@ -69,6 +70,8 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
 export function PaywallStep({ ctx }: StepProps<"paywall">) {
   const router = useRouter();
   const plan = buildPlan(ctx.answers);
+  // Someone who already has Pro gets the dashboard link from UpgradeButton, not a "free plan" exit.
+  const alreadyPro = useMe().data?.entitlements.plan === "pro";
 
   useEffect(() => track("paywall_viewed", { placement: "funnel" }), []);
 
@@ -105,13 +108,15 @@ export function PaywallStep({ ctx }: StepProps<"paywall">) {
         <CheckoutTerms />
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push("/app")}
-        className="py-2 text-sm font-bold text-muted underline-offset-4 hover:text-ink hover:underline"
-      >
-        Continue with the free plan
-      </button>
+      {!alreadyPro && (
+        <button
+          type="button"
+          onClick={() => router.push("/app")}
+          className="py-2 text-sm font-bold text-muted underline-offset-4 hover:text-ink hover:underline"
+        >
+          Continue with the free plan
+        </button>
+      )}
 
       <details className="rounded-[20px] border border-line bg-card p-4 text-sm">
         <summary className="cursor-pointer font-bold">Can I cancel anytime?</summary>

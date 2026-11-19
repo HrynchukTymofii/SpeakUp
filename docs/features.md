@@ -49,6 +49,8 @@ state is kept in the browser so a reload resumes where the visitor left off. Ste
 10. **Your 4-week plan:** built from goal, focus and time per day; shows the starting score.
 11. **Paywall:** what Pro includes, the localized monthly price, one upgrade button, "cancel anytime",
     a visible "continue with the free plan", and two FAQs. No countdowns or fake discounts.
+    Someone who already has Pro sees "You're already on SpeakUp Pro" and a dashboard button
+    instead of the upgrade button and the free-plan link (the same applies on `/pricing`).
 
 Funnel answers are copied into the account's onboarding profile when the anonymous session is
 claimed after sign-up.

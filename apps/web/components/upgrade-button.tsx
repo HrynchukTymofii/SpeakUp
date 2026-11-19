@@ -10,6 +10,7 @@ import { track } from "@/funnel/analytics";
 import { ApiClientError } from "@/lib/api";
 import { getPaddle, onPaddleEvent, paddleConfigured } from "@/lib/paddle";
 import { useApi } from "@/lib/use-api";
+import { useMe } from "@/lib/use-me";
 
 type Phase = "idle" | "opening" | "activating" | "active" | "timeout" | "error";
 
@@ -21,6 +22,8 @@ const ACTIVATION_TIMEOUT_MS = 60_000;
  *
  * After payment we do NOT unlock anything ourselves — Paddle's webhook is the source of truth.
  * We poll /v1/me until the API reports Pro (usually a few seconds), then refresh the app's data.
+ *
+ * Someone who already has Pro is never offered the upgrade: they get a way to the dashboard instead.
  */
 export function UpgradeButton({
   placement,
@@ -37,6 +40,7 @@ export function UpgradeButton({
   const pathname = usePathname();
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const alreadyPro = useMe().data?.entitlements.plan === "pro";
 
   // While activating, poll the entitlements.
   const me = useQuery({
@@ -86,12 +90,15 @@ export function UpgradeButton({
         settings: { displayMode: "overlay", theme: "dark" },
       });
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === ErrorCode.WRONG_STATE) {
+        // The account is already Pro (our cached plan was stale): reload it, which swaps this
+        // button for the "already on Pro" state. Not an error from the user's point of view.
+        setPhase("idle");
+        void queryClient.invalidateQueries({ queryKey: ["me"] });
+        return;
+      }
       setPhase("error");
-      setMessage(
-        err instanceof ApiClientError && err.code === ErrorCode.WRONG_STATE
-          ? "You already have SpeakUp Pro."
-          : "We couldn’t open the checkout. Please try again.",
-      );
+      setMessage("We couldn’t open the checkout. Please try again.");
     }
   };
 
@@ -121,6 +128,20 @@ export function UpgradeButton({
       <p role="status" className="rounded-[20px] bg-sage p-4 font-bold text-on-pastel">
         You’re on SpeakUp Pro 🎉 Every lesson is unlocked.
       </p>
+    );
+  }
+
+  // While activating, the poll above decides; afterwards "active" shows the celebration instead.
+  if (alreadyPro && phase !== "activating") {
+    return (
+      <div className="flex flex-col gap-3 rounded-[20px] bg-sage p-4 text-on-pastel">
+        <p role="status" className="font-bold">
+          You’re already on SpeakUp Pro. Every lesson is unlocked.
+        </p>
+        <Link href="/app" className="btn btn-secondary">
+          Go to your dashboard
+        </Link>
+      </div>
     );
   }
 
