@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { IconTile, PlayCircle } from "@/components/icon-tile";
 import { Mascot } from "@/components/mascot";
 import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
 import type { Suggestion } from "@/learn/personalize";
-import { DAILY_GOAL, lessonState } from "@/learn/progress";
+import { DAILY_GOAL, lessonState, nextUp } from "@/learn/progress";
 import { TONE_SURFACE } from "@/learn/tone";
 import { useLearnData, type LearnData } from "@/learn/use-learn-data";
 import { BaselineCard } from "./baseline-card";
 
+/**
+ * Learn tab, in the SAT Learner look: level / streak / today on top, one big "continue" card,
+ * lessons picked from what we heard, and the courses as cards.
+ */
 export function LearnView() {
   const { data, error } = useLearnData();
 
@@ -23,57 +28,69 @@ export function LearnView() {
 
   return (
     <>
-      <StatsBar data={data} />
-      {!data.hasAnalysis && <FirstStep />}
+      <StatusBar data={data} />
+      <header className="flex items-end justify-between gap-3">
+        <h1 className="font-display text-[34px] leading-[1.02] font-semibold tracking-tight">
+          Let’s speak up.
+        </h1>
+        <Mascot mood={data.today >= DAILY_GOAL ? "happy" : "idle"} size={64} />
+      </header>
+      {data.hasAnalysis ? <ContinueCard data={data} /> : <BaselineCard />}
       {data.suggestions.length > 0 && <Suggestions suggestions={data.suggestions} />}
       <CourseGrid data={data} />
     </>
   );
 }
 
-function StatsBar({ data }: { data: LearnData }) {
+/** Level, streak and today's goal: the game layer, always at the top. */
+export function StatusBar({ data }: { data: LearnData }) {
   const { streak, level, today } = data;
+  const doneToday = Math.min(today, DAILY_GOAL);
   return (
-    <section aria-label="Your progress" className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="eyebrow">Keep going</p>
-          <h1 className="font-display text-[34px] leading-none font-semibold tracking-tight">
-            Learn
-          </h1>
-        </div>
-        <Mascot mood={today >= DAILY_GOAL ? "happy" : "idle"} size={64} />
-      </div>
-      <ul className="grid grid-cols-3 gap-2 text-center">
-        <Stat value={`🔥 ${streak}`} label={streak === 1 ? "day streak" : "day streak"} />
-        <Stat
-          value={`⚡ ${level.level}`}
-          label={`level · ${level.intoLevel}/${level.perLevel} XP`}
-        />
-        <Stat value={`🎯 ${Math.min(today, DAILY_GOAL)}/${DAILY_GOAL}`} label="today" />
-      </ul>
+    <section
+      aria-label="Your progress"
+      className="flex items-center justify-between font-display text-lg font-bold tabular-nums"
+    >
+      <span title={`${level.intoLevel}/${level.perLevel} XP to the next level`}>
+        LVL {level.level}
+      </span>
+      <span aria-label={`${streak} day streak`}>
+        <span aria-hidden>🔥</span> {streak}
+      </span>
+      <span aria-label={`${doneToday} of ${DAILY_GOAL} recordings today`}>
+        <span aria-hidden>⚡</span> {doneToday}/{DAILY_GOAL}
+      </span>
     </section>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function ContinueCard({ data }: { data: LearnData }) {
+  const up = nextUp(data.courses, data.completed);
+  if (!up) return null;
+  const { course, lesson, number, done } = up;
+  const percent = Math.round((done / course.lessons.length) * 100);
   return (
-    <li className="rounded-[20px] border border-line bg-card px-2 py-3">
-      <p className="font-display text-xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs font-semibold text-muted">{label}</p>
-    </li>
-  );
-}
-
-/** Before the first analysis: the speaking check tells us what to suggest. */
-function FirstStep() {
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="font-display text-xl font-semibold">Start here</h2>
-      <p className="text-sm text-muted">
-        Take the speaking check — we’ll pick the lessons that fix what we hear.
+    <section className="paper flex flex-col gap-4 rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft">
+      <p className="text-sm font-bold">
+        {course.title} · Lesson {number} of {course.lessons.length}
       </p>
-      <BaselineCard />
+      <h2 className="font-display text-[30px] leading-[1.05] font-semibold">{lesson.title}</h2>
+      <div className="flex items-center gap-3">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-on-pastel/15" aria-hidden>
+          <span
+            className="block h-full rounded-full bg-on-pastel"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
+        <span className="text-sm font-bold tabular-nums">{percent}%</span>
+      </div>
+      <Link
+        href={`/app/lessons/${lesson.slug}`}
+        className="flex items-center justify-between rounded-full bg-white py-2 pr-2 pl-5 font-bold text-on-pastel shadow-soft-sm"
+      >
+        Continue lesson
+        <PlayCircle />
+      </Link>
     </section>
   );
 }
@@ -91,19 +108,13 @@ function Suggestions({ suggestions }: { suggestions: Suggestion[] }) {
             <li key={s.lesson.slug}>
               <Link
                 href={`/app/lessons/${s.lesson.slug}`}
-                className="flex items-center gap-3 rounded-[22px] border-[1.5px] border-line-2 bg-card p-3 transition-colors hover:border-peach"
+                className="flex items-center gap-3 rounded-[22px] bg-card p-3 shadow-soft-sm transition-transform active:scale-[0.98]"
               >
-                <span
-                  aria-hidden
-                  className={`flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl ${TONE_SURFACE[meta.tone]}`}
-                >
-                  {meta.icon}
-                </span>
+                <IconTile icon={meta.icon} surface={TONE_SURFACE[meta.tone]} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="font-bold">{s.lesson.title}</span>
                   <span className="text-xs font-semibold text-muted">
-                    {s.source === "analysis" ? "We heard: " : "You told us: "}
-                    {PROBLEM_LABEL[s.problem].toLowerCase()}
+                    {PROBLEM_LABEL[s.problem]}
                   </span>
                 </span>
                 {s.lesson.locked && <span className="pill bg-card-2 text-muted">Pro</span>}
@@ -133,15 +144,11 @@ function CourseGrid({ data }: { data: LearnData }) {
             <li key={course.slug}>
               <Link
                 href={`/app/courses/${course.slug}`}
-                className="flex h-full min-h-40 flex-col justify-between gap-3 rounded-[24px] border border-line bg-card p-4 transition-colors hover:border-peach active:scale-[0.98]"
+                className="flex h-full min-h-44 flex-col justify-between gap-3 rounded-[24px] bg-card p-4 shadow-soft-sm transition-transform active:scale-[0.98]"
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span aria-hidden className="text-3xl">
-                    {meta.icon}
-                  </span>
-                  {i === 0 && data.goal && (
-                    <span className="pill bg-peach text-on-pastel">Your goal</span>
-                  )}
+                  <IconTile icon={meta.icon} surface={TONE_SURFACE[meta.tone]} />
+                  {i === 0 && data.goal && <span className="pill bg-ink text-page">Goal</span>}
                 </span>
                 <span className="flex flex-col gap-2">
                   <span className="font-display text-lg leading-tight font-semibold">
@@ -156,7 +163,7 @@ function CourseGrid({ data }: { data: LearnData }) {
                     aria-valuenow={done}
                   >
                     <span
-                      className="block h-full rounded-full bg-peach"
+                      className="block h-full rounded-full bg-ink"
                       style={{ width: `${total ? (done / total) * 100 : 0}%` }}
                     />
                   </span>

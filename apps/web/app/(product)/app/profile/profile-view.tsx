@@ -39,7 +39,7 @@ export function ProfileView() {
             <span className="pill bg-peach text-on-pastel capitalize">{me.entitlements.plan}</span>
             <Link
               href={me.entitlements.plan === "pro" ? "/app/billing" : "/pricing"}
-              className="font-bold text-peach underline-offset-4 hover:underline"
+              className="font-bold text-brand underline-offset-4 hover:underline"
             >
               {me.entitlements.plan === "pro" ? "Billing" : "Upgrade"}
             </Link>
@@ -225,7 +225,7 @@ function Recent({ history }: { history: AttemptSummary[] }) {
           <li key={a.id}>
             <Link
               href={`/results/${a.id}`}
-              className="flex min-h-12 items-center justify-between gap-3 py-2 hover:text-peach"
+              className="flex min-h-12 items-center justify-between gap-3 py-2 hover:text-brand"
             >
               <span className="flex min-w-0 flex-col">
                 <span className="truncate font-semibold capitalize">

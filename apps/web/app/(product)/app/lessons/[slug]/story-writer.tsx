@@ -32,7 +32,7 @@ export function StoryWriter() {
       <ul className="flex flex-col gap-1.5 text-sm text-muted">
         {PROMPTS.map((p) => (
           <li key={p} className="flex gap-2">
-            <span aria-hidden className="text-peach">
+            <span aria-hidden className="text-brand">
               •
             </span>
             {p}

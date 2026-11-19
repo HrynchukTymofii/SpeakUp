@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { MODE_INFO } from "@/learn/practice";
+import { TONE_SURFACE } from "@/learn/tone";
 import { useApi } from "@/lib/use-api";
 
 /**
@@ -55,15 +56,19 @@ export function ModeSession({ mode }: { mode: PracticeMode }) {
 
       {next.data && (
         <>
-          <section className="flex min-h-48 flex-col justify-center gap-3 rounded-[28px] bg-card p-6 text-center shadow-soft">
-            <p className="eyebrow">{mode === "twister" ? "Say it 3 times" : "Your topic"}</p>
+          <section
+            className={`paper flex min-h-52 flex-col justify-center gap-3 rounded-[28px] p-6 text-center shadow-soft ${TONE_SURFACE[info.tone]}`}
+          >
+            <p className="text-[11.5px] font-extrabold tracking-[0.12em] uppercase">
+              {mode === "twister" ? "Say it 3 times" : "Your topic"}
+            </p>
             <p className="font-display text-[28px] leading-tight font-semibold">
               {next.data.topic}
             </p>
             <button
               type="button"
               onClick={() => setSkip(next.data.topic)}
-              className="link mx-auto text-sm font-bold"
+              className="mx-auto rounded-full bg-white/70 px-4 py-2 text-sm font-bold text-on-pastel hover:bg-white"
             >
               ↻ Another one
             </button>
