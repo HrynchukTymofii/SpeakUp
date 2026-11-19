@@ -72,7 +72,7 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
         {step.title}
       </h1>
       <div className="w-full">
-        <p className="mb-3 text-center font-display text-5xl font-semibold text-peach tabular-nums">
+        <p className="mb-3 text-center font-display text-5xl font-semibold text-brand tabular-nums">
           {Math.floor(pct)}%
         </p>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-card-2">

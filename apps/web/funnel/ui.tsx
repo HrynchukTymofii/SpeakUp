@@ -46,7 +46,7 @@ export function OptionButton({
         <span
           aria-hidden
           className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-xs font-extrabold ${
-            selected ? "border-on-pastel bg-on-pastel text-peach" : "border-line-2"
+            selected ? "border-on-pastel bg-on-pastel text-brand" : "border-line-2"
           }`}
         >
           {selected ? "✓" : ""}

@@ -20,7 +20,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                                                 |
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |
 | `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                |
-| `/app`                          | app  | signed in        | Learn tab: streak / level / daily goal, "Picked for you" lessons, course cards                |
+| `/app`                          | app  | signed in        | Learn tab: LVL · streak · today, "Continue" card (or the speaking check), picks, course cards |
 | `/app/courses/<slug>`           | app  | signed in        | One course: its lessons as a winding path                                                     |
 | `/app/lessons/<slug>`           | app  | signed in        | Lesson: step-by-step (why → example → try this → exercises → done); in-app confidence lessons |
 | `/app/practice`                 | app  | signed in        | Practice: one card per mode                                                                   |
@@ -102,7 +102,7 @@ LLM), so the same recording always suggests the same lessons. Thresholds live in
 
 ## The signed-in app
 
-A bottom tab bar (`components/app-tab-bar.tsx`) switches between **Learn · Practice · Challenges ·
+A floating black tab bar (`components/app-tab-bar.tsx`, icons) switches between **Learn · Practice · Challenges ·
 Profile**; every `/app` page leaves room for it. Data for all tabs comes from one hook,
 `learn/use-learn-data.ts` (`GET /v1/me`, `/v1/courses`, `/v1/attempts`), so the tabs share one cache.
 

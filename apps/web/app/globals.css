@@ -42,6 +42,81 @@
   --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
   --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
   --shadow-peach: 0 12px 26px -12px rgba(242, 154, 106, 0.55);
+
+  /* accent for text, links and focus rings (pastels are surfaces, too light for text) */
+  --brand: var(--peach-2);
+  /* graph-paper lines and the dotted path background */
+  --grid: rgba(255, 255, 255, 0.06);
+  --dot: rgba(255, 255, 255, 0.12);
+  /* the "ledge" under raised path nodes */
+  --edge: rgba(0, 0, 0, 0.55);
+}
+
+/*
+ * The app (everything under the (product) layout, which renders `.app-theme`) uses the SAT
+ * Learner design: lavender, butter and black on a light lavender page, graph-paper texture on
+ * pastel cards. Light by default, dark when the OS asks for it. The marketing site keeps the
+ * tokens above.
+ */
+:root:has(.app-theme) {
+  color-scheme: light;
+
+  --page: #f4f1f9;
+  --bg: #f4f1f9;
+  --card: #ffffff;
+  --card-2: #efeaf7;
+  --line: #e5dfee;
+  --line-2: #d8d0e6;
+
+  --ink: #0b0a0f;
+  --muted: #6b6577; /* 4.7:1 on the page */
+  --dim: #9c95a8;
+
+  --peach: #c9aafb; /* the accent surface: lavender */
+  --peach-2: #b993f7;
+  --orange: #f6b766;
+  --butter: #fee7a6;
+  --sage: #cdefd9;
+  --sky: #cfe3f7;
+  --lav: #e4cdff;
+  --rose: #ffd6de;
+  --on-pastel: #0b0a0f;
+  --on-pastel-muted: #4a4553; /* ≥ 6:1 on every pastel */
+  --danger: #b4233f;
+  --brand: #7a4bdb; /* 4.9:1 on the page */
+
+  --grid: rgba(11, 10, 15, 0.07);
+  --dot: rgba(11, 10, 15, 0.13);
+  --edge: #d8d0e6;
+
+  --shadow: 0 18px 40px -26px rgba(60, 35, 110, 0.35);
+  --shadow-sm: 0 8px 20px -14px rgba(60, 35, 110, 0.3);
+  --shadow-peach: 0 12px 26px -12px rgba(122, 75, 219, 0.45);
+}
+@media (prefers-color-scheme: dark) {
+  :root:has(.app-theme) {
+    color-scheme: dark;
+
+    --page: #0b0a0f;
+    --bg: #0b0a0f;
+    --card: #17151c;
+    --card-2: #221f29;
+    --line: #2b2733;
+    --line-2: #3a3544;
+
+    --ink: #f4f1f8;
+    --muted: #9c95a8;
+    --dim: #7e7889;
+    --danger: #f0707f;
+    --brand: #c9aafb;
+
+    --grid: rgba(11, 10, 15, 0.07);
+    --dot: rgba(255, 255, 255, 0.12);
+    --edge: #000000;
+
+    --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
+    --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+  }
 }
 
 @theme inline {
@@ -68,6 +143,8 @@
   --color-on-pastel: var(--on-pastel);
   --color-on-pastel-muted: var(--on-pastel-muted);
   --color-danger: var(--danger);
+  --color-brand: var(--brand);
+  --color-edge: var(--edge);
 
   --shadow-soft: var(--shadow);
   --shadow-soft-sm: var(--shadow-sm);
@@ -90,7 +167,7 @@
     letter-spacing: -0.01em;
   }
   :focus-visible {
-    outline: 2px solid var(--peach-2);
+    outline: 2px solid var(--brand);
     outline-offset: 3px;
   }
   ::selection {
@@ -106,7 +183,7 @@
   }
   /* primary: cream pill on black (the kit's btn-ink, inverted for dark) */
   .btn-primary {
-    @apply bg-ink text-page hover:bg-white;
+    @apply bg-ink text-page hover:opacity-90;
   }
   .btn-peach {
     @apply bg-peach text-on-pastel shadow-peach hover:bg-peach-2;
@@ -129,6 +206,33 @@
   .link {
     @apply text-muted underline-offset-4 hover:text-ink hover:underline;
   }
+  /* Graph paper (SAT Learner look): faint lines on pastel cards. */
+  .paper {
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  /* Dotted canvas behind the lesson path. */
+  .dots {
+    background-image: radial-gradient(var(--dot) 1.3px, transparent 1.6px);
+    background-size: 24px 24px;
+  }
+  /* A raised, pressable round button (the path nodes): a solid ledge underneath. */
+  .raised {
+    box-shadow:
+      0 6px 0 var(--edge),
+      var(--shadow-sm);
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+  .raised:active {
+    transform: translateY(4px);
+    box-shadow:
+      0 2px 0 var(--edge),
+      var(--shadow-sm);
+  }
   /* Pastel surfaces keep dark ink (kit rule). */
   .pastel {
     @apply text-on-pastel;
@@ -148,10 +252,10 @@
     @apply mt-2 font-display text-xl font-semibold text-ink;
   }
   .lesson-body ul {
-    @apply list-disc pl-5 marker:text-peach;
+    @apply list-disc pl-5 marker:text-brand;
   }
   .lesson-body ol {
-    @apply list-decimal pl-5 marker:text-peach;
+    @apply list-decimal pl-5 marker:text-brand;
   }
   .lesson-body li + li {
     @apply mt-1;
@@ -388,17 +492,25 @@
   }
 }
 
-/* Learn path: the lesson to do next gently pulses (off for reduced motion). */
+/*
+ * Learn path: the lesson to do next gently pulses (off for reduced motion). Its raised ledge is
+ * part of the animated shadow, so the pulse doesn't flatten the button.
+ */
 @keyframes path-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--peach) 55%, transparent);
+    box-shadow:
+      0 6px 0 var(--peach-2),
+      0 0 0 0 color-mix(in oklab, var(--peach) 70%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 10px color-mix(in oklab, var(--peach) 0%, transparent);
+    box-shadow:
+      0 6px 0 var(--peach-2),
+      0 0 0 12px color-mix(in oklab, var(--peach) 0%, transparent);
   }
 }
 .path-current {
+  box-shadow: 0 6px 0 var(--peach-2);
   animation: path-pulse 2s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {

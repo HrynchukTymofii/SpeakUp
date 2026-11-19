@@ -157,7 +157,7 @@ export function ExerciseRecorder({
             <p role="alert" className="font-medium text-danger">
               {errorMessage(submission.error)}{" "}
               {isPlanLimit(submission.error) && (
-                <Link href="/pricing" className="font-bold text-peach underline">
+                <Link href="/pricing" className="font-bold text-brand underline">
                   See Pro
                 </Link>
               )}
