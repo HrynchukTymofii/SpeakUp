@@ -5,7 +5,7 @@
  * updates content instead of creating duplicates or failing. Safe to re-run after editing copy.
  */
 import { createDbClient } from "../src/client.js";
-import { baselineExercise, course, type SeedExercise } from "../src/seed-data.js";
+import { baselineExercise, course, speakingChecks, type SeedExercise } from "../src/seed-data.js";
 
 const databaseUrl = process.env.DATABASE_URL; // loaded by prisma.config.ts
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
@@ -61,6 +61,16 @@ async function main(): Promise<void> {
       create: { slug: baselineExercise.slug, ...baselineFields },
       update: baselineFields,
     });
+
+    // The funnel's speaking checks (one per goal), also standalone.
+    for (const ex of speakingChecks) {
+      const fields = exerciseFields(ex, null);
+      await tx.exercise.upsert({
+        where: { slug: ex.slug },
+        create: { slug: ex.slug, ...fields },
+        update: fields,
+      });
+    }
   });
 
   const [courses, lessonCount, exerciseCount] = await Promise.all([

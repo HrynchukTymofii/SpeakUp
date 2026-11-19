@@ -11,6 +11,10 @@ const REFLECTION_BY_GOAL: Record<string, { title: string; body: string }> = {
     title: "Interviews reward clear, structured answers more than perfect English.",
     body: "That’s a trainable skill — and we’ll start training it today.",
   },
+  pitching: {
+    title: "A great pitch sounds effortless because it was rehearsed out loud.",
+    body: "Structure, pauses and how you use your voice decide whether people lean in.",
+  },
   presentations: {
     title: "Confident speakers aren’t born. They rehearse out loud.",
     body: "Pace and pauses matter more than fancy words, and both improve with practice.",
@@ -92,11 +96,14 @@ const FOCUS_LABEL: Record<string, string> = {
   clarity: "speak clearly and finish your words",
   accuracy: "read and speak precisely",
   structure: "structure what you say",
+  voice: "bring your voice to life",
+  content: "say more with fewer, sharper words",
   confidence: "build overall confidence",
 };
 
 const GOAL_LABEL: Record<string, string> = {
   "job-interviews": "job interviews",
+  pitching: "pitching",
   presentations: "presentations",
   meetings: "meetings and calls",
   conversations: "everyday conversations",

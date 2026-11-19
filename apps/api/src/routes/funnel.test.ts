@@ -116,18 +116,40 @@ describe("PATCH /v1/funnel/sessions/current", () => {
 });
 
 describe("GET /v1/funnel/exercise", () => {
-  it("returns the baseline text for a guest, capped at 45 s", async () => {
+  const getExercise = (app: Awaited<ReturnType<typeof setup>>["app"], token: string) =>
+    app.inject({ method: "GET", url: "/v1/funnel/exercise", headers: guest(token) });
+
+  it("without a goal: the general impromptu check, capped at 45 s", async () => {
     const { app, newSession } = await setup();
-    const token = await newSession();
-    const res = await app.inject({
-      method: "GET",
-      url: "/v1/funnel/exercise",
-      headers: guest(token),
-    });
+    const res = await getExercise(app, await newSession());
     expect(res.statusCode).toBe(200);
-    expect(res.json().exercise).toMatchObject({ slug: "baseline", type: "read_aloud" });
+    expect(res.json().exercise).toMatchObject({ slug: "check-general", type: "free_speech" });
     expect(res.json().exercise.maxDurationSec).toBeLessThanOrEqual(45);
     expect((await app.inject({ method: "GET", url: "/v1/funnel/exercise" })).statusCode).toBe(401);
+  });
+
+  it("picks the check for the visitor's goal", async () => {
+    const { app, newSession } = await setup();
+    const token = await newSession();
+    await app.inject({
+      method: "PATCH",
+      url: "/v1/funnel/sessions/current",
+      headers: guest(token),
+      payload: { answers: { goal: "job-interviews" } },
+    });
+    expect((await getExercise(app, token)).json().exercise.slug).toBe("check-job-interviews");
+  });
+
+  it("falls back to the general check when the goal has none", async () => {
+    const { app, newSession } = await setup();
+    const token = await newSession();
+    await app.inject({
+      method: "PATCH",
+      url: "/v1/funnel/sessions/current",
+      headers: guest(token),
+      payload: { answers: { goal: "pitching" } }, // not in the test fixture
+    });
+    expect((await getExercise(app, token)).json().exercise.slug).toBe("check-general");
   });
 });
 
@@ -138,7 +160,7 @@ describe("POST /v1/funnel/attempts", () => {
     expect(res.statusCode).toBe(201);
     expect(res.json().upload.url).toBeTruthy();
     const [attempt] = db.attempts;
-    expect(attempt).toMatchObject({ userId: null, exerciseId: "ex_baseline" });
+    expect(attempt).toMatchObject({ userId: null, exerciseId: "ex_check-general" });
     expect(attempt?.funnelSessionId).toBe(db.funnelSessions[0]?.id);
     expect(attempt?.audioKey).toMatch(/^recordings\/funnel\/fs_\d+\/.+\.webm$/);
   });
