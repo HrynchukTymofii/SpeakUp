@@ -21,7 +21,16 @@ const SEVERITY_STYLE: Record<string, string> = {
  * The analysis report (SPEC §11 /results): score, metric cards, AI feedback, transcript.
  * Presentational only (data in, markup out), so the funnel's results step can reuse it.
  */
-export function ResultsReport({ exercise, result }: { exercise: Exercise; result: AttemptResult }) {
+export function ResultsReport({
+  exercise,
+  result,
+  topic,
+}: {
+  exercise: Exercise;
+  result: AttemptResult;
+  /** Practice modes: the topic is what the user spoke about; the mode's prompt is generic. */
+  topic?: string | null;
+}) {
   const { metrics, feedback, transcript } = result;
   const voice = voiceVerdict(metrics);
   const punctuation = punctuationSummary(metrics);
@@ -46,7 +55,7 @@ export function ResultsReport({ exercise, result }: { exercise: Exercise; result
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <p className="text-sm font-semibold text-muted">{exercise.prompt}</p>
+          <p className="text-sm font-semibold text-muted">{topic ?? exercise.prompt}</p>
           <p className="text-[17px] leading-relaxed text-ink">{feedback.summary}</p>
         </div>
         {feedback.subscores && feedback.subscores.length > 0 && (

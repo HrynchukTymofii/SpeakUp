@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mascot, type MascotMood } from "@/components/mascot";
+import { resultsHref } from "@/learn/practice";
 import { ApiClientError } from "@/lib/api";
 import { uploadToS3 } from "@/lib/upload";
 import { useApi } from "@/lib/use-api";
@@ -15,7 +16,7 @@ type SubmitStep = "preparing" | "uploading" | "submitting";
 
 const STEP_LABEL: Record<SubmitStep, string> = {
   preparing: "Preparing upload…",
-  uploading: "Uploading your recording…",
+  uploading: "Uploading…",
   submitting: "Sending for analysis…",
 };
 
@@ -44,18 +45,22 @@ const isPlanLimit = (err: Error) =>
 /**
  * Record → preview → submit for one exercise (SPEC §6.1–6.2).
  *
- * After a submit the recorder opens the results page by default. Inside a lesson stepper or the
- * practice feed (`afterSubmit="stay"`) it stays put and offers a link instead, so the flow
- * isn't interrupted.
+ * After a submit the user always lands on the results page, which shows the analysis progress
+ * and then the report. `next` = where its "Continue" button goes (the next lesson step, another
+ * topic…), so a lesson or practice session carries on from there.
  * Submit = 3 calls: create the attempt (API returns a pre-signed upload) → upload the audio
  * straight to S3 → confirm with the API, which verifies the file and queues the analysis.
  */
 export function ExerciseRecorder({
   exercise,
-  afterSubmit = "open-results",
+  topic,
+  next,
 }: {
   exercise: Exercise;
-  afterSubmit?: "open-results" | "stay";
+  /** Practice modes: the topic the user is speaking about (stored on the attempt). */
+  topic?: string;
+  /** In-app path for the results page's "Continue" button. */
+  next?: string;
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -69,6 +74,7 @@ export function ExerciseRecorder({
       const { attempt, upload } = await api.createAttempt({
         exerciseId: exercise.id,
         mimeType: recording.mimeType,
+        ...(topic ? { topic } : {}),
       });
       setStep("uploading");
       await uploadToS3(upload, recording.blob);
@@ -77,10 +83,8 @@ export function ExerciseRecorder({
       return submitted.attempt;
     },
     // The results page polls the attempt until the worker is done.
-    onSuccess: (attempt) => {
-      if (afterSubmit === "open-results") router.push(`/results/${attempt.id}`);
-    },
-    // Today's usage and the practice history (progress, streak) changed.
+    onSuccess: (attempt) => router.push(resultsHref(attempt.id, next)),
+    // Today's usage and the practice history (progress, streak, used topics) changed.
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["me"] });
       void queryClient.invalidateQueries({ queryKey: ["attempts"] });
@@ -94,7 +98,8 @@ export function ExerciseRecorder({
 
   const { state } = recorder;
   const maxMs = exercise.maxDurationSec * 1000;
-  const mood: MascotMood = submission.isPending
+  const busy = submission.isPending || submission.isSuccess;
+  const mood: MascotMood = busy
     ? "thinking"
     : state.kind === "recording" || state.kind === "requesting"
       ? "listening"
@@ -102,49 +107,13 @@ export function ExerciseRecorder({
         ? "happy"
         : "idle";
 
-  if (submission.isSuccess) {
-    return (
-      <div
-        role="status"
-        className="flex flex-col items-start gap-2 rounded-3xl bg-sage p-4 text-on-pastel"
-      >
-        <div className="flex items-center gap-3">
-          <Mascot mood="happy" size={52} />
-          <p className="font-display text-lg font-semibold">Recording submitted ✓</p>
-        </div>
-        <p className="text-sm font-medium text-on-pastel-muted">
-          {afterSubmit === "open-results"
-            ? "Opening your results… "
-            : "We’re analyzing it — your results will be ready in a few seconds. "}
-          <Link
-            href={`/results/${submission.data.id}`}
-            className="font-bold text-on-pastel underline"
-          >
-            View results
-          </Link>
-        </p>
-        <button
-          type="button"
-          onClick={recordAgain}
-          className="btn btn-sm border-[1.5px] border-on-pastel/25 text-on-pastel hover:bg-on-pastel/5"
-        >
-          Record another take
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <Mascot mood={mood} size={56} />
         {/* Screen readers announce changes in this region (recording started, errors…). */}
         <div aria-live="polite" className="flex flex-1 flex-col gap-2 text-sm">
-          {state.kind === "idle" && (
-            <p className="text-muted">
-              We’ll ask for microphone access. Your recording is used only to analyze your speaking.
-            </p>
-          )}
+          {state.kind === "idle" && <p className="text-muted">Tap record when you’re ready.</p>}
           {state.kind === "requesting" && (
             <p className="text-muted">Waiting for microphone permission…</p>
           )}
@@ -152,15 +121,18 @@ export function ExerciseRecorder({
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-2 font-bold text-ink tabular-nums">
                 <span className="size-2 animate-pulse rounded-full bg-danger" aria-hidden />
-                Recording {formatSeconds(state.elapsedMs)} / {formatSeconds(maxMs)}
+                {formatSeconds(state.elapsedMs)} / {formatSeconds(maxMs)}
               </p>
               <div className="h-2 w-full overflow-hidden rounded-full bg-card-2" aria-hidden>
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width]"
+                  className="h-full rounded-full bg-peach transition-[width]"
                   style={{ width: `${Math.min(100, (state.elapsedMs / maxMs) * 100)}%` }}
                 />
               </div>
             </div>
+          )}
+          {state.kind === "recorded" && !busy && !submission.isError && (
+            <p className="text-muted">Listen back, or send it for feedback.</p>
           )}
           {state.kind === "denied" && (
             <p role="alert" className="font-medium text-danger">
@@ -180,6 +152,7 @@ export function ExerciseRecorder({
             </p>
           )}
           {submission.isPending && <p className="text-muted">{STEP_LABEL[step]}</p>}
+          {submission.isSuccess && <p className="text-muted">Opening your feedback…</p>}
           {submission.isError && (
             <p role="alert" className="font-medium text-danger">
               {errorMessage(submission.error)}{" "}
@@ -218,17 +191,12 @@ export function ExerciseRecorder({
             <button
               type="button"
               onClick={() => submission.mutate(state.recording)}
-              disabled={submission.isPending}
+              disabled={busy}
               className={primaryButton}
             >
-              {submission.isError ? "Retry submit" : "Submit for analysis"}
+              {submission.isError ? "Retry" : "Get feedback"}
             </button>
-            <button
-              type="button"
-              onClick={recordAgain}
-              disabled={submission.isPending}
-              className={secondaryButton}
-            >
+            <button type="button" onClick={recordAgain} disabled={busy} className={secondaryButton}>
               Record again
             </button>
           </>
@@ -238,5 +206,5 @@ export function ExerciseRecorder({
   );
 }
 
-const primaryButton = "btn btn-primary btn-sm min-h-11 px-5";
-const secondaryButton = "btn btn-secondary btn-sm min-h-11 px-5";
+const primaryButton = "btn btn-primary min-h-12 flex-1 px-5";
+const secondaryButton = "btn btn-secondary min-h-12 px-5";

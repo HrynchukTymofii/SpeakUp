@@ -20,7 +20,7 @@ const backLink = (
   </Link>
 );
 
-export function LessonView({ slug }: { slug: string }) {
+export function LessonView({ slug, startStep = 0 }: { slug: string; startStep?: number }) {
   const local = findLocalLesson(slug);
   if (local) {
     return (
@@ -30,10 +30,10 @@ export function LessonView({ slug }: { slug: string }) {
       </>
     );
   }
-  return <RecordedLesson slug={slug} />;
+  return <RecordedLesson slug={slug} startStep={startStep} />;
 }
 
-function RecordedLesson({ slug }: { slug: string }) {
+function RecordedLesson({ slug, startStep }: { slug: string; startStep: number }) {
   const api = useApi();
   const lesson = useQuery({
     queryKey: ["lesson", slug],
@@ -65,7 +65,7 @@ function RecordedLesson({ slug }: { slug: string }) {
     );
   }
 
-  return <LessonStepper lesson={lesson.data.lesson} />;
+  return <LessonStepper lesson={lesson.data.lesson} startStep={startStep} />;
 }
 
 type Step =
@@ -91,18 +91,27 @@ function buildSteps(lesson: LessonResponse["lesson"]): Step[] {
  * One card at a time, like a learning app: why it matters → example → try this → each
  * exercise → done. A progress bar shows how far along the lesson the user is.
  */
-function LessonStepper({ lesson }: { lesson: LessonResponse["lesson"] }) {
+function LessonStepper({
+  lesson,
+  startStep,
+}: {
+  lesson: LessonResponse["lesson"];
+  startStep: number;
+}) {
   const steps = buildSteps(lesson);
-  const [index, setIndex] = useState(0);
+  const clamp = (i: number) => Math.min(Math.max(i, 0), steps.length - 1);
+  const [index, setIndex] = useState(() => clamp(startStep));
   const step: Step = steps[index] ?? { kind: "done" };
-  const next = () => setIndex((i) => Math.min(i + 1, steps.length - 1));
-  const back = () => setIndex((i) => Math.max(i - 1, 0));
+  const next = () => setIndex((i) => clamp(i + 1));
+  const back = () => setIndex((i) => clamp(i - 1));
+  // After an exercise's results, "Continue lesson" comes back to the step after it.
+  const afterExercise = `/app/lessons/${lesson.slug}?step=${index + 1}`;
 
   return (
     <>
       <div className="flex items-center gap-3">
         <Link
-          href="/app"
+          href={`/app/courses/${lesson.course.slug}`}
           aria-label="Close lesson"
           className="link flex size-10 items-center justify-center text-2xl leading-none font-bold"
         >
@@ -141,9 +150,16 @@ function LessonStepper({ lesson }: { lesson: LessonResponse["lesson"] }) {
         )}
         {step.kind === "write-story" && <StoryWriter />}
         {step.kind === "exercise" && (
-          <ExerciseStep exercise={step.exercise} number={step.number} of={step.of} />
+          <ExerciseStep
+            exercise={step.exercise}
+            number={step.number}
+            of={step.of}
+            next={afterExercise}
+          />
         )}
-        {step.kind === "done" && <DoneStep title={lesson.title} />}
+        {step.kind === "done" && (
+          <DoneStep title={lesson.title} courseHref={`/app/courses/${lesson.course.slug}`} />
+        )}
       </div>
 
       {step.kind !== "done" && (
@@ -230,10 +246,12 @@ function ExerciseStep({
   exercise,
   number,
   of,
+  next,
 }: {
   exercise: Exercise;
   number: number;
   of: number;
+  next: string;
 }) {
   return (
     <div className="card flex flex-col gap-4">
@@ -249,31 +267,20 @@ function ExerciseStep({
           {exercise.referenceText}
         </blockquote>
       )}
-      <ExerciseRecorder exercise={exercise} afterSubmit="stay" />
+      <ExerciseRecorder exercise={exercise} next={next} />
     </div>
   );
 }
 
-function DoneStep({ title }: { title: string }) {
+function DoneStep({ title, courseHref }: { title: string; courseHref: string }) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-[28px] bg-sage p-8 text-center text-on-pastel shadow-soft">
       <Mascot mood="happy" size={110} label="The mascot celebrates" />
       <h2 className="font-display text-3xl font-semibold">Lesson complete!</h2>
-      <p className="text-on-pastel-muted">
-        You practiced “{title}”. Your analyses appear on your profile — and every recording keeps
-        your streak alive.
-      </p>
-      <div className="flex w-full flex-col gap-2">
-        <Link href="/app" className="btn bg-on-pastel text-sage hover:opacity-90">
-          Back to Learn
-        </Link>
-        <Link
-          href="/app/profile"
-          className="btn border-[1.5px] border-on-pastel/25 hover:bg-on-pastel/5"
-        >
-          See my results
-        </Link>
-      </div>
+      <p className="text-on-pastel-muted">{title}</p>
+      <Link href={courseHref} className="btn w-full bg-on-pastel text-sage hover:opacity-90">
+        Next lesson
+      </Link>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { Mascot } from "@/components/mascot";
 import { useMyStory } from "@/learn/local-progress";
-import { legendTitle } from "@/learn/practice";
+import { LEGENDS } from "@/learn/practice";
 import { STORY_CHALLENGE_DAYS, STORY_CHALLENGE_SLUG, storyChallenge } from "@/learn/progress";
 import { learnKeys, useLearnData } from "@/learn/use-learn-data";
 import { useApi } from "@/lib/use-api";
@@ -22,7 +22,6 @@ export function ChallengesView() {
 
   const exercises = practice.data?.exercises ?? [];
   const story = exercises.find((e) => e.slug === STORY_CHALLENGE_SLUG);
-  const legends = exercises.filter((e) => e.slug.startsWith("legend-"));
 
   return (
     <>
@@ -44,7 +43,7 @@ export function ChallengesView() {
       {practice.isPending && <p className="text-muted">Loading challenges…</p>}
 
       {story && <StoryChallenge exercise={story} history={history} />}
-      {legends.length > 0 && <Legends legends={legends} />}
+      <Legends exercises={exercises} />
       <Contests />
     </>
   );
@@ -67,10 +66,7 @@ function StoryChallenge({
       <div className="flex flex-col gap-1">
         <p className="text-[11.5px] font-extrabold tracking-[0.12em] uppercase">7-day challenge</p>
         <h2 className="font-display text-2xl leading-tight font-semibold">Own your story</h2>
-        <p className="text-sm text-on-pastel-muted">
-          Tell the same story — the one you wrote — once a day for a week. By day 7 it’s yours: use
-          it in a real conversation.
-        </p>
+        <p className="text-sm text-on-pastel-muted">Your story, once a day, for 7 days.</p>
       </div>
 
       <ol className="grid grid-cols-7 gap-1.5" aria-label={`${daysDone} of 7 days done`}>
@@ -117,7 +113,7 @@ function StoryChallenge({
         </p>
       ) : recording ? (
         <div className="rounded-[22px] bg-card p-4 text-ink">
-          <ExerciseRecorder exercise={exercise} afterSubmit="stay" />
+          <ExerciseRecorder exercise={exercise} next="/app/challenges" />
         </div>
       ) : (
         <button
@@ -132,60 +128,62 @@ function StoryChallenge({
   );
 }
 
-function Legends({ legends }: { legends: Exercise[] }) {
+function Legends({ exercises }: { exercises: Exercise[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const available = LEGENDS.flatMap((legend) => {
+    const exercise = exercises.find((e) => e.slug === legend.slug);
+    return exercise ? [{ ...legend, exercise }] : [];
+  });
+  if (available.length === 0) return null;
+
   return (
     <section className="flex flex-col gap-3" aria-labelledby="legends-heading">
       <div>
         <h2 id="legends-heading" className="font-display text-xl font-semibold">
           Speak like a legend
         </h2>
-        <p className="text-sm text-muted">
-          Deliver a famous speech and see how your pauses, pace and voice compare.
-        </p>
+        <p className="text-sm text-muted">Watch the opening. Then say it their way.</p>
       </div>
       <ul className="flex flex-col gap-3">
-        {legends.map((legend) => {
+        {available.map((legend) => {
           const isOpen = open === legend.slug;
-          const who = legendTitle(legend.prompt);
           return (
-            <li key={legend.slug} className="card flex flex-col gap-3">
+            <li key={legend.slug} className="card flex flex-col gap-4">
               <button
                 type="button"
                 aria-expanded={isOpen}
                 onClick={() => setOpen(isOpen ? null : legend.slug)}
                 className="flex items-center justify-between gap-3 text-left"
               >
-                <span className="flex items-center gap-3">
-                  <span
-                    aria-hidden
-                    className="flex size-11 items-center justify-center rounded-2xl bg-lav text-xl text-on-pastel"
-                  >
-                    🏛️
-                  </span>
-                  <span className="font-display text-lg font-semibold">{who}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-display text-lg font-semibold">{legend.speaker}</span>
+                  <span className="text-xs font-semibold text-muted">{legend.talk}</span>
                 </span>
-                <span aria-hidden className="text-muted">
-                  {isOpen ? "−" : "+"}
+                <span aria-hidden className="text-xl text-muted">
+                  {isOpen ? "−" : "▶"}
                 </span>
               </button>
               {isOpen && (
                 <>
-                  <p className="text-sm text-muted">{legend.prompt}</p>
-                  <blockquote className="rounded-3xl bg-butter p-5 text-[17px] leading-relaxed font-medium text-on-pastel">
-                    {legend.referenceText}
-                  </blockquote>
-                  <ExerciseRecorder exercise={legend} />
+                  {/* Official upload, privacy-enhanced embed (no cookies until play). */}
+                  <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${legend.youtubeId}?rel=0`}
+                    title={`${legend.speaker}: ${legend.talk}`}
+                    allow="encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    className="aspect-video w-full rounded-2xl bg-black"
+                  />
+                  <p className="text-sm">
+                    <span className="font-bold">Copy: </span>
+                    {legend.copy}
+                  </p>
+                  <ExerciseRecorder exercise={legend.exercise} next="/app/challenges" />
                 </>
               )}
             </li>
           );
         })}
       </ul>
-      <p className="rounded-2xl border border-dashed border-line-2 p-3 text-xs text-muted">
-        Coming soon: play the original recording, see your delivery side by side with the speaker’s,
-        and share your score.
-      </p>
     </section>
   );
 }
@@ -195,10 +193,7 @@ function Contests() {
     <section className="flex flex-col items-start gap-3 rounded-[28px] border border-dashed border-line-2 bg-card p-5">
       <span className="pill bg-sky text-on-pastel">Coming soon</span>
       <h2 className="font-display text-xl font-semibold">Contests</h2>
-      <p className="text-sm text-muted">
-        Weekly speaking contests: everyone gets the same prompt — the best 60-second pitch, the
-        funniest “convince me” — and the community votes. Leaderboards, badges and bragging rights.
-      </p>
+      <p className="text-sm text-muted">Same prompt for everyone. The community votes.</p>
     </section>
   );
 }

@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
-import type { LearnCourse, Suggestion } from "@/learn/personalize";
-import { DAILY_GOAL, lessonState, pathStates, type PathState } from "@/learn/progress";
+import type { Suggestion } from "@/learn/personalize";
+import { DAILY_GOAL, lessonState } from "@/learn/progress";
 import { TONE_SURFACE } from "@/learn/tone";
 import { useLearnData, type LearnData } from "@/learn/use-learn-data";
 import { BaselineCard } from "./baseline-card";
@@ -27,7 +26,7 @@ export function LearnView() {
       <StatsBar data={data} />
       {!data.hasAnalysis && <FirstStep />}
       {data.suggestions.length > 0 && <Suggestions suggestions={data.suggestions} />}
-      <CoursePicker data={data} />
+      <CourseGrid data={data} />
     </>
   );
 }
@@ -117,158 +116,59 @@ function Suggestions({ suggestions }: { suggestions: Suggestion[] }) {
   );
 }
 
-function CoursePicker({ data }: { data: LearnData }) {
-  const [selected, setSelected] = useState(data.courses[0]?.slug);
-  const course = data.courses.find((c) => c.slug === selected) ?? data.courses[0];
-  if (!course) return null;
-
+function CourseGrid({ data }: { data: LearnData }) {
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="courses-heading">
+    <section className="flex flex-col gap-3" aria-labelledby="courses-heading">
       <h2 id="courses-heading" className="font-display text-xl font-semibold">
         Courses
       </h2>
-      {/* Horizontal chips; the page itself never scrolls sideways (375 px rule). */}
-      <div className="no-scrollbar -mx-4 overflow-x-auto px-4 pb-1">
-        <ul className="flex w-max gap-2" role="list">
-          {data.courses.map((c) => {
-            const meta = COURSE_META[c.slug] ?? DEFAULT_META;
-            const active = c.slug === course.slug;
-            return (
-              <li key={c.slug}>
-                <button
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setSelected(c.slug)}
-                  className={`flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] px-4 text-sm font-bold whitespace-nowrap transition-colors ${
-                    active
-                      ? `border-transparent ${TONE_SURFACE[meta.tone]}`
-                      : "border-line-2 bg-card text-ink hover:bg-card-2"
-                  }`}
-                >
-                  <span aria-hidden>{meta.icon}</span>
-                  {c.title}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-      <CoursePath
-        course={course}
-        completed={data.completed}
-        isGoal={course === data.courses[0] && !!data.goal}
-      />
+      <ul className="grid grid-cols-2 gap-3">
+        {data.courses.map((course, i) => {
+          const meta = COURSE_META[course.slug] ?? DEFAULT_META;
+          const done = course.lessons.filter(
+            (l) => lessonState(l.exerciseSlugs, data.completed) === "done",
+          ).length;
+          const total = course.lessons.length;
+          return (
+            <li key={course.slug}>
+              <Link
+                href={`/app/courses/${course.slug}`}
+                className="flex h-full min-h-40 flex-col justify-between gap-3 rounded-[24px] border border-line bg-card p-4 transition-colors hover:border-peach active:scale-[0.98]"
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span aria-hidden className="text-3xl">
+                    {meta.icon}
+                  </span>
+                  {i === 0 && data.goal && (
+                    <span className="pill bg-peach text-on-pastel">Your goal</span>
+                  )}
+                </span>
+                <span className="flex flex-col gap-2">
+                  <span className="font-display text-lg leading-tight font-semibold">
+                    {course.title}
+                  </span>
+                  <span
+                    className="h-1.5 overflow-hidden rounded-full bg-card-2"
+                    role="progressbar"
+                    aria-label={`${done} of ${total} lessons done`}
+                    aria-valuemin={0}
+                    aria-valuemax={total}
+                    aria-valuenow={done}
+                  >
+                    <span
+                      className="block h-full rounded-full bg-peach"
+                      style={{ width: `${total ? (done / total) * 100 : 0}%` }}
+                    />
+                  </span>
+                  <span className="text-xs font-semibold text-muted tabular-nums">
+                    {done}/{total} lessons
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
-  );
-}
-
-/** Zig-zag offsets (px) for the path nodes, like a winding trail. */
-const OFFSETS = [0, 44, 64, 44, 0, -44, -64, -44];
-
-function CoursePath({
-  course,
-  completed,
-  isGoal,
-}: {
-  course: LearnCourse;
-  completed: Set<string>;
-  isGoal: boolean;
-}) {
-  const meta = COURSE_META[course.slug] ?? DEFAULT_META;
-  const lessonStates = course.lessons.map((l) => lessonState(l.exerciseSlugs, completed));
-  const states = pathStates(
-    course.lessons.map((l, i) => ({ state: lessonStates[i] ?? "new", locked: l.locked })),
-  );
-  const doneCount = states.filter((s) => s === "done").length;
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div
-        className={`flex flex-col gap-1 rounded-[28px] p-5 shadow-soft ${TONE_SURFACE[meta.tone]}`}
-      >
-        {isGoal && (
-          <p className="text-[11.5px] font-extrabold tracking-[0.12em] uppercase">Your goal</p>
-        )}
-        <h3 className="font-display text-2xl leading-tight font-semibold">
-          <span aria-hidden>{meta.icon} </span>
-          {course.title}
-        </h3>
-        <p className="text-sm text-on-pastel-muted">{course.summary}</p>
-        <p className="mt-1 text-sm font-bold">
-          {doneCount} / {course.lessons.length} lessons done
-        </p>
-      </div>
-
-      <ol className="flex flex-col items-center gap-5" aria-label={`${course.title} lessons`}>
-        {course.lessons.map((lesson, i) => (
-          <li
-            key={lesson.slug}
-            className="flex flex-col items-center gap-1.5"
-            style={{ transform: `translateX(${OFFSETS[i % OFFSETS.length] ?? 0}px)` }}
-          >
-            <PathNode
-              href={`/app/lessons/${lesson.slug}`}
-              state={states[i] ?? "open"}
-              index={i + 1}
-              title={lesson.title}
-            />
-            <span className="max-w-40 text-center text-sm leading-tight font-bold">
-              {lesson.title}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-const NODE_LABEL: Record<PathState, string> = {
-  done: "done",
-  current: "up next",
-  open: "not started",
-  locked: "locked, Pro",
-};
-
-function PathNode({
-  href,
-  state,
-  index,
-  title,
-}: {
-  href: string;
-  state: PathState;
-  index: number;
-  title: string;
-}) {
-  const look: Record<PathState, string> = {
-    done: "bg-sage text-on-pastel",
-    current: "path-current bg-peach text-on-pastel shadow-peach",
-    open: "border-[1.5px] border-line-2 bg-card-2 text-ink",
-    locked: "border-[1.5px] border-dashed border-line-2 bg-card text-muted",
-  };
-  return (
-    <Link
-      href={href}
-      aria-label={`${index}. ${title} (${NODE_LABEL[state]})`}
-      className={`flex size-[72px] items-center justify-center rounded-full font-display text-2xl font-semibold transition-transform active:scale-95 ${look[state]}`}
-    >
-      {state === "done" ? (
-        "✓"
-      ) : state === "locked" ? (
-        <LockIcon />
-      ) : state === "current" ? (
-        "★"
-      ) : (
-        index
-      )}
-    </Link>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 16 16" className="size-5 fill-current">
-      <path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z" />
-    </svg>
   );
 }

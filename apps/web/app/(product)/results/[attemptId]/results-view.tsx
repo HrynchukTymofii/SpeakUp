@@ -40,7 +40,14 @@ function progressSteps(stage: AnalysisStage) {
   ];
 }
 
-export function ResultsView({ attemptId }: { attemptId: string }) {
+/** "Continue" goes back into the flow the recording came from: the lesson, or the next topic. */
+function continueLabel(next: string): string {
+  if (next.startsWith("/app/practice/")) return "Next topic";
+  if (next.startsWith("/app/lessons/")) return "Continue lesson";
+  return "Continue";
+}
+
+export function ResultsView({ attemptId, next }: { attemptId: string; next?: string }) {
   const api = useApi();
   const [timedOut, setTimedOut] = useState(false);
 
@@ -63,8 +70,13 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
   });
 
   const backLink = (
-    <Link href="/app" className="link w-fit text-sm font-bold">
-      ← Back to Learn
+    <Link href={next ?? "/app"} className="link w-fit text-sm font-bold">
+      ← Back
+    </Link>
+  );
+  const continueButton = next && (
+    <Link href={next} className="btn btn-primary w-full">
+      {continueLabel(next)}
     </Link>
   );
 
@@ -90,7 +102,8 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
     return (
       <>
         {backLink}
-        <ResultsReport exercise={exercise} result={result} />
+        <ResultsReport exercise={exercise} result={result} topic={attempt.topic} />
+        {continueButton}
         <FixWithLessons result={result} />
       </>
     );
@@ -109,6 +122,7 @@ export function ResultsView({ attemptId }: { attemptId: string }) {
             {FAILURE_MESSAGE[attempt.errorCode ?? ""] ?? GENERIC_FAILURE}
           </p>
         </div>
+        {continueButton}
       </>
     );
   }

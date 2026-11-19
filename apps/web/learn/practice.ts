@@ -1,79 +1,65 @@
-import type { Exercise } from "@speakup/shared";
-import type { Tone } from "./catalog";
+import { PRACTICE_MODES, type PracticeMode } from "@speakup/shared";
 
-/** The quick-drill families of the Practice feed (slug prefix `drill-<kind>-`). */
-export type DrillKind = "topic" | "questions" | "convince" | "twister";
-
-export const DRILL_INFO: Record<
-  DrillKind,
-  { label: string; tone: Tone; icon: string; why: string }
-> = {
-  topic: {
-    label: "One-minute topic",
-    tone: "peach",
-    icon: "⏱️",
-    why: "Trains speaking without a script: start, keep going, land it.",
-  },
-  questions: {
-    label: "Question storm",
-    tone: "sky",
-    icon: "❓",
-    why: "Curiosity on demand — the fuel of every good conversation and Q&A.",
-  },
-  convince: {
-    label: "Convince me",
-    tone: "butter",
-    icon: "🔥",
-    why: "If you can make this sound important, you can sell anything.",
-  },
-  twister: {
-    label: "Tongue twister",
-    tone: "lav",
-    icon: "👅",
-    why: "Wakes up lips and tongue for clear, crisp words.",
-  },
+/** The Practice tab's mode cards. One line each: nobody reads more on a card. */
+export const MODE_INFO: Record<PracticeMode, { label: string; icon: string; short: string }> = {
+  topic: { label: "One-minute topic", icon: "⏱️", short: "Talk for 60 seconds, no prep" },
+  questions: { label: "Question storm", icon: "❓", short: "Ask as many questions as you can" },
+  convince: { label: "Convince me", icon: "🔥", short: "Make a silly idea matter" },
+  twister: { label: "Tongue twister", icon: "👅", short: "Clear words, then faster" },
 };
 
-export function drillKind(slug: string): DrillKind | null {
-  const match = /^drill-(topic|questions|convince|twister)-/.exec(slug);
-  return match ? (match[1] as DrillKind) : null;
-}
-
-/** Small deterministic PRNG (mulberry32) from a string seed. */
-function seededRandom(seed: string): () => number {
-  let h = 1779033703;
-  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-  return () => {
-    h += 0x6d2b79f5;
-    let t = h;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+export function parseMode(value: string): PracticeMode | undefined {
+  return PRACTICE_MODES.find((mode) => mode === value);
 }
 
 /**
- * The feed: quick drills only (legends and challenges live on the Challenges tab), shuffled
- * with a seed — the day — so the order is fresh every day but doesn't jump while scrolling.
+ * Speak like a legend: watch the opening of a famous talk, then repeat it. Videos are the
+ * official uploads (Stanford, TED, Y Combinator), embedded — we host no copies or transcripts.
+ * `slug` = the seeded exercise.
  */
-export function feedExercises(exercises: Exercise[], seed: string, kind?: DrillKind): Exercise[] {
-  const drills = exercises.filter((e) => {
-    const k = drillKind(e.slug);
-    return k !== null && (!kind || k === kind);
-  });
-  const random = seededRandom(seed);
-  const shuffled = [...drills];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-  }
-  return shuffled;
-}
+export const LEGENDS = [
+  {
+    slug: "legend-jobs-stanford",
+    speaker: "Steve Jobs",
+    talk: "Stanford, 2005",
+    youtubeId: "UF8uR6Z6KLc",
+    copy: "Short sentences, calm pace, real pauses",
+  },
+  {
+    slug: "legend-sinek-why",
+    speaker: "Simon Sinek",
+    talk: "Start with why · TED",
+    youtubeId: "qp0HIF3SfI4",
+    copy: "Open with a question, slow down on the big idea",
+  },
+  {
+    slug: "legend-hale-pitch",
+    speaker: "Kevin Hale",
+    talk: "How to pitch · Y Combinator",
+    youtubeId: "17XZGUX_9iM",
+    copy: "One clear sentence: what it is, who it’s for",
+  },
+  {
+    slug: "legend-brown-story",
+    speaker: "Brené Brown",
+    talk: "Vulnerability · TED",
+    youtubeId: "iCvmsMzlF7o",
+    copy: "An honest, funny story that leads to the point",
+  },
+] as const;
 
 /**
- * "Speak like a legend — John F. Kennedy, 1961. Build up…" → "John F. Kennedy, 1961".
- * Cut at the year, not at the first period (initials have periods).
+ * Where "Continue" on the results page goes. Only in-app paths: the value comes from the URL,
+ * so anything else (other sites, `//host`, `/\host`) would be an open redirect.
  */
-export function legendTitle(prompt: string): string {
-  return /—\s*(.+?,\s*\d{4})/.exec(prompt)?.[1] ?? prompt;
+export function safeNextPath(raw: string | null | undefined): string | undefined {
+  if (!raw || !/^\/app(\/|\?|$)/.test(raw)) return undefined;
+  if (raw.startsWith("//") || raw.includes("\\")) return undefined;
+  return raw;
+}
+
+/** The results page of an attempt, with the way back to where the user recorded it. */
+export function resultsHref(attemptId: string, next?: string): string {
+  const base = `/results/${attemptId}`;
+  return next ? `${base}?next=${encodeURIComponent(next)}` : base;
 }
