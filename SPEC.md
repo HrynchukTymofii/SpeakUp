@@ -31,7 +31,7 @@
 ### Plans
 | Plan | Access | Analyses |
 |---|---|---|
-| Free | Baseline + Lesson 1 | 3 / day |
+| Free | Baseline + practice drills + the first lesson of each course | 3 / day |
 | Pro (monthly) | All lessons | 50 / day |
 
 ### Explicitly out of scope for MVP
@@ -274,7 +274,7 @@ model WebhookEvent {
 
 **Entitlements rule:** a user is `pro` if they have any `Subscription` with `status in (active, trialing)` and (`currentPeriodEnd` is null or in the future). Computed in one function `getEntitlements(userId)` in the API. `source` exists so App Store / Play subscriptions (via RevenueCat webhooks later) map into the same table.
 
-**Seed** (`packages/db/seed.ts`): 1 course "Speak with Confidence", 3 lessons (Lesson 1 free), each with 1–2 exercises; 1 baseline `read_aloud` exercise (`slug: baseline`, dashboard) with a ~70-word paragraph; the funnel's impromptu speaking checks, one per goal (`check-<goal>`) plus `check-general`. Use placeholder video URLs (configurable).
+**Seed** (`packages/db/prisma/seed.ts`, content in `packages/db/src/seed-data.ts`): a shared "Speaking basics" course plus one course per goal track (conversation, pitching, presentations, job interviews, meetings); every lesson = why it matters → example → try this, with 2–3 exercises; the first lesson of each course is free. Standalone exercises: the `baseline` read-aloud, the funnel's speaking checks (`check-<goal>`), and practice exercises (`drill-*`, `legend-*`, `challenge-*`). Use placeholder video URLs (configurable).
 
 ---
 

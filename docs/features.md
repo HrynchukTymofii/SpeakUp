@@ -93,25 +93,35 @@ LLM), so the same recording always suggests the same lessons. Thresholds live in
 
 ## Lessons
 
-One course, **Speak with Confidence** (seeded from [`packages/db/src/seed-data.ts`](../packages/db/src/seed-data.ts)):
+Content lives in [`packages/db/src/seed-data.ts`](../packages/db/src/seed-data.ts) (`pnpm db:seed`).
+Every lesson has the same shape — **Why it matters → Example → Try this** (three `##` sections of
+the markdown body) — and 2–3 recorded exercises. The first lesson of each course is free.
 
-| #   | Lesson                 | Plan | Exercises               |
-| --- | ---------------------- | ---- | ----------------------- |
-| 1   | Find your pace         | Free | read aloud, free speech |
-| 2   | The power of the pause | Pro  | read aloud              |
-| 3   | Cut the filler words   | Pro  | two free-speech prompts |
+| Course                         | Lessons                                                                                                                                                              |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Speaking basics (everyone)     | Warm up your voice · Find your pace · The power of the pause · Silence beats “um” · Hit the key word · Slow down, speed up · Finish strong · Say it like you mean it |
+| Be interesting in conversation | Build your story · Listen, then make a bold guess · Keep the conversation going                                                                                      |
+| Pitch preparation              | The problem in one sentence · The 30-second pitch · Convince me it matters                                                                                           |
+| Presentation preparation       | Demand attention · One idea, three points · End with a call to action                                                                                                |
+| Job interviews                 | “Tell me about yourself” · “Why should we hire you?”                                                                                                                 |
+| Meetings and updates           | The 30-second update · Propose an idea                                                                                                                               |
+
+**Practice exercises** (standalone, every plan, `GET /v1/exercises/practice`): one-minute topics
+(`drill-topic-*`), question storms (`drill-questions-*`), "convince me" (`drill-convince-*`), tongue
+twisters (`drill-twister-*`), the 7-day story challenge (`challenge-your-story`) and "speak like a
+legend" read-alouds of public-domain speeches (`legend-*`: Lincoln, Kennedy, Roosevelt).
 
 Locked lessons are listed (so users see what Pro adds) but can't be opened or practiced. The
-baseline "speaking check" is outside the course and open to everyone.
+baseline "speaking check" and the practice exercises are outside the courses and open to everyone.
 
 ## Plans and limits
 
-|                  | Free     | Pro                                                                   |
-| ---------------- | -------- | --------------------------------------------------------------------- |
-| Speaking check   | ✓        | ✓                                                                     |
-| Lessons          | Lesson 1 | all                                                                   |
-| Analyses per day | 3        | 50                                                                    |
-| Price            | $0       | monthly subscription, price set in Paddle (localized, taxes included) |
+|                  | Free               | Pro                                                                   |
+| ---------------- | ------------------ | --------------------------------------------------------------------- |
+| Speaking check   | ✓                  | ✓                                                                     |
+| Lessons          | 1st of each course | all                                                                   |
+| Analyses per day | 3                  | 50                                                                    |
+| Price            | $0                 | monthly subscription, price set in Paddle (localized, taxes included) |
 
 - Quotas reset at **00:00 UTC**. Recordings that fail on our side don't count; `NO_SPEECH` does (so
   silent recordings can't burn speech-to-text budget).
