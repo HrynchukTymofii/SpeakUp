@@ -73,6 +73,8 @@ claimed after sign-up.
   - what went well, up to four things to work on (each with evidence from the recording and a tip),
     and one next step
   - the transcript with filler words highlighted, long pauses marked in place and unclear words underlined
+- **Fix it with a lesson** (signed-in results page): every problem found in the recording links
+  to the lesson that fixes it (`lessonsFixing` in `learn/personalize.ts`).
 - **Failures** get a plain-language message, e.g. "we couldn't hear enough speech" (`NO_SPEECH`).
 
 ### Problem detection (lesson suggestions)

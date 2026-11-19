@@ -109,3 +109,22 @@ export function recommendLessons({
   }
   return suggestions;
 }
+
+/**
+ * For one report: each detected problem → the first lesson (in course order) that fixes it.
+ * Problems fixed by a lesson already listed are dropped, so the report shows each lesson once.
+ */
+export function lessonsFixing(
+  problems: Problem[],
+  courses: LearnCourse[],
+): { problem: Problem; lesson: LearnLesson; course: LearnCourse }[] {
+  const lessons = courses.flatMap((course) => course.lessons.map((lesson) => ({ course, lesson })));
+  const links: { problem: Problem; lesson: LearnLesson; course: LearnCourse }[] = [];
+  for (const problem of problems) {
+    const match = lessons.find(({ lesson }) => LESSON_FIXES[lesson.slug]?.includes(problem));
+    if (match && !links.some((l) => l.lesson.slug === match.lesson.slug)) {
+      links.push({ problem, ...match });
+    }
+  }
+  return links;
+}

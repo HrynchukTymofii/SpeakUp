@@ -1,6 +1,12 @@
 import type { AttemptSummary, Problem } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
-import { goalOf, orderCourses, recommendLessons, type LearnCourse } from "./personalize";
+import {
+  goalOf,
+  lessonsFixing,
+  orderCourses,
+  recommendLessons,
+  type LearnCourse,
+} from "./personalize";
 
 const lesson = (slug: string, locked = false, exerciseSlugs = [`${slug}-1`]) => ({
   slug,
@@ -109,5 +115,15 @@ describe("recommendLessons", () => {
       completed: new Set(),
     });
     expect(recs).toHaveLength(3);
+  });
+});
+
+describe("lessonsFixing", () => {
+  it("maps each problem of one report to the first lesson that fixes it, without duplicates", () => {
+    const links = lessonsFixing(["fillers", "hesitations", "trailing-off", "hedges"], courses);
+    expect(links.map((l) => [l.problem, l.lesson.slug])).toEqual([
+      ["fillers", "cut-the-filler"],
+      ["trailing-off", "finish-strong"],
+    ]);
   });
 });
