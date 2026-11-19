@@ -157,7 +157,7 @@ sequenceDiagram
 
 - **Clerk** handles sign-up/sign-in. The web app sends the Clerk session token as a Bearer token;
   the API verifies it (only tokens minted for our own web origins are accepted).
-- **Lazy provisioning:** the first authenticated request creates our `User` row (no Clerk webhook).
+- **Lazy provisioning:** the first authenticated request creates our `User` row (no Clerk webhook). Concurrent first requests are safe: the one whose insert loses on the unique `clerkUserId` reads the winner's row.
 - **One place decides the plan:** `getEntitlements()` (`apps/api/src/services/entitlements.ts`).
   A user is Pro if any subscription is `active`/`trialing` and its period hasn't ended.
 - **One rule for content:** `canAccessLesson()` — free lessons for everyone, the rest for Pro. The

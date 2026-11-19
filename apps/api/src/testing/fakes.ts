@@ -47,6 +47,11 @@ export class FakeDb {
   subscriptions: Omit<Subscription, "id">[] = [];
   webhookEvents: { source: string; eventId: string; type: string }[] = [];
   attemptsToday = 0;
+  /**
+   * Simulates two first requests racing: the next user upsert finds the row "created by the
+   * other request" and fails with Prisma's unique-constraint error, like Postgres does.
+   */
+  simulateProvisioningRace = false;
   private nextId = 1;
 
   user = {
@@ -69,6 +74,10 @@ export class FakeDb {
         createdAt: new Date("2026-01-01T00:00:00Z"),
       };
       this.users.push(user);
+      if (this.simulateProvisioningRace) {
+        this.simulateProvisioningRace = false;
+        throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+      }
       return user;
     },
 

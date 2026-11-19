@@ -54,7 +54,9 @@ export function requireAuth(scope: FastifyInstance, deps: { auth: AuthProvider; 
  * No Clerk webhook is needed to keep users in sync for the MVP.
  *
  * Fast path is a single indexed lookup. On first sight we fetch the email from Clerk, then
- * `upsert` — if two first requests race, both upserts converge on one row (clerkUserId is unique).
+ * `upsert`. Postgres runs an upsert as insert-or-update, not atomically: when two first requests
+ * race (a new user's first screen loads several things at once), the loser's insert fails on the
+ * unique `clerkUserId` (Prisma P2002). The row then exists, so we simply read it.
  */
 async function findOrCreateUser(
   deps: { auth: AuthProvider; db: DbClient },
@@ -72,13 +74,20 @@ async function findOrCreateUser(
     request.log.warn({ err: (err as Error).message }, "could not fetch email from Clerk");
   }
 
-  const user = await deps.db.user.upsert({
-    where: { clerkUserId },
-    create: { clerkUserId, email },
-    update: {},
-  });
-  request.log.info({ userId: user.id }, "user provisioned");
-  return user;
+  try {
+    const user = await deps.db.user.upsert({
+      where: { clerkUserId },
+      create: { clerkUserId, email },
+      update: {},
+    });
+    request.log.info({ userId: user.id }, "user provisioned");
+    return user;
+  } catch (err) {
+    if ((err as { code?: string }).code !== "P2002") throw err;
+    const winner = await deps.db.user.findUnique({ where: { clerkUserId } });
+    if (!winner) throw err;
+    return winner;
+  }
 }
 
 /** The signed-in user. Only valid inside a scope protected by `requireAuth`. */
