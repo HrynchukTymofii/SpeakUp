@@ -114,6 +114,22 @@ legend" read-alouds of public-domain speeches (`legend-*`: Lincoln, Kennedy, Roo
 Locked lessons are listed (so users see what Pro adds) but can't be opened or practiced. The
 baseline "speaking check" and the practice exercises are outside the courses and open to everyone.
 
+## Personalization and progress
+
+All computed in the app from the attempt history (`GET /v1/attempts`) and the onboarding answers;
+code in [`apps/web/learn/`](../apps/web/learn), metadata (course look, which lesson fixes which
+problem) in `learn/catalog.ts`.
+
+- **Course order:** the course for the funnel goal leads (pitching → Pitch preparation,
+  conversations → Be interesting, …), then Speaking basics, then the rest.
+- **Suggested lessons:** up to three. The problems found in the last 5 analyzed recordings, most
+  frequent first, each mapped to the first unfinished lesson that fixes it. Before any analysis,
+  the symptoms the user reported in the funnel are used instead ("I talk too fast" → Find your pace).
+- **Lesson done** = every exercise of the lesson has a completed recording.
+- **Streak:** consecutive local days with at least one completed recording; yesterday's streak
+  stays alive until today ends. **Daily goal:** 3 recordings. **XP:** 10 per completed recording
+  plus score ÷ 10; a level every 100 XP.
+
 ## Plans and limits
 
 |                  | Free               | Pro                                                                   |
