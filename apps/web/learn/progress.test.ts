@@ -5,6 +5,7 @@ import {
   completedSlugs,
   recentProblems,
   scoreTrend,
+  storyChallenge,
   levelFor,
   lessonState,
   pathStates,
@@ -157,5 +158,30 @@ describe("profile helpers", () => {
       { problem: "fillers", count: 2 },
       { problem: "monotone", count: 1 },
     ]);
+  });
+});
+
+describe("storyChallenge", () => {
+  it("counts distinct days with a completed story recording, up to 7, and today's status", () => {
+    const history = [
+      attempt("challenge-your-story", day(19, 9)),
+      attempt("challenge-your-story", day(19, 10)),
+      attempt("challenge-your-story", day(17)),
+      attempt("challenge-your-story", day(16), { status: "failed" }),
+      attempt("drill-topic-coffee", day(15)),
+    ];
+    expect(storyChallenge(history, day(19, 20))).toEqual({
+      daysDone: 2,
+      doneToday: true,
+      scores: [70, 70],
+    });
+    expect(storyChallenge(history, day(20, 8))).toMatchObject({ daysDone: 2, doneToday: false });
+  });
+
+  it("caps at 7 days", () => {
+    const history = Array.from({ length: 9 }, (_, i) =>
+      attempt("challenge-your-story", day(i + 1)),
+    );
+    expect(storyChallenge(history, day(9)).daysDone).toBe(7);
   });
 });

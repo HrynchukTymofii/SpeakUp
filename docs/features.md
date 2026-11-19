@@ -108,6 +108,15 @@ record inline (`app/(product)/app/practice/practice-feed.tsx`). Drill families
 narrow the feed to one family. The order is shuffled with the date as the seed: fresh each day,
 stable while scrolling.
 
+## Challenges (`/app/challenges`)
+
+- **7-day story challenge** (`challenge-your-story`): tell your self-written story once a day;
+  seven day tiles show progress and each day's best score (`storyChallenge` in `learn/progress.ts`).
+  After day 7: use it in a real conversation.
+- **Speak like a legend** (`legend-*`): read a public-domain speech (Lincoln, Kennedy, Roosevelt)
+  and get the usual analysis. Planned: play the original, compare side by side, share the score.
+- **Contests**: placeholder ("coming soon") — weekly prompts, community votes, leaderboards.
+
 ## Lessons
 
 Content lives in [`packages/db/src/seed-data.ts`](../packages/db/src/seed-data.ts) (`pnpm db:seed`).
@@ -185,6 +194,9 @@ problem) in `learn/catalog.ts`.
 - IP addresses are stored only as salted hashes (for abuse limits).
 
 ## Not built yet
+
+- Contests, and comparing a "legend" recording with the original speech.
+- Server-side storage for in-app lesson progress and the user's story (kept on the device today).
 
 - A history page of past attempts (the API stores them; the dashboard doesn't list them yet).
 - Product analytics: funnel events (`funnel_step_viewed`, `funnel_answer`, `paywall_viewed`,

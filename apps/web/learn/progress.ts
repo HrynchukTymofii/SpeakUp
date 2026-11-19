@@ -128,3 +128,29 @@ export function recentProblems(attempts: AttemptSummary[]): { problem: Problem; 
     .map(([problem, count]) => ({ problem, count }))
     .sort((a, b) => b.count - a.count || order.indexOf(a.problem) - order.indexOf(b.problem));
 }
+
+export const STORY_CHALLENGE_SLUG = "challenge-your-story";
+export const STORY_CHALLENGE_DAYS = 7;
+
+/**
+ * The 7-day story challenge: tell the same (self-written) story once a day. Progress = distinct
+ * days with a completed recording, capped at 7; `scores` (oldest → newest, best of each day)
+ * show the story getting better.
+ */
+export function storyChallenge(
+  attempts: AttemptSummary[],
+  now = new Date(),
+): { daysDone: number; doneToday: boolean; scores: number[] } {
+  const bestPerDay = new Map<string, number>();
+  for (const a of attempts) {
+    if (a.exerciseSlug !== STORY_CHALLENGE_SLUG || a.status !== "completed") continue;
+    const key = dayKey(new Date(a.createdAt));
+    bestPerDay.set(key, Math.max(bestPerDay.get(key) ?? 0, a.overallScore ?? 0));
+  }
+  const days = [...bestPerDay.keys()].sort();
+  return {
+    daysDone: Math.min(days.length, STORY_CHALLENGE_DAYS),
+    doneToday: bestPerDay.has(dayKey(now)),
+    scores: days.slice(0, STORY_CHALLENGE_DAYS).map((d) => bestPerDay.get(d) ?? 0),
+  };
+}
