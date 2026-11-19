@@ -26,6 +26,14 @@ function exerciseFields(ex: SeedExercise, lessonId: string | null) {
   };
 }
 
+/**
+ * Prisma's defaults (wait 2 s to start a transaction, 5 s to finish it) are made for request
+ * handlers. The seed runs against remote databases too: a serverless Postgres (Neon) can take
+ * several seconds to wake up, and ~20 upserts each cross the network. Content seeding is rare
+ * and one-off, so generous limits cost nothing.
+ */
+const SEED_TRANSACTION_OPTIONS = { maxWait: 30_000, timeout: 120_000 } as const;
+
 async function main(): Promise<void> {
   // One transaction: the content is either fully seeded or not at all.
   await db.$transaction(async (tx) => {
@@ -71,7 +79,7 @@ async function main(): Promise<void> {
         update: fields,
       });
     }
-  });
+  }, SEED_TRANSACTION_OPTIONS);
 
   const [courses, lessonCount, exerciseCount] = await Promise.all([
     db.course.count(),
