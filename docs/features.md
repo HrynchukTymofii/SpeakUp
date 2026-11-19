@@ -10,16 +10,20 @@ for read-aloud tasks — reading accuracy, then practice with short lessons.
 
 ## Pages
 
-| Route                  | Who              | What                                                             |
-| ---------------------- | ---------------- | ---------------------------------------------------------------- |
-| `/`                    | everyone         | Landing: value proposition, "how it works", entry to the funnel  |
-| `/start/<step>`        | everyone         | The onboarding funnel (below)                                    |
-| `/sign-in`, `/sign-up` | everyone         | Clerk forms, themed like the app                                 |
-| `/pricing`             | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button   |
-| `/app`                 | signed in        | Dashboard: speaking check, course and lessons, profile and usage |
-| `/app/lessons/<slug>`  | signed in        | Lesson: video, text, practice exercises with the recorder        |
-| `/results/<attemptId>` | signed in, owner | Analysis report for one recording                                |
-| `/app/billing`         | signed in        | Plan, status, renewal date, usage today, "Manage subscription"   |
+Marketing pages are served on the site host (`speakup.fibipals.com`), everything else on the app
+host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects to the right one.
+
+| Route                           | Host | Who              | What                                                                    |
+| ------------------------------- | ---- | ---------------- | ----------------------------------------------------------------------- |
+| `/`                             | site | everyone         | Landing: value proposition, "how it works", entry to the funnel         |
+| `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`) |
+| `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                           |
+| `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                        |
+| `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button          |
+| `/app`                          | app  | signed in        | Dashboard: speaking check, course and lessons, profile and usage        |
+| `/app/lessons/<slug>`           | app  | signed in        | Lesson: video, text, practice exercises with the recorder               |
+| `/results/<attemptId>`          | app  | signed in, owner | Analysis report for one recording                                       |
+| `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"          |
 
 ## The onboarding funnel (`/start`)
 

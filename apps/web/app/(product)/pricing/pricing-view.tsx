@@ -4,6 +4,7 @@ import { ProPrice } from "@/components/pro-price";
 import { Mascot } from "@/components/mascot";
 import { UpgradeButton } from "@/components/upgrade-button";
 import { PRO_FEATURES } from "@/funnel/plans";
+import { CheckoutTerms } from "@/components/checkout-terms";
 
 const FREE_FEATURES = ["The speaking check", "Lesson 1", "3 speaking analyses a day"];
 
@@ -40,6 +41,7 @@ export function PricingView() {
             <p className="mt-3 text-center text-xs text-page/60">
               Renews monthly. Cancel anytime. Paddle is our reseller and handles taxes.
             </p>
+            <CheckoutTerms className="mt-1 text-page/60" />
           </div>
         </section>
       </div>
