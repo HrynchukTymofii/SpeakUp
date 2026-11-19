@@ -1,9 +1,7 @@
-import { ClerkProvider, Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { Manrope, Outfit } from "next/font/google";
-import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
-import { Mascot } from "@/components/mascot";
+import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -60,6 +58,10 @@ const clerkAppearance = {
   },
 };
 
+/**
+ * The shell shared by both hosts (fonts, Clerk, query cache). Each route group brings its own
+ * header: (marketing) for the landing and legal pages, (product) for everything signed-in or funnel.
+ */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${manrope.variable} ${outfit.variable}`}>
@@ -67,39 +69,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Clerk Core 3: ClerkProvider goes inside <body>, not around <html>. */}
         {/* Themed via `clerkAppearance` above. */}
         <ClerkProvider appearance={clerkAppearance}>
-          <Providers>
-            <header className="sticky top-0 z-20 border-b border-line bg-page/80 backdrop-blur-md">
-              <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 font-display text-[22px] font-semibold tracking-tight text-ink"
-                >
-                  <Mascot size={30} />
-                  speakup
-                </Link>
-                <nav className="flex items-center gap-2 text-sm">
-                  {/* <Show> reads the request, so it must sit inside <Suspense>. */}
-                  <Suspense>
-                    <Show when="signed-out">
-                      <SignInButton>
-                        <button className="btn btn-sm px-3 text-ink hover:bg-card">Sign in</button>
-                      </SignInButton>
-                      <SignUpButton>
-                        <button className="btn btn-primary btn-sm">Sign up</button>
-                      </SignUpButton>
-                    </Show>
-                    <Show when="signed-in">
-                      <Link href="/app" className="btn btn-secondary btn-sm">
-                        Dashboard
-                      </Link>
-                      <UserButton />
-                    </Show>
-                  </Suspense>
-                </nav>
-              </div>
-            </header>
-            {children}
-          </Providers>
+          <Providers>{children}</Providers>
         </ClerkProvider>
       </body>
     </html>

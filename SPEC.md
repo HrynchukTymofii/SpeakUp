@@ -453,9 +453,13 @@ PRICE_LLM_OUTPUT_USD_PER_MTOK=
 
 ## 11. Web app pages
 
+Two hosts, one Next.js project: marketing pages on `speakup.fibipals.com`, the product on
+`app.speakup.fibipals.com` (routing in `apps/web/proxy.ts`; see `docs/architecture.md`).
+
 | Route | Content |
 |---|---|
-| `/` | Landing: value prop, CTA "Take the 2-minute speaking check" → `/start` |
+| `/` | (site) Landing: value prop, CTA "Take the 2-minute speaking check" → `/start` on the app host |
+| `/privacy`, `/terms`, `/refund` | (site) Legal pages; Paddle's domain review requires them |
 | `/start/[step]` | The web funnel (§15). One URL per step so back/forward and analytics work |
 | `/sign-in`, `/sign-up` | Clerk components (also embedded inside the funnel's auth step) |
 | `/results/[attemptId]` | Report: score, metrics cards (WPM vs target band, pauses, fillers, accuracy), transcript with highlighted fillers/long pauses/missed words, AI feedback, CTA (upgrade or next lesson) |
@@ -517,6 +521,7 @@ The repo owner is preparing for technical interviews. After each milestone appen
 | Rule-based overall score; LLM only scores content | The LLM's own 0–100 was lenient and inconsistent (a clean read-aloud got 95 → nothing to practice); rules are repeatable, explainable and tunable | A model trained on coach-rated recordings once we have labelled data |
 | Pitch/loudness/silence from the waveform (ffmpeg + YIN in TS) | STT timestamps are smoothed and say nothing about voice; one runtime, ~100 ms per recording | Praat/parselmouth in a Python service if we need formants, jitter/shimmer or accent analysis |
 | Paddle (MoR) | Handles global tax; available to Ukrainian sellers | Stripe if company entity is in a Stripe country |
+| One Vercel project for two hosts (marketing `speakup.` / product `app.`), routed by host in `proxy.ts` | One build, one set of env vars, shared components and design tokens; the split can be switched on/off with two env vars | Two projects (or Next multi-zones) if the marketing site moves to a CMS/site builder or gets its own release cycle |
 | ECS Fargate | Containers without managing servers; same images as local | Kubernetes (EKS) only with a platform team |
 
 ---

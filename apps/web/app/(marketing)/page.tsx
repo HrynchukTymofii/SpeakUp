@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Mascot, type MascotMood } from "@/components/mascot";
+import { appHref } from "@/lib/links";
 
 // The three steps restate the value proposition below — no new claims or numbers.
 const STEPS: { title: string; body: string; color: string; mood: MascotMood }[] = [
@@ -47,15 +47,15 @@ export default function HomePage() {
           and clarity. Then practice with short daily lessons.
         </p>
         <div className="flex w-full flex-col items-center gap-3 sm:w-auto">
-          <Link
-            href="/start"
+          <a
+            href={appHref("/start")}
             className="btn btn-primary min-h-14 w-full px-5 sm:w-auto sm:px-8 sm:text-[17px]"
           >
             Take the 2-minute speaking check
-          </Link>
-          <Link href="/app" className="link py-2 text-sm font-semibold">
+          </a>
+          <a href={appHref("/app")} className="link py-2 text-sm font-semibold">
             Already have an account? Go to your dashboard
-          </Link>
+          </a>
         </div>
       </section>
 

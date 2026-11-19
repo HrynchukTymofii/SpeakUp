@@ -10,6 +10,7 @@ import { buildPlan } from "../personalize";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
+import { CheckoutTerms } from "@/components/checkout-terms";
 
 /** Pastel per week, cycling (pastel surfaces keep dark ink). */
 const WEEK_COLORS = ["bg-peach", "bg-butter", "bg-sage", "bg-sky", "bg-lav", "bg-rose"];
@@ -99,7 +100,10 @@ export function PaywallStep({ ctx }: StepProps<"paywall">) {
       </Card>
 
       <UpgradeButton placement="funnel" onActivated={() => router.push("/app")} />
-      <p className="-mt-3 text-center text-xs text-muted">Renews automatically. Cancel anytime.</p>
+      <div className="-mt-3 flex flex-col gap-1">
+        <p className="text-center text-xs text-muted">Renews automatically. Cancel anytime.</p>
+        <CheckoutTerms />
+      </div>
 
       <button
         type="button"
