@@ -37,6 +37,31 @@ flowchart LR
 The repo is a pnpm + Turborepo monorepo: a change to a shared schema is seen by all three apps at
 once, and `turbo` builds `shared` before anything that imports it.
 
+## Two hosts, one web project
+
+The web app is one Next.js project on Vercel with two domains attached:
+
+| Host                       | Serves                                                           | Route group                |
+| -------------------------- | ---------------------------------------------------------------- | -------------------------- |
+| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                         | `apps/web/app/(marketing)` |
+| `app.speakup.fibipals.com` | `/start`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing` | `apps/web/app/(product)`   |
+
+- `proxy.ts` asks `routeForHost` (`apps/web/lib/hosts.ts`) on every request. A product route on
+  the site host gets a **308** to the app host (path and query kept, so old links such as
+  `speakup.fibipals.com/start?…` keep working); a legal page on the app host gets a 308 back.
+  `/` on the app host is a **307** to `/app` (which sends signed-out visitors to sign-in).
+- Every response on the app host carries `X-Robots-Tag: noindex`: only the marketing site is meant
+  for search results.
+- Links that cross hosts use `appHref()` / `siteHref()` (`apps/web/lib/links.ts`).
+- The split is **off** unless both `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_APP_URL` are set. Local
+  dev and Vercel previews leave them empty and serve every page on one host.
+- Clerk needs no satellite domain: `app.` is a subdomain of the Clerk instance's primary domain
+  (`speakup.fibipals.com`, frontend API `clerk.speakup.fibipals.com`). Marketing pages show no
+  session UI; sign-in lives on the app host only.
+- Both origins are in `speakup:webOrigins` (`infra/cdk/cdk.json`), which feeds the API's CORS,
+  Clerk's `authorizedParties` and the recordings bucket's CORS. The product only calls the API
+  from the app host; the site origin stays listed so sessions open during the switch keep working.
+
 ## Network (AWS)
 
 - **VPC** across 2 availability zones with public, app and data subnets and one NAT gateway.

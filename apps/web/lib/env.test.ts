@@ -32,3 +32,34 @@ describe("NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL", () => {
     expect(() => parseVideo("//evil.example/x.mp4")).toThrow();
   });
 });
+
+describe("NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_APP_URL (domain split)", () => {
+  const parseHosts = (site: string | undefined, app: string | undefined) =>
+    PublicEnvSchema.parse({
+      NEXT_PUBLIC_API_URL: "http://localhost:4000",
+      NEXT_PUBLIC_SITE_URL: site,
+      NEXT_PUBLIC_APP_URL: app,
+    });
+
+  it("is off when both are unset or empty", () => {
+    const env = parseHosts("", undefined);
+    expect(env.NEXT_PUBLIC_SITE_URL).toBeUndefined();
+    expect(env.NEXT_PUBLIC_APP_URL).toBeUndefined();
+  });
+
+  it("accepts both as origins", () => {
+    const env = parseHosts("https://speakup.fibipals.com", "https://app.speakup.fibipals.com");
+    expect(env.NEXT_PUBLIC_APP_URL).toBe("https://app.speakup.fibipals.com");
+  });
+
+  it("rejects only one of them: half a split would redirect into a host that isn't served", () => {
+    expect(() => parseHosts("https://speakup.fibipals.com", undefined)).toThrow();
+    expect(() => parseHosts(undefined, "https://app.speakup.fibipals.com")).toThrow();
+  });
+
+  it("rejects a URL with a path, since links are built from it", () => {
+    expect(() =>
+      parseHosts("https://speakup.fibipals.com/home", "https://app.speakup.fibipals.com"),
+    ).toThrow();
+  });
+});

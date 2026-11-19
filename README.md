@@ -162,6 +162,10 @@ All variables are documented in [`.env.example`](./.env.example). Each app valid
 variables with Zod at startup and exits with a readable error if something is missing.
 Only `NEXT_PUBLIC_*` variables are exposed to the browser.
 
+| Variable                                       | Where              | Purpose                                                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL` | web, Vercel (Prod) | Domain split: origin of the marketing site and of the product app. Set both or neither. With both set, `proxy.ts` redirects each page to its host (see `docs/architecture.md`, "Two hosts"). Empty in dev and previews. |
+
 ## Deploy (AWS + Vercel)
 
 ```
@@ -269,9 +273,11 @@ The migrate task logs go to CloudWatch (log group `SpeakUp-MigrateLogs…`). See
 3. Environment variables (Production): `NEXT_PUBLIC_API_URL=https://api.speakup.app`,
    `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, the four `NEXT_PUBLIC_CLERK_*_URL`
    values from `.env.example`, `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, `NEXT_PUBLIC_PADDLE_ENV`,
-   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL`.
-4. Domains → add `speakup.app` (it must be one of `speakup:webOrigins`). In Paddle, set the
-   default payment link to `https://speakup.app`.
+   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL`, and for the domain
+   split `NEXT_PUBLIC_SITE_URL=https://speakup.app` + `NEXT_PUBLIC_APP_URL=https://app.speakup.app`.
+4. Domains → add both `speakup.app` and `app.speakup.app` to the same project (both must be in
+   `speakup:webOrigins`). In Paddle, set the default payment link to `https://app.speakup.app/pricing`,
+   and allow `app.speakup.app` in the Turnstile widget's hostnames.
 
 ### Updating
 
