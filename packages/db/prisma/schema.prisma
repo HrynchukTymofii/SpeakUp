@@ -121,6 +121,7 @@ model Attempt {
   // because Prisma's schema language can't express CHECK constraints) and in application code.
   exerciseId      String
   exercise        Exercise       @relation(fields: [exerciseId], references: [id])
+  topic           String? // practice modes: the topic spoken about (one exercise, many topics)
   status          AttemptStatus  @default(awaiting_upload)
   audioKey        String // S3 object key
   mimeType        String

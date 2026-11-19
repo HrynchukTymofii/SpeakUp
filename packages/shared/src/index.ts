@@ -3,6 +3,7 @@
 export * from "./queue.js";
 export * from "./analysis.js";
 export * from "./problems.js";
+export * from "./practice-modes.js";
 export * from "./api/errors.js";
 export * from "./api/me.js";
 export * from "./api/courses.js";

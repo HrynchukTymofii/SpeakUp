@@ -132,6 +132,7 @@ export class FakeDb {
       data: Pick<Attempt, "id" | "exerciseId" | "mimeType" | "audioKey"> & {
         userId?: string;
         funnelSessionId?: string;
+        topic?: string;
       };
     }) => {
       const now = new Date();
@@ -139,6 +140,7 @@ export class FakeDb {
         ...data,
         userId: data.userId ?? null,
         funnelSessionId: data.funnelSessionId ?? null,
+        topic: data.topic ?? null,
         status: "awaiting_upload",
         durationMs: null,
         errorCode: null,
@@ -163,10 +165,21 @@ export class FakeDb {
       };
     },
 
-    /** The user's attempts newest first (`orderBy: { createdAt: "desc" }`), with `take`. */
-    findMany: async ({ where, take }: { where: { userId: string }; take?: number }) =>
+    /**
+     * The user's attempts newest first (`orderBy: { createdAt: "desc" }`), with `take`;
+     * optionally only one exercise's attempts that have a topic (practice modes).
+     */
+    findMany: async ({
+      where,
+      take,
+    }: {
+      where: { userId: string; exerciseId?: string; topic?: { not: null } };
+      take?: number;
+    }) =>
       [...this.attempts]
         .filter((a) => a.userId === where.userId)
+        .filter((a) => where.exerciseId === undefined || a.exerciseId === where.exerciseId)
+        .filter((a) => where.topic === undefined || a.topic !== null)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, take)
         .map((attempt) => ({
@@ -288,6 +301,7 @@ export class FakeDb {
     practice: [
       fakeExercise("drill-topic-coffee", "free_speech"),
       fakeExercise("legend-gettysburg", "read_aloud"),
+      fakeExercise("mode-topic", "free_speech"),
     ],
   };
 
@@ -333,7 +347,11 @@ export class FakeDb {
     findUnique: async ({ where }: { where: { slug?: string; id?: string } }) => {
       if (where.id !== undefined) return this.findExercise(where.id);
       if (where.slug === "baseline") return this.content.baseline;
-      return this.content.speakingChecks.find((e) => e.slug === where.slug) ?? null;
+      return (
+        [...this.content.speakingChecks, ...this.content.practice].find(
+          (e) => e.slug === where.slug,
+        ) ?? null
+      );
     },
     /** Standalone exercises whose slug starts with one of the `OR` prefixes. */
     findMany: async ({ where }: { where: { OR: { slug: { startsWith: string } }[] } }) =>

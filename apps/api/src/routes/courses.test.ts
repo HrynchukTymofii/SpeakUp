@@ -1,3 +1,4 @@
+import { MODE_TOPICS } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
 import { buildTestServer, FakeDb } from "../testing/fakes.js";
 
@@ -137,5 +138,59 @@ describe("GET /v1/exercises/practice", () => {
     const { app } = await setup();
     const res = await app.inject({ method: "GET", url: "/v1/exercises/practice" });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe("GET /v1/practice/:mode/next", () => {
+  const next = (app: Awaited<ReturnType<typeof setup>>["app"], query = "") =>
+    app.inject({ method: "GET", url: `/v1/practice/topic/next${query}`, headers: auth });
+
+  it("returns the mode's exercise and a topic from the bank", async () => {
+    const { app } = await setup();
+    const res = await next(app);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.exercise.slug).toBe("mode-topic");
+    expect(MODE_TOPICS.topic).toContain(body.topic);
+    expect(body).toMatchObject({ done: 0, total: MODE_TOPICS.topic.length });
+  });
+
+  it("doesn't repeat a topic the user already answered", async () => {
+    const { app, db } = await setup();
+    const answered = MODE_TOPICS.topic.slice(1);
+    for (const [i, topic] of answered.entries()) {
+      await db.attempt.create({
+        data: {
+          id: `a_${i}`,
+          userId: "user_1",
+          exerciseId: "ex_mode-topic",
+          mimeType: "audio/webm",
+          audioKey: "k",
+          topic,
+        },
+      });
+    }
+    const body = (await next(app)).json();
+    expect(body.topic).toBe(MODE_TOPICS.topic[0]);
+    expect(body.done).toBe(answered.length);
+  });
+
+  it("skips the topic the user passed on", async () => {
+    const { app } = await setup();
+    const first = (await next(app)).json().topic as string;
+    const other = (await next(app, `?skip=${encodeURIComponent(first)}`)).json().topic;
+    expect(other).not.toBe(first);
+  });
+
+  it("rejects an unknown mode and requires auth", async () => {
+    const { app } = await setup();
+    const unknown = await app.inject({
+      method: "GET",
+      url: "/v1/practice/nope/next",
+      headers: auth,
+    });
+    expect(unknown.statusCode).toBe(400);
+    const anon = await app.inject({ method: "GET", url: "/v1/practice/topic/next" });
+    expect(anon.statusCode).toBe(401);
   });
 });

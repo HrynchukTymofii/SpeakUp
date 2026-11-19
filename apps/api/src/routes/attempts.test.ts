@@ -137,6 +137,30 @@ describe("POST /v1/attempts", () => {
     expect((await create(FREE_EXERCISE)).statusCode).toBe(429); // still counts
   });
 
+  it("stores the practice-mode topic and returns it", async () => {
+    const { app, db } = await setup();
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/attempts",
+      headers: auth,
+      payload: { exerciseId: "ex_mode-topic", mimeType: "audio/webm", topic: "  Your first job " },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().attempt.topic).toBe("Your first job");
+    expect(attemptById(db, res.json().attempt.id).topic).toBe("Your first job");
+  });
+
+  it("400 for a topic that is too long", async () => {
+    const { app } = await setup();
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/attempts",
+      headers: auth,
+      payload: { exerciseId: "ex_mode-topic", mimeType: "audio/webm", topic: "x".repeat(301) },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it("404 for an unknown exercise", async () => {
     const { create } = await setup();
     expect((await create("ex_nope")).statusCode).toBe(404);

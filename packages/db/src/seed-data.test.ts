@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { FUNNEL_OPTIONS, PRACTICE_SLUG_PREFIXES, speakingCheckSlug } from "@speakup/shared";
+import {
+  FUNNEL_OPTIONS,
+  MODE_EXERCISE_SLUG,
+  PRACTICE_MODES,
+  PRACTICE_SLUG_PREFIXES,
+  speakingCheckSlug,
+} from "@speakup/shared";
 import {
   baselineExercise,
   courses,
@@ -93,20 +99,18 @@ describe("seed data", () => {
     }
   });
 
-  it("practice exercises use the practice slug prefixes and cover each drill kind", () => {
-    for (const ex of practiceExercises) {
+  it("has one exercise per practice mode, plus the story challenge and the legends", () => {
+    const slugs = new Set(practiceExercises.map((e) => e.slug));
+    for (const mode of PRACTICE_MODES) {
+      expect(slugs.has(MODE_EXERCISE_SLUG[mode]), mode).toBe(true);
+    }
+    expect(slugs.has("challenge-your-story")).toBe(true);
+    expect(practiceExercises.filter((e) => e.slug.startsWith("legend-")).length).toBe(4);
+    for (const ex of practiceExercises.filter((e) => !e.slug.startsWith("mode-"))) {
       expect(
         PRACTICE_SLUG_PREFIXES.some((p) => ex.slug.startsWith(p)),
         ex.slug,
       ).toBe(true);
-    }
-    for (const kind of ["drill-topic-", "drill-questions-", "drill-convince-", "drill-twister-"]) {
-      const count = practiceExercises.filter((e) => e.slug.startsWith(kind)).length;
-      expect(count, kind).toBeGreaterThan(1);
-    }
-    expect(practiceExercises.some((e) => e.slug === "challenge-your-story")).toBe(true);
-    for (const legend of practiceExercises.filter((e) => e.slug.startsWith("legend-"))) {
-      expect(legend.type, legend.slug).toBe("read_aloud");
     }
   });
 

@@ -118,7 +118,7 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
     },
     async (request, reply) => {
       const user = currentUser(request);
-      const { exerciseId, mimeType } = request.body;
+      const { exerciseId, mimeType, topic } = request.body;
 
       // Per-user burst limit (SPEC §9: ~10/min on this route), keyed by the VERIFIED user id —
       // stricter than the global per-IP limit, and not bypassable by switching networks.
@@ -155,7 +155,13 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
 
       const created = await createAttemptWithUpload(
         { db, storage },
-        { owner: { userId: user.id }, exerciseId, mimeType, keyPrefix: `recordings/${user.id}` },
+        {
+          owner: { userId: user.id },
+          exerciseId,
+          mimeType,
+          keyPrefix: `recordings/${user.id}`,
+          topic,
+        },
       );
       request.log.info({ attemptId: created.attempt.id, exerciseId }, "attempt created");
       return reply.code(201).send(created);
