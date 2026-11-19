@@ -101,7 +101,14 @@ describe("detectProblems", () => {
 
   it("ignores voice numbers from an unreliable (noisy) recording", () => {
     const m = cleanMetrics();
-    m.voice = { ...m.voice!, reliable: false, pitchVariationSt: 0.2, paceVariationPct: 1 };
+    m.voice = {
+      reliable: false,
+      pitchVariationSt: 0.2,
+      pitchRangeSt: 1,
+      loudnessVariationDb: 0.5,
+      paceVariationPct: 1,
+      trailingOff: { count: 5, sentences: 6, list: [] },
+    };
     expect(detectProblems(m, feedback())).toEqual([]);
   });
 

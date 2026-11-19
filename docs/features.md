@@ -72,6 +72,25 @@ claimed after sign-up.
   - the transcript with filler words highlighted, long pauses marked in place and unclear words underlined
 - **Failures** get a plain-language message, e.g. "we couldn't hear enough speech" (`NO_SPEECH`).
 
+### Problem detection (lesson suggestions)
+
+`detectProblems(metrics, feedback)` in [`packages/shared/src/problems.ts`](../packages/shared/src/problems.ts)
+turns one analysis into concrete problems, each of which a lesson fixes. It is deterministic (no
+LLM), so the same recording always suggests the same lessons. Thresholds live in `PROBLEM_THRESHOLDS`.
+
+| Problem               | Detected when                                                         |
+| --------------------- | --------------------------------------------------------------------- |
+| `fillers`             | ≥ 2 fillers and ≥ 2 per minute                                        |
+| `hesitations`         | ≥ 2 hesitation pauses per minute, or ≥ 2 pauses over 1.5 s            |
+| `skipped-punctuation` | read-aloud: under 70 % of commas/full stops got an audible pause      |
+| `run-on`              | over 12 s of speech without any pause                                 |
+| `too-fast`            | over 175 words per minute                                             |
+| `monotone`            | reliable voice analysis with flat pitch or flat loudness              |
+| `flat-pace`           | reliable voice analysis with almost no change of pace between phrases |
+| `trailing-off`        | ≥ 30 % of sentences fade at the end                                   |
+| `hedges`              | ≥ 2 hedges ("I think", "kind of", "maybe"…)                           |
+| `structure`           | the feedback flags structure as a medium or high issue                |
+
 ## Lessons
 
 One course, **Speak with Confidence** (seeded from [`packages/db/src/seed-data.ts`](../packages/db/src/seed-data.ts)):
