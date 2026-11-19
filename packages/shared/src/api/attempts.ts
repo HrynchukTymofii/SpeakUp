@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FeedbackSchema, MetricsSchema, TranscriptSchema } from "../analysis.js";
+import { ProblemSchema } from "../problems.js";
 import { ExerciseSchema } from "./courses.js";
 
 /**
@@ -120,3 +121,29 @@ export const AttemptDetailResponseSchema = z.object({
   result: AttemptResultSchema.nullable(),
 });
 export type AttemptDetailResponse = z.infer<typeof AttemptDetailResponseSchema>;
+
+/** GET /v1/attempts query: newest first, at most `limit` (default 50). */
+export const ListAttemptsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type ListAttemptsQuery = z.input<typeof ListAttemptsQuerySchema>;
+
+/**
+ * One row of the user's practice history: enough for progress (which exercises are done),
+ * streaks (which days), the profile (score trend, skills) and lesson suggestions (problems) —
+ * without shipping every transcript.
+ */
+export const AttemptSummarySchema = z.object({
+  id: z.string(),
+  exerciseSlug: z.string(),
+  status: AttemptStatusSchema,
+  createdAt: z.iso.datetime(),
+  /** Null until the analysis is completed. */
+  overallScore: z.number().int().nullable(),
+  subscores: FeedbackSchema.shape.subscores.unwrap().nullable(),
+  problems: z.array(ProblemSchema),
+});
+export type AttemptSummary = z.infer<typeof AttemptSummarySchema>;
+
+export const AttemptsListResponseSchema = z.object({ attempts: z.array(AttemptSummarySchema) });
+export type AttemptsListResponse = z.infer<typeof AttemptsListResponseSchema>;

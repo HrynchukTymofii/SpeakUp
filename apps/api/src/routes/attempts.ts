@@ -4,8 +4,11 @@ import {
   AttemptResponseSchema,
   CreateAttemptBodySchema,
   CreateAttemptResponseSchema,
+  AttemptsListResponseSchema,
+  detectProblems,
   ErrorCode,
   FeedbackSchema,
+  ListAttemptsQuerySchema,
   MetricsSchema,
   SubmitAttemptBodySchema,
   TranscriptSchema,
@@ -54,6 +57,25 @@ function toApiResult(
     transcript: TranscriptSchema.parse(transcript),
     metrics: MetricsSchema.parse(analysis.metrics),
     feedback: FeedbackSchema.parse(analysis.feedback),
+  };
+}
+
+/**
+ * Score, subscores and problems for the history list. A row whose stored metrics/feedback don't
+ * parse keeps its score but gets no details: one bad row must not break the whole list.
+ */
+function summarizeAnalysis(analysis: {
+  overallScore: number;
+  metrics: unknown;
+  feedback: unknown;
+}) {
+  const metrics = MetricsSchema.safeParse(analysis.metrics);
+  const feedback = FeedbackSchema.safeParse(analysis.feedback);
+  const valid = metrics.success && feedback.success;
+  return {
+    overallScore: analysis.overallScore,
+    subscores: feedback.success ? (feedback.data.subscores ?? null) : null,
+    problems: valid ? detectProblems(metrics.data, feedback.data) : [],
   };
 }
 
@@ -162,6 +184,45 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
         },
       );
       return reply.code(202).send({ attempt: fresh });
+    },
+  );
+
+  /**
+   * The caller's practice history, newest first: progress, streaks, the profile and lesson
+   * suggestions are all computed from it in the app.
+   */
+  app.get(
+    "/attempts",
+    {
+      schema: {
+        querystring: ListAttemptsQuerySchema,
+        response: { 200: AttemptsListResponseSchema },
+      },
+    },
+    async (request) => {
+      const rows = await db.attempt.findMany({
+        where: { userId: currentUser(request).id },
+        orderBy: { createdAt: "desc" },
+        take: request.query.limit,
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          exercise: { select: { slug: true } },
+          analysis: { select: { overallScore: true, metrics: true, feedback: true } },
+        },
+      });
+      return {
+        attempts: rows.map((row) => ({
+          id: row.id,
+          exerciseSlug: row.exercise.slug,
+          status: row.status,
+          createdAt: row.createdAt.toISOString(),
+          ...(row.status === "completed" && row.analysis
+            ? summarizeAnalysis(row.analysis)
+            : { overallScore: null, subscores: null, problems: [] }),
+        })),
+      };
     },
   );
 

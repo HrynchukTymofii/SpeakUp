@@ -109,16 +109,27 @@ portal is available. `PUT /v1/me/onboarding` body: `{ "answers": { "<question-id
 | GET    | `/v1/courses`            | user | Courses with lesson summaries and a per-user `locked` flag                                    |
 | GET    | `/v1/lessons/:slug`      | user | Full lesson: video URL, markdown body, exercises. `403 LESSON_LOCKED` for Pro lessons on Free |
 | GET    | `/v1/exercises/baseline` | user | The speaking-check exercise                                                                   |
+| GET    | `/v1/exercises/practice` | user | Standalone practice exercises (`drill-*`, `legend-*`, `challenge-*`), open to every plan      |
+
+Each lesson summary in `/v1/courses` also lists its `exerciseSlugs`, so the app can tell from the
+attempt history which lessons are done.
 
 An exercise: `{ id, slug, type: "read_aloud" | "free_speech", prompt, referenceText (read-aloud only), maxDurationSec }`.
 
 ## Attempts (signed-in recordings)
 
-| Method | Path                      | Auth | Description                                          |
-| ------ | ------------------------- | ---- | ---------------------------------------------------- |
-| POST   | `/v1/attempts`            | user | Create an attempt and get an upload permission       |
-| POST   | `/v1/attempts/:id/submit` | user | Confirm the upload and start the analysis            |
-| GET    | `/v1/attempts/:id`        | user | Status, stage, exercise and — when done — the result |
+| Method | Path                      | Auth | Description                                                     |
+| ------ | ------------------------- | ---- | --------------------------------------------------------------- |
+| POST   | `/v1/attempts`            | user | Create an attempt and get an upload permission                  |
+| POST   | `/v1/attempts/:id/submit` | user | Confirm the upload and start the analysis                       |
+| GET    | `/v1/attempts`            | user | The caller's history, newest first (`?limit=1–100`, default 50) |
+| GET    | `/v1/attempts/:id`        | user | Status, stage, exercise and — when done — the result            |
+
+**History** — `GET /v1/attempts` returns `{ attempts: [{ id, exerciseSlug, status, createdAt,
+overallScore, subscores, problems }] }`. `overallScore`/`subscores` are `null` until the analysis is
+completed; `problems` are the concrete issues found by `detectProblems` (see
+[`features.md`](./features.md#problem-detection-lesson-suggestions)). The app derives progress,
+streaks, the profile and lesson suggestions from this list.
 
 **1. Create** — body `{ "exerciseId": "…", "mimeType": "audio/webm;codecs=opus" }` (base types
 `audio/webm`, `audio/mp4`, `audio/ogg`). Checks, in order: per-user burst limit (`429 RATE_LIMITED`),

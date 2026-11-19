@@ -314,3 +314,69 @@ describe("GET /v1/attempts/:id", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe("GET /v1/attempts", () => {
+  it("lists only the caller's attempts, newest first, with score and problems", async () => {
+    const { app, db, create, createAndUpload } = await setup();
+    const older = await createAndUpload();
+    attemptById(db, older).status = "completed";
+    attemptById(db, older).createdAt = new Date("2026-11-01T10:00:00Z");
+    db.analyses.set(older, {
+      overallScore: 64,
+      metrics: { ...sampleMetrics, fillers: { count: 6, perMinute: 12, list: [] } },
+      feedback: { ...sampleFeedback, subscores: [{ skill: "fillers", score: 40 }] },
+    });
+    const newer = (await create(BASELINE)).json().attempt.id;
+    attemptById(db, newer).createdAt = new Date("2026-11-02T10:00:00Z");
+
+    await app.inject({ method: "GET", url: "/v1/me", headers: otherUser });
+    await create(FREE_EXERCISE, otherUser);
+
+    const res = await app.inject({ method: "GET", url: "/v1/attempts", headers: auth });
+    expect(res.statusCode).toBe(200);
+    const { attempts } = res.json();
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]).toMatchObject({
+      id: newer,
+      exerciseSlug: "baseline",
+      overallScore: null,
+      subscores: null,
+      problems: [],
+    });
+    expect(attempts[1]).toMatchObject({
+      id: older,
+      exerciseSlug: "find-your-pace-read",
+      status: "completed",
+      overallScore: 64,
+      subscores: [{ skill: "fillers", score: 40 }],
+      problems: ["fillers"],
+    });
+    expect(res.body).not.toContain("recordings/");
+  });
+
+  it("skips the analysis of a row whose stored result is invalid instead of failing", async () => {
+    const { app, db, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "completed";
+    db.analyses.set(id, { overallScore: 70, metrics: { wpm: "fast" }, feedback: sampleFeedback });
+    const res = await app.inject({ method: "GET", url: "/v1/attempts", headers: auth });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().attempts[0]).toMatchObject({ overallScore: 70, problems: [] });
+  });
+
+  it("honours ?limit and rejects out-of-range values", async () => {
+    const { app, create } = await setup();
+    await create(FREE_EXERCISE);
+    await create(FREE_EXERCISE);
+    const one = await app.inject({ method: "GET", url: "/v1/attempts?limit=1", headers: auth });
+    expect(one.json().attempts).toHaveLength(1);
+    const bad = await app.inject({ method: "GET", url: "/v1/attempts?limit=500", headers: auth });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it("requires auth", async () => {
+    const { app } = await setup();
+    const res = await app.inject({ method: "GET", url: "/v1/attempts" });
+    expect(res.statusCode).toBe(401);
+  });
+});

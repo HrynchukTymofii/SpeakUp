@@ -154,6 +154,18 @@ export class FakeDb {
       };
     },
 
+    /** The user's attempts newest first (`orderBy: { createdAt: "desc" }`), with `take`. */
+    findMany: async ({ where, take }: { where: { userId: string }; take?: number }) =>
+      [...this.attempts]
+        .filter((a) => a.userId === where.userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, take)
+        .map((attempt) => ({
+          ...attempt,
+          exercise: { slug: this.findExercise(attempt.exerciseId)?.slug ?? "unknown" },
+          analysis: this.analyses.get(attempt.id) ?? null,
+        })),
+
     /** Newest match first, like `orderBy: { createdAt: "desc" }`. */
     findFirst: async ({ where }: { where: Partial<Attempt> }) =>
       [...this.attempts]
@@ -263,17 +275,23 @@ export class FakeDb {
       fakeExercise("check-general", "free_speech"),
       fakeExercise("check-job-interviews", "free_speech"),
     ],
+    /** Standalone practice exercises (drills, legends, challenges). */
+    practice: [
+      fakeExercise("drill-topic-coffee", "free_speech"),
+      fakeExercise("legend-gettysburg", "read_aloud"),
+    ],
   };
 
   course = {
     findMany: async () => [
       {
         ...this.content.course,
-        lessons: this.content.lessons.map(({ slug, title, order, isFree }) => ({
+        lessons: this.content.lessons.map(({ slug, title, order, isFree, exercises }) => ({
           slug,
           title,
           order,
           isFree,
+          exercises: exercises.map((e) => ({ slug: e.slug })),
         })),
       },
     ],
@@ -294,9 +312,11 @@ export class FakeDb {
       const exercise = lesson.exercises.find((e) => e.id === id);
       if (exercise) return { ...exercise, lesson: { isFree: lesson.isFree } };
     }
-    const standalone = [this.content.baseline, ...this.content.speakingChecks].find(
-      (e) => e?.id === id,
-    );
+    const standalone = [
+      this.content.baseline,
+      ...this.content.speakingChecks,
+      ...this.content.practice,
+    ].find((e) => e?.id === id);
     return standalone ? { ...standalone, lesson: null } : null;
   }
 
@@ -306,6 +326,11 @@ export class FakeDb {
       if (where.slug === "baseline") return this.content.baseline;
       return this.content.speakingChecks.find((e) => e.slug === where.slug) ?? null;
     },
+    /** Standalone exercises whose slug starts with one of the `OR` prefixes. */
+    findMany: async ({ where }: { where: { OR: { slug: { startsWith: string } }[] } }) =>
+      this.content.practice.filter((e) =>
+        where.OR.some((condition) => e.slug.startsWith(condition.slug.startsWith)),
+      ),
   };
 
   /** Gives the (already provisioned) user an active Pro subscription. */
