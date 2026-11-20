@@ -22,12 +22,20 @@ the architecture they refer to is in [`architecture.md`](./architecture.md).
 | 4 — quota race                  | **Done:** a per-user lock (`user-lock.ts`) serializes the check and the insert.                                                                                                                                                                                                                                                    |
 | 5, 6 — history queries and SPOF | Open.                                                                                                                                                                                                                                                                                                                              |
 
-**1,000 people practicing at once: not proven yet.** The 1,000-user AWS run
-([`load-testing.md` run 6](./load-testing.md#run-6-practice-1000-users-queue-depth-autoscaling-from-1-worker-2026-11-20))
-showed 0 server errors and working autoscaling. But the laptop running k6 couldn't generate the
-traffic, so it doesn't count as a capacity measurement. By the math, 1,000 users is about 20
-recordings/s, which needs ~22 workers, `workerMaxTasks ≥ 25` and a `db.t4g.small`. Run k6
-from EC2 to confirm.
+**1,000 people practicing at once: works** ([`load-testing.md` run 7](./load-testing.md#run-7-practice-1000-users-k6-inside-aws-long-polling-2026-11-20)).
+With ~25 workers running: 9,095 recordings in ~8 min, 0 timeouts, 0 failures, result in 4.2 s
+(p50) / 8.4 s (p95), RDS at 21% CPU on a `db.t4g.small`. Needs `workerMaxTasks ≥ 25` and
+`dbInstanceSize=small`. Production is still at the defaults (10 workers, micro), which is
+about 450 people practicing at once (10 × ~55 recordings/min, one recording per user every ~50 s).
+
+**Open: cold start.** Starting from 1 worker, a 0 → 1,000 jump in one minute took ~10 min to
+scale out, and most recordings in that window timed out. Fixes, cheapest first:
+
+- Bigger scaling steps (size the step from the backlog: waiting ÷ ~15 per worker).
+- A short alarm period.
+- A higher minimum at known peak times (scheduled scaling).
+- Admission control ("busy, try in a minute").
+- A client wait longer than 60 s.
 
 ## 1. How the load flows
 

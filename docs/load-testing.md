@@ -122,7 +122,8 @@ A separate, throwaway CloudFormation stack built from the same CDK code with
   For 1,000 users, deploy with `-c speakup:workerMaxTasks=30 -c speakup:dbInstanceSize=small`.
   30 workers plus 4 API tasks need 17 Fargate vCPUs, and the account quota is 30.
 - **Run k6 from inside AWS for big runs.** Past a few hundred users, a laptop on a home
-  connection becomes the bottleneck (run 6 below).
+  connection becomes the bottleneck (run 6 below). No extra infrastructure is needed: package
+  the scenario and run the official k6 image as a one-off Fargate task (see "k6 in AWS" below).
 - The worker runs `ANALYSIS_PROVIDERS=fake` and has no Deepgram/Anthropic keys at all.
 - Its own generated secrets (`speakup-loadtest/app`, `speakup-loadtest/db`). It never reads
   production's.
@@ -294,5 +295,61 @@ What it does show:
    the single API task's CPU was 20–60% and RDS sat idle. API autoscaling (CPU ≥ 60%) never
    added a second task. Repeat with a valid load generator before drawing conclusions.
 
-**Next run:** k6 on an EC2 instance in us-east-1 (e.g. `c7i.xlarge`, ~$0.18/h) next to the ALB.
-Run `steps` to 1,000 first, then `soak`.
+#### Run 7: practice, 1,000 users, k6 inside AWS, long-polling (2026-11-20)
+
+Code: `feat/result-push` (long-polling results). Stack: `workerMaxTasks=30`, `db.t4g.small`.
+k6 ran as a Fargate task (4 vCPU / 8 GB) in us-east-1, with the soak profile at PEAK 1,000.
+It ran twice back to back.
+
+**7a: cold start, workers starting at 1** (~10 min, stopped by hand). Autoscaling did its job,
+but too slowly for a 0 → 1,000 jump in one minute:
+
+- Desired workers went 1 → 7 → 11 → 16 → 19 → 24 → 27 over ~10 min.
+- Running workers lagged another 1–2 min behind that.
+- The queue peaked at ~1,800 waiting jobs. **98.8% of the ~5,000 recordings got no result within
+  60 s.**
+- Everything else held up: 1 failed upload in 5,709, 0 failed analyses, and `POST /attempts` p95
+  was 95 ms. The worker queue was the only bottleneck.
+
+**7b: the same 1,000 users with ~25 workers already running** (~8 min):
+
+| Metric                                   | Result                                   |
+| ---------------------------------------- | ---------------------------------------- |
+| Recordings analyzed                      | **9,095** (~1,060 / min, ~17.7 / s)      |
+| No result within 60 s                    | **0**                                    |
+| Failed analyses                          | **0**                                    |
+| Submit → result visible, p50 / p95 / p99 | **4.2 s / 8.4 s / 10.7 s**               |
+| HTTP errors                              | 2 of 50,801 (two dial timeouts)          |
+| `POST /attempts` p95                     | 185 ms                                   |
+| "Done yet?" requests per recording       | **1.5** (long-polling; ~7+ with polling) |
+| RDS CPU (peak, `db.t4g.small`)           | 21%                                      |
+
+**1,000 people practicing at once works**, with ~25 workers. What's left is getting to 25
+workers fast enough when the load arrives all at once ([`scaling.md`](./scaling.md) status).
+
+### k6 in AWS
+
+The load generator runs as a one-off Fargate task with the official `grafana/k6` image. Nothing
+to install or keep around:
+
+```bash
+# 1. Package the scenario with its fixtures. Env values baked in here WIN over -e at run time,
+#    so bake in the profile you want (that's how 7a/7b both became the 1,000-user soak).
+k6 archive -e PROFILE=soak -e PEAK=1000 -e LOAD_TEST_AUTH_SECRET=placeholder   -O practice.tar load-tests/scenarios/practice.js
+aws s3 cp practice.tar s3://<MediaBucket output>/loadgen/practice.tar
+URL=$(aws s3 presign s3://<MediaBucket output>/loadgen/practice.tar --expires-in 7200)
+
+# 2. A task definition: grafana/k6:<same version as local k6>, 4096 CPU / 8192 MB,
+#    entryPoint ["sh","-c"], nofile ulimit 65536, logs to the stack's Migrate log group,
+#    execution role = the stack's MigrateTask execution role.
+aws ecs register-task-definition --cli-input-json file://k6-taskdef.json
+
+# 3. Run it from the default VPC with a public IP (the stack's private subnets work too)
+aws ecs run-task --cluster <cluster> --task-definition speakup-loadtest-k6 --launch-type FARGATE   --network-configuration "awsvpcConfiguration={subnets=[<default subnets>],securityGroups=[<default sg>],assignPublicIp=ENABLED}"   --overrides '{"containerOverrides":[{"name":"k6","command":["wget -qO /tmp/t.tar \"$URL\" && k6 run --quiet --no-color -e BASE_URL=<ApiLoadBalancerUrl> -e LOAD_TEST_AUTH_SECRET=<secret> /tmp/t.tar"]}]}'
+
+# 4. The k6 summary lands in CloudWatch Logs (stream k6/k6/<task id>).
+#    Afterwards: aws ecs deregister-task-definition, then destroy the stack.
+```
+
+On Windows, set `PYTHONUTF8=1` before reading those logs with the AWS CLI (k6's summary has
+block characters the console codepage can't print).
