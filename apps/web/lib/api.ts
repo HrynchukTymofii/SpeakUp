@@ -134,8 +134,12 @@ export function createApiClient(getToken: GetToken) {
       }),
     openPortal: (): Promise<PortalResponse> =>
       request("/v1/billing/portal", PortalResponseSchema, { method: "POST" }),
-    getAttempt: (id: string): Promise<AttemptDetailResponse> =>
-      request(`/v1/attempts/${encodeURIComponent(id)}`, AttemptDetailResponseSchema),
+    /** `waitSeconds`: let the API hold the request until the worker changes the attempt. */
+    getAttempt: (id: string, waitSeconds = 0): Promise<AttemptDetailResponse> =>
+      request(
+        `/v1/attempts/${encodeURIComponent(id)}${waitSeconds > 0 ? `?wait=${waitSeconds}` : ""}`,
+        AttemptDetailResponseSchema,
+      ),
   };
 }
 

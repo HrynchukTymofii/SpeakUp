@@ -1,6 +1,8 @@
 import { createDbClient } from "@speakup/db";
-import { ANALYSIS_QUEUE_NAME } from "@speakup/shared";
+import { ANALYSIS_QUEUE_NAME, ATTEMPT_EVENTS_CHANNEL } from "@speakup/shared";
 import { Queue, UnrecoverableError, Worker } from "bullmq";
+import { Redis } from "ioredis";
+import { withChangeEvents } from "./attempt-events.js";
 import { createFfmpegDecoder } from "./audio/decode.js";
 import { cleanupFunnelSessions, createPrismaCleanupRepo } from "./cleanup.js";
 import { loadRootDotEnv, parseEnv } from "./env.js";
@@ -48,6 +50,8 @@ function main(): void {
     endpoint: env.S3_ENDPOINT,
   });
   const connection = { url: env.REDIS_URL, maxRetriesPerRequest: null };
+  // Announces attempt changes to API tasks holding a results request (long-polling).
+  const publisher = new Redis(env.REDIS_URL);
 
   // Load tests swap the two paid providers for simulated ones (docs/load-testing.md).
   const fake = env.ANALYSIS_PROVIDERS === "fake";
@@ -65,7 +69,13 @@ function main(): void {
 
   // Real implementations of the pipeline's dependencies (unit tests pass their own fakes).
   const deps: PipelineDeps = {
-    repo: createPrismaRepo(db),
+    repo: withChangeEvents(
+      createPrismaRepo(db),
+      async (attemptId) => {
+        await publisher.publish(ATTEMPT_EVENTS_CHANNEL, JSON.stringify({ attemptId }));
+      },
+      log,
+    ),
     storage,
     stt: fake
       ? createFakeStt({ medianMs: env.FAKE_STT_MEDIAN_MS, failureRate })
@@ -172,6 +182,7 @@ function main(): void {
       analysisQueue.close(),
     ]);
     await db.$disconnect();
+    publisher.disconnect();
     process.exit(0);
   };
   // Unknown state after an unhandled error: log and exit; the orchestrator restarts the worker,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createAttemptEventHub } from "../services/attempt-events.js";
 import { buildTestServer, FakeDb, FakeQueue, FakeStorage } from "../testing/fakes.js";
 
 const auth = { authorization: "Bearer valid:clerk_1" };
@@ -44,7 +45,8 @@ async function setup({ pro = false } = {}) {
   const db = new FakeDb();
   const storage = new FakeStorage();
   const queue = new FakeQueue();
-  const app = await buildTestServer({ db, storage, queue });
+  const events = createAttemptEventHub();
+  const app = await buildTestServer({ db, storage, queue, events });
   await app.inject({ method: "GET", url: "/v1/me", headers: auth });
   if (pro) db.makePro("user_1");
 
@@ -70,7 +72,7 @@ async function setup({ pro = false } = {}) {
     return id;
   };
 
-  return { app, db, storage, queue, create, submit, createAndUpload };
+  return { app, db, storage, queue, events, create, submit, createAndUpload };
 }
 
 describe("POST /v1/attempts", () => {
@@ -363,6 +365,79 @@ describe("GET /v1/attempts/:id", () => {
     await app.inject({ method: "GET", url: "/v1/me", headers: otherUser });
     const res = await app.inject({ method: "GET", url: `/v1/attempts/${id}`, headers: otherUser });
     expect(res.statusCode).toBe(404);
+  });
+});
+
+describe("GET /v1/attempts/:id?wait= (long-polling)", () => {
+  const tick = () => new Promise((r) => setTimeout(r, 20));
+  const get = (
+    app: Awaited<ReturnType<typeof setup>>["app"],
+    id: string,
+    wait: number,
+    headers = auth,
+  ) => app.inject({ method: "GET", url: `/v1/attempts/${id}?wait=${wait}`, headers });
+
+  it("holds a pending attempt until the worker announces a change, then returns the new state", async () => {
+    const { app, db, events, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "queued";
+
+    let answered = false;
+    const pending = get(app, id, 5).then((res) => {
+      answered = true;
+      return res;
+    });
+    await tick();
+    expect(answered).toBe(false); // the server is holding the request
+    expect(events.waitingCount()).toBe(1);
+
+    attemptById(db, id).status = "completed";
+    db.transcripts.set(id, { text: "Hello there", words: [] });
+    db.analyses.set(id, { overallScore: 81, metrics: sampleMetrics, feedback: sampleFeedback });
+    events.notify(id);
+
+    const res = await pending;
+    expect(res.statusCode).toBe(200);
+    expect(res.json().stage).toBe("completed");
+    expect(res.json().result).toMatchObject({ overallScore: 81 });
+    expect(events.waitingCount()).toBe(0);
+  });
+
+  it("answers at once when there is nothing to wait for", async () => {
+    const { app, db, events, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "completed";
+    db.transcripts.set(id, { text: "x", words: [] });
+    db.analyses.set(id, { overallScore: 81, metrics: sampleMetrics, feedback: sampleFeedback });
+
+    const res = await get(app, id, 20);
+    expect(res.json().stage).toBe("completed");
+    expect(events.waitingCount()).toBe(0);
+  });
+
+  it("returns the unchanged state when the wait runs out", async () => {
+    const { app, db, events, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "processing";
+    const res = await get(app, id, 1);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().stage).toBe("transcribing");
+    expect(events.waitingCount()).toBe(0);
+  });
+
+  it("rejects waits longer than 25 s (the load balancer drops idle requests at 60 s)", async () => {
+    const { app, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    expect((await get(app, id, 61)).statusCode).toBe(400);
+  });
+
+  it("never waits on another user's attempt", async () => {
+    const { app, db, events, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "queued";
+    await app.inject({ method: "GET", url: "/v1/me", headers: otherUser });
+    expect((await get(app, id, 5, otherUser)).statusCode).toBe(404);
+    expect(events.waitingCount()).toBe(0);
   });
 });
 

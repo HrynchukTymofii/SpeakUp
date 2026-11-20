@@ -95,8 +95,9 @@ sequenceDiagram
   A->>A: awaiting_upload → queued (conditional update)
   A->>Q: add job, jobId = attemptId (dedup)
   A-->>B: 202 queued
-  loop every 1.5 s, then 3 s / 5 s after 10 s / 30 s, up to ~60 s (lib/poll.ts)
-    B->>A: GET /v1/attempts/:id
+  loop long-polling, up to ~60 s (lib/poll.ts)
+    B->>A: GET /v1/attempts/:id?wait=20
+    Note over A: held until the worker publishes on Redis "attempt-events" (or 20 s)
     A-->>B: stage: queued / transcribing / analyzing / completed / failed
   end
   Q->>W: analyze {attemptId, requestId}

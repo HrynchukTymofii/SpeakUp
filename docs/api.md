@@ -180,7 +180,14 @@ storage or has the wrong size, `400 VALIDATION_ERROR` if longer than the exercis
 tolerance), `409 WRONG_STATE` if the attempt failed earlier. Repeating a successful submit is safe
 and returns the current state. → `202 { "attempt": { …, "status": "queued" } }`.
 
-**4. Poll** — `GET /v1/attempts/:id` → `200`:
+**4. Wait for the result** — `GET /v1/attempts/:id?wait=20` → `200`:
+
+`wait` (optional, 0–25 seconds) is **long-polling**. While the attempt is `queued` or
+`processing`, the API holds the request until the worker announces a change (processing,
+transcribed, completed, failed) or the time runs out, and then answers with the current state.
+Without `wait`, or for any other status, it answers at once. The web app sends the first request
+without `wait` and every later one with `wait=20`. `wait` above 25 → `400` (the load balancer
+drops connections idle for 60 s).
 
 ```json
 { "attempt": { … }, "stage": "analyzing", "exercise": { … }, "result": null }

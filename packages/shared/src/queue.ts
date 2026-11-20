@@ -24,3 +24,16 @@ export const AnalyzeJobDataSchema = z.strictObject({
   requestId: z.string().max(100).optional(),
 });
 export type AnalyzeJobData = z.infer<typeof AnalyzeJobDataSchema>;
+
+/**
+ * Redis pub/sub channel on which the worker announces "this attempt changed" (processing,
+ * transcribed, completed, failed). API tasks holding a `GET /attempts/:id?wait=` request for
+ * that attempt answer right away instead of the browser asking again and again
+ * (docs/scaling.md §2.2). Only the id travels; the API re-reads the attempt from the DB.
+ */
+export const ATTEMPT_EVENTS_CHANNEL = "attempt-events";
+
+export const AttemptChangedEventSchema = z.strictObject({
+  attemptId: z.string().min(1),
+});
+export type AttemptChangedEvent = z.infer<typeof AttemptChangedEventSchema>;

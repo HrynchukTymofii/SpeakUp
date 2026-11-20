@@ -8,6 +8,7 @@ import { createTurnstileBotCheck } from "./services/bot-check.js";
 import { withLoadTestAuth } from "./services/load-test-auth.js";
 import { createPaddleProvider } from "./services/payments/paddle.js";
 import { createRedisRateLimiter } from "./services/rate-limiter.js";
+import { createRedisAttemptEvents } from "./services/attempt-events.js";
 import { createS3Storage } from "./services/storage.js";
 import { createRedisKeyedLock } from "./services/user-lock.js";
 
@@ -29,6 +30,9 @@ async function main(): Promise<void> {
   // One DB client and one Redis connection per process, shared by all requests.
   const db = createDbClient(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
   const redis = new Redis(env.REDIS_URL);
+  // A subscribed connection can't run other commands, so pub/sub gets its own.
+  const subscriber = new Redis(env.REDIS_URL);
+  const attemptEvents = await createRedisAttemptEvents(subscriber);
   const queue = createBullAnalysisQueue(env.REDIS_URL);
   const storage = createS3Storage({
     region: env.AWS_REGION,
@@ -65,6 +69,7 @@ async function main(): Promise<void> {
     botCheck: createTurnstileBotCheck(env.TURNSTILE_SECRET_KEY),
     rateLimiter: createRedisRateLimiter(redis),
     locks: createRedisKeyedLock(redis),
+    attemptEvents,
     payments,
     rateLimitRedis: redis,
     healthChecks: {
@@ -83,6 +88,7 @@ async function main(): Promise<void> {
     await queue.close();
     await db.$disconnect();
     redis.disconnect();
+    subscriber.disconnect();
     process.exit(0);
   };
   // A promise rejection nobody handled means the process is in an unknown state. Log it and

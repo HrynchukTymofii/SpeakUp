@@ -17,17 +17,25 @@ the architecture they refer to is in [`architecture.md`](./architecture.md).
 | Bottleneck (§2)                 | Status                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 — fixed worker throughput     | **Done:** workers autoscale on queue depth (`QueueWaiting` metric, 1 → `workerMaxTasks`). Concurrency stays at 4 per task, because CPU reached ~66% of 0.5 vCPU at 4. On AWS: 4 workers handled 240 users (p95 14.8 s), and 1 → 13 workers in ~4 min drained a 664-job spike. **Open:** cold-start timeouts and admission control. |
-| 2 — polling load                | **Partly done:** polls back off (1.5 → 3 → 5 s), pending polls skip the transcript and feedback JSON, and the request user is cached for 60 s. **Open:** push (SSE / APNs / FCM).                                                                                                                                                  |
+| 2 — polling load                | **Done for web:** long-polling. The API answers the moment the worker announces a change (Redis pub/sub). Pending reads skip the transcript and feedback JSON, and the request user is cached for 60 s. **Open:** mobile push (APNs / FCM).                                                                                        |
 | 3 — DB connections              | **Partly done:** `DB_POOL_MAX` (API 8, worker 3) and `speakup:dbInstanceSize`. **Open:** RDS Proxy.                                                                                                                                                                                                                                |
 | 4 — quota race                  | **Done:** a per-user lock (`user-lock.ts`) serializes the check and the insert.                                                                                                                                                                                                                                                    |
 | 5, 6 — history queries and SPOF | Open.                                                                                                                                                                                                                                                                                                                              |
 
-**1,000 people practicing at once: not proven yet.** The 1,000-user AWS run
-([`load-testing.md` run 6](./load-testing.md#run-6-practice-1000-users-queue-depth-autoscaling-from-1-worker-2026-11-20))
-showed 0 server errors and working autoscaling. But the laptop running k6 couldn't generate the
-traffic, so it doesn't count as a capacity measurement. By the math, 1,000 users is about 20
-recordings/s, which needs ~22 workers, `workerMaxTasks ≥ 25` and a `db.t4g.small`. Run k6
-from EC2 to confirm.
+**1,000 people practicing at once: works** ([`load-testing.md` run 7](./load-testing.md#run-7-practice-1000-users-k6-inside-aws-long-polling-2026-11-20)).
+With ~25 workers running: 9,095 recordings in ~8 min, 0 timeouts, 0 failures, result in 4.2 s
+(p50) / 8.4 s (p95), RDS at 21% CPU on a `db.t4g.small`. Needs `workerMaxTasks ≥ 25` and
+`dbInstanceSize=small`. Production is still at the defaults (10 workers, micro), which is
+about 450 people practicing at once (10 × ~55 recordings/min, one recording per user every ~50 s).
+
+**Open: cold start.** Starting from 1 worker, a 0 → 1,000 jump in one minute took ~10 min to
+scale out, and most recordings in that window timed out. Fixes, cheapest first:
+
+- Bigger scaling steps (size the step from the backlog: waiting ÷ ~15 per worker).
+- A short alarm period.
+- A higher minimum at known peak times (scheduled scaling).
+- Admission control ("busy, try in a minute").
+- A client wait longer than 60 s.
 
 ## 1. How the load flows
 
@@ -98,11 +106,16 @@ entitlements query.
 
 **Fixes:**
 
-- **Push instead of poll:** Server-Sent Events on web (the worker publishes "done" on Redis
-  pub/sub, and the API instance holding the connection forwards it). Push notifications
-  (APNs/FCM) on mobile, which also lets the user leave the screen.
-- Until then: a tiny `GET /attempts/:id/status` that skips the transcript and analysis JSON,
-  plus backoff (1.5 s → 3 s → 5 s).
+- **Push instead of poll — done for web as long-polling** (2026-11-20). After each status change
+  the worker publishes the attempt id on Redis (`attempt-events`). Every API task subscribes, and
+  the one holding `GET /attempts/:id?wait=20` for that attempt answers at once. A 10 s wait is
+  now 1–2 requests instead of ~7 polls, and the result shows up the moment it's saved. Long-polling
+  instead of SSE: it works with the existing `Authorization` header and React Query, needs no
+  streaming through the ALB, and k6 can test it as is. While a request is held it uses no DB
+  connection, only an idle socket. **Open:** push notifications (APNs/FCM) on mobile, which also
+  let the user leave the screen.
+- Also done: pending requests skip the transcript and analysis JSON, plus backoff
+  (1.5 s → 3 s → 5 s) as the fallback when the API doesn't hold the request.
 - **Cache the request user** (user id + plan) in Redis or process memory for ~60 s, so
   verifying a token doesn't need a DB round trip.
 
