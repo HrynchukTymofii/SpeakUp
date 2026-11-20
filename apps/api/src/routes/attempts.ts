@@ -31,6 +31,7 @@ import { getEntitlements } from "../services/entitlements.js";
 import type { RateLimiter } from "../services/rate-limiter.js";
 import type { Storage } from "../services/storage.js";
 import { countAnalysesToday } from "../services/usage.js";
+import { LockTimeoutError, type KeyedLock } from "../services/user-lock.js";
 import { exerciseSelect } from "./courses.js";
 
 interface AttemptRoutesOptions {
@@ -40,6 +41,8 @@ interface AttemptRoutesOptions {
   limits: { free: number; pro: number };
   rateLimiter: RateLimiter;
   attemptsPerMinute: number;
+  /** Serializes quota check + insert per user (see services/user-lock.ts). */
+  locks: KeyedLock;
 }
 
 export const AttemptParamsSchema = z.object({ id: z.string().min(1).max(64) });
@@ -87,7 +90,7 @@ const notFound = () => new AppError(404, ErrorCode.NOT_FOUND, "Attempt not found
  */
 export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async (
   app,
-  { db, storage, queue, limits, rateLimiter, attemptsPerMinute },
+  { db, storage, queue, limits, rateLimiter, attemptsPerMinute, locks },
 ) => {
   /**
    * Loads an attempt only if it belongs to the current user. Someone else's attempt gets the
@@ -131,38 +134,52 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
         );
       }
 
-      const [entitlements, exercise, usedToday] = await Promise.all([
-        getEntitlements(db, user.id, limits),
-        db.exercise.findUnique({
-          where: { id: exerciseId },
-          select: { id: true, lesson: { select: { isFree: true } } },
-        }),
-        countAnalysesToday(db, user.id),
-      ]);
+      // Count-then-insert must not interleave for one user: without the lock, parallel
+      // requests all see "under the limit" and each gets a paid analysis (load test run 4).
+      const created = await locks
+        .run(`quota:${user.id}`, async () => {
+          const [entitlements, exercise, usedToday] = await Promise.all([
+            getEntitlements(db, user.id, limits),
+            db.exercise.findUnique({
+              where: { id: exerciseId },
+              select: { id: true, lesson: { select: { isFree: true } } },
+            }),
+            countAnalysesToday(db, user.id),
+          ]);
 
-      if (!exercise) throw new AppError(404, ErrorCode.NOT_FOUND, "Exercise not found");
-      // Same rule as lesson locking. The baseline exercise has no lesson → open to everyone.
-      if (exercise.lesson && !canAccessLesson(exercise.lesson, entitlements.plan)) {
-        throw new AppError(402, ErrorCode.PAYWALL, "This exercise is part of SpeakUp Pro");
-      }
-      if (usedToday >= entitlements.dailyAnalysesLimit) {
-        throw new AppError(
-          429,
-          ErrorCode.QUOTA_EXCEEDED,
-          `You've used all ${entitlements.dailyAnalysesLimit} analyses for today. They reset at 00:00 UTC.`,
-        );
-      }
+          if (!exercise) throw new AppError(404, ErrorCode.NOT_FOUND, "Exercise not found");
+          // Same rule as lesson locking. The baseline exercise has no lesson → open to everyone.
+          if (exercise.lesson && !canAccessLesson(exercise.lesson, entitlements.plan)) {
+            throw new AppError(402, ErrorCode.PAYWALL, "This exercise is part of SpeakUp Pro");
+          }
+          if (usedToday >= entitlements.dailyAnalysesLimit) {
+            throw new AppError(
+              429,
+              ErrorCode.QUOTA_EXCEEDED,
+              `You've used all ${entitlements.dailyAnalysesLimit} analyses for today. They reset at 00:00 UTC.`,
+            );
+          }
 
-      const created = await createAttemptWithUpload(
-        { db, storage },
-        {
-          owner: { userId: user.id },
-          exerciseId,
-          mimeType,
-          keyPrefix: `recordings/${user.id}`,
-          topic,
-        },
-      );
+          return createAttemptWithUpload(
+            { db, storage },
+            {
+              owner: { userId: user.id },
+              exerciseId,
+              mimeType,
+              keyPrefix: `recordings/${user.id}`,
+              topic,
+            },
+          );
+        })
+        .catch((err: unknown) => {
+          if (!(err instanceof LockTimeoutError)) throw err;
+          throw new AppError(
+            429,
+            ErrorCode.RATE_LIMITED,
+            "You're recording very fast. Please wait a moment and try again.",
+            { "retry-after": "5" },
+          );
+        });
       request.log.info({ attemptId: created.attempt.id, exerciseId }, "attempt created");
       return reply.code(201).send(created);
     },

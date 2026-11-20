@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildServer } from "../server.js";
+import { createInMemoryKeyedLock } from "../services/user-lock.js";
 import {
   FakeAuth,
   FakeDb,
@@ -25,6 +26,7 @@ function build(db: HealthCheck, redis: HealthCheck) {
     queue: new FakeQueue(),
     botCheck: new FakeBotCheck(),
     rateLimiter: new FakeRateLimiter(),
+    locks: createInMemoryKeyedLock(),
     payments: null,
     healthChecks: { db, redis },
   });

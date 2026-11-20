@@ -123,6 +123,18 @@ describe("POST /v1/attempts", () => {
     expect(res.json().error.code).toBe("QUOTA_EXCEEDED");
   });
 
+  it("holds the daily quota when requests arrive at the same moment", async () => {
+    // Load test (docs/load-testing.md, run 4): 10 parallel creates against a quota of 3 let
+    // 6 through, because each request counted before any of them inserted.
+    const { create, db } = await setup();
+    db.queryDelayMs = 5; // like a real DB round trip, so the requests overlap
+    const results = await Promise.all(Array.from({ length: 10 }, () => create(FREE_EXERCISE)));
+    const statuses = results.map((r) => r.statusCode);
+    expect(statuses.filter((s) => s === 201)).toHaveLength(3);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(7);
+    expect(db.attempts).toHaveLength(3);
+  });
+
   it("attempts that failed on our side don't use up the quota; NO_SPEECH does", async () => {
     const { create, db } = await setup();
     for (let i = 0; i < 3; i++) await create(FREE_EXERCISE);
