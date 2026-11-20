@@ -16,6 +16,12 @@ export interface SpeakUpConfig {
   /** Name of the Secrets Manager secret that holds the app's API keys (created by hand, once). */
   appSecretName: string;
   anthropicModel: string;
+  /**
+   * `-c speakup:loadTest=true`: a separate, throwaway `SpeakUp-LoadTest` stack for load tests
+   * (docs/load-testing.md). Simulated Deepgram/Claude, its own generated secrets, load-test
+   * auth on, nothing retained on delete. Never set it for the production stack.
+   */
+  loadTest: boolean;
 }
 
 export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
@@ -47,5 +53,6 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     paddleEnv,
     appSecretName: get("appSecretName") || "speakup/app",
     anthropicModel: get("anthropicModel") || "claude-sonnet-5-5",
+    loadTest: get("loadTest") === "true",
   };
 }

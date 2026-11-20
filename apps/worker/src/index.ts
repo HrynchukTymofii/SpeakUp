@@ -9,6 +9,7 @@ import { createClaudeSender } from "./feedback/claude.js";
 import { createLogger } from "./logger.js";
 import { runAnalysis, type PipelineDeps } from "./pipeline.js";
 import { createDeepgramStt } from "./providers/deepgram.js";
+import { createFakeLlm, createFakeStt } from "./providers/fake.js";
 import { createPrismaRepo } from "./repo.js";
 import { createS3AudioStorage } from "./storage.js";
 
@@ -20,6 +21,12 @@ const MAINTENANCE_QUEUE = "maintenance";
  * them through the pipeline. Retries/backoff are set by the producer (API) on each job
  * (apps/api/src/services/analysis-queue.ts), so this file only says *how* to process one.
  */
+/** parseEnv already demands the keys for the real providers; this only narrows the type. */
+function requireKey(value: string | undefined, name: string): string {
+  if (!value) throw new Error(`${name} is required with ANALYSIS_PROVIDERS=real`);
+  return value;
+}
+
 function main(): void {
   loadRootDotEnv();
 
@@ -41,13 +48,34 @@ function main(): void {
   });
   const connection = { url: env.REDIS_URL, maxRetriesPerRequest: null };
 
-  // Real implementations of the pipeline's dependencies (tests pass fakes instead).
+  // Load tests swap the two paid providers for simulated ones (docs/load-testing.md).
+  const fake = env.ANALYSIS_PROVIDERS === "fake";
+  if (fake) {
+    log.warn(
+      {
+        sttMedianMs: env.FAKE_STT_MEDIAN_MS,
+        llmMedianMs: env.FAKE_LLM_MEDIAN_MS,
+        failureRate: env.FAKE_FAILURE_RATE,
+      },
+      "FAKE ANALYSIS PROVIDERS: load-test mode, feedback is not real",
+    );
+  }
+  const failureRate = env.FAKE_FAILURE_RATE;
+
+  // Real implementations of the pipeline's dependencies (unit tests pass their own fakes).
   const deps: PipelineDeps = {
     repo: createPrismaRepo(db),
     storage,
-    stt: createDeepgramStt(env.DEEPGRAM_API_KEY),
+    stt: fake
+      ? createFakeStt({ medianMs: env.FAKE_STT_MEDIAN_MS, failureRate })
+      : createDeepgramStt(requireKey(env.DEEPGRAM_API_KEY, "DEEPGRAM_API_KEY")),
     decoder: createFfmpegDecoder(env.FFMPEG_PATH),
-    llm: createClaudeSender({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL }),
+    llm: fake
+      ? createFakeLlm({ medianMs: env.FAKE_LLM_MEDIAN_MS, failureRate })
+      : createClaudeSender({
+          apiKey: requireKey(env.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY"),
+          model: env.ANTHROPIC_MODEL,
+        }),
     prices: {
       sttUsdPerMin: env.PRICE_STT_USD_PER_MIN,
       llmInputUsdPerMTok: env.PRICE_LLM_INPUT_USD_PER_MTOK,

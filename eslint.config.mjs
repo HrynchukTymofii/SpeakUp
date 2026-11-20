@@ -31,4 +31,11 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-imports": "error",
     },
   },
+  {
+    // k6 scripts run in k6's own JS runtime, which provides these globals (docs/load-testing.md).
+    files: ["load-tests/**/*.js"],
+    languageOptions: {
+      globals: { __ENV: "readonly", __VU: "readonly", __ITER: "readonly", open: "readonly" },
+    },
+  },
 );

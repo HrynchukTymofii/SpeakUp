@@ -85,4 +85,29 @@ describe("parseEnv", () => {
       /CLERK_SECRET_KEY/,
     );
   });
+
+  it("load-test auth: off by default, needs a long secret, and is refused in production", () => {
+    const secret = "x".repeat(32);
+    expect(parseEnv(valid).LOAD_TEST_AUTH_SECRET).toBeUndefined();
+    expect(parseEnv({ ...valid, LOAD_TEST_AUTH_SECRET: secret }).LOAD_TEST_AUTH_SECRET).toBe(
+      secret,
+    );
+    expect(() => parseEnv({ ...valid, LOAD_TEST_AUTH_SECRET: "short" })).toThrow(
+      /LOAD_TEST_AUTH_SECRET/,
+    );
+
+    const prod = {
+      ...valid,
+      NODE_ENV: "production",
+      TURNSTILE_SECRET_KEY: "0x4AAA-real",
+      IP_HASH_SECRET: "a-long-random-production-secret",
+      PADDLE_API_KEY: "pdl_live_apikey",
+      PADDLE_WEBHOOK_SECRET: "pdl_ntfset_secret",
+      PADDLE_PRICE_ID_PRO_MONTHLY: "pri_123",
+      LOAD_TEST_AUTH_SECRET: secret,
+    };
+    // A second, independent switch: only the throwaway load-test stack sets it.
+    expect(() => parseEnv(prod)).toThrow(/LOAD_TEST_AUTH_SECRET/);
+    expect(parseEnv({ ...prod, LOAD_TEST_STACK: "true" }).LOAD_TEST_AUTH_SECRET).toBe(secret);
+  });
 });
