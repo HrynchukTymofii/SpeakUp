@@ -22,6 +22,13 @@ export interface SpeakUpConfig {
    * auth on, nothing retained on delete. Never set it for the production stack.
    */
   loadTest: boolean;
+  /**
+   * Upper bound for worker autoscaling (each task = 4 concurrent analyses ≈ 55 recordings/min,
+   * docs/scaling.md). Default 10 fits a db.t4g.micro's connection limit.
+   */
+  workerMaxTasks: number;
+  /** RDS size within the burstable Graviton class (t4g). "small"+ for workerMaxTasks > 10. */
+  dbInstanceSize: "micro" | "small" | "medium" | "large";
 }
 
 export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
@@ -54,5 +61,24 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     appSecretName: get("appSecretName") || "speakup/app",
     anthropicModel: get("anthropicModel") || "claude-sonnet-5-5",
     loadTest: get("loadTest") === "true",
+    workerMaxTasks: readWorkerMaxTasks(get("workerMaxTasks")),
+    dbInstanceSize: readDbInstanceSize(get("dbInstanceSize")),
   };
+}
+
+function readWorkerMaxTasks(value: string): number {
+  if (!value) return 10;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > 100) {
+    throw new Error("speakup:workerMaxTasks must be a whole number from 1 to 100");
+  }
+  return n;
+}
+
+const DB_SIZES = ["micro", "small", "medium", "large"] as const;
+function readDbInstanceSize(value: string): SpeakUpConfig["dbInstanceSize"] {
+  if (!value) return "micro";
+  const size = DB_SIZES.find((s) => s === value);
+  if (!size) throw new Error(`speakup:dbInstanceSize must be one of ${DB_SIZES.join(", ")}`);
+  return size;
 }

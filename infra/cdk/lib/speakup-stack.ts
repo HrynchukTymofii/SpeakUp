@@ -4,6 +4,8 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
+import * as appscaling from "aws-cdk-lib/aws-applicationautoscaling";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as elasticache from "aws-cdk-lib/aws-elasticache";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -21,6 +23,14 @@ export interface SpeakUpStackProps extends cdk.StackProps {
 /** Prefix under which every recording lives (apps/api/src/services/storage.ts). */
 const RECORDINGS_PREFIX = "recordings/";
 const API_PORT = 4000;
+
+/**
+ * Postgres connections per process. Every task holds its own pool, so the sum at maximum scale
+ * must stay under the DB's max_connections (~80 on db.t4g.micro): 4 API × 8 + 10 workers × 3
+ * = 62. A worker job uses the DB in short, sequential steps, so 3 connections serve its 4 jobs.
+ */
+const API_DB_POOL = 8;
+const WORKER_DB_POOL = 3;
 
 /**
  * Everything SpeakUp needs on AWS, in one stack (SPEC §3, M8):
@@ -67,7 +77,12 @@ export class SpeakUpStack extends cdk.Stack {
       engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_16 }),
       instanceType: ec2.InstanceType.of(
         ec2.InstanceClass.BURSTABLE4_GRAVITON,
-        ec2.InstanceSize.MICRO,
+        {
+          micro: ec2.InstanceSize.MICRO,
+          small: ec2.InstanceSize.SMALL,
+          medium: ec2.InstanceSize.MEDIUM,
+          large: ec2.InstanceSize.LARGE,
+        }[config.dbInstanceSize],
       ),
       vpc,
       vpcSubnets: dataSubnets,
@@ -286,6 +301,7 @@ export class SpeakUpStack extends cdk.Stack {
           CORS_ORIGINS: config.webOrigins.join(","),
           PADDLE_ENV: config.paddleEnv,
           TRUST_PROXY_HOPS: "1", // the ALB
+          DB_POOL_MAX: String(API_DB_POOL),
           ...(loadTest && {
             LOAD_TEST_STACK: "true",
             // k6 runs from a few IPs and each virtual user records many times: the per-IP
@@ -320,6 +336,8 @@ export class SpeakUpStack extends cdk.Stack {
     apiScaling.scaleOnCpuUtilization("CpuScaling", { targetUtilizationPercent: 60 });
 
     // ── Worker: Fargate service, no load balancer (it only pulls jobs from Redis) ──────
+    // Workers publish the queue depth here; the autoscaling alarms below read it.
+    const queueMetricsNamespace = `SpeakUp/${this.stackName}`;
     const workerTask = new ecs.FargateTaskDefinition(this, "WorkerTask", {
       cpu: 512,
       memoryLimitMiB: 1024,
@@ -331,6 +349,8 @@ export class SpeakUpStack extends cdk.Stack {
       environment: {
         ...sharedEnv,
         WORKER_CONCURRENCY: "4",
+        DB_POOL_MAX: String(WORKER_DB_POOL),
+        QUEUE_METRICS_NAMESPACE: queueMetricsNamespace,
         ANTHROPIC_MODEL: config.anthropicModel,
         // Load tests: simulated Deepgram/Claude, no network calls, no provider cost.
         ...(loadTest && { ANALYSIS_PROVIDERS: "fake" }),
@@ -357,6 +377,31 @@ export class SpeakUpStack extends cdk.Stack {
       circuitBreaker: { rollback: true },
       minHealthyPercent: 100,
     });
+
+    // Scale on waiting jobs, not CPU: a job mostly waits on the STT/LLM APIs, so CPU stays
+    // moderate while users wait (load test: docs/load-testing.md). One task clears ~55
+    // recordings/min; Fargate needs ~1 min to start one, so add several at once when the
+    // backlog is large, and remove one at a time (stopping tasks finish their jobs first).
+    const queueWaiting = new cloudwatch.Metric({
+      namespace: queueMetricsNamespace,
+      metricName: "QueueWaiting",
+      statistic: "Maximum",
+      period: cdk.Duration.minutes(1),
+    });
+    worker
+      .autoScaleTaskCount({ minCapacity: 1, maxCapacity: config.workerMaxTasks })
+      .scaleOnMetric("QueueDepthScaling", {
+        metric: queueWaiting,
+        adjustmentType: appscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+        scalingSteps: [
+          { upper: 0, change: -1 },
+          { lower: 8, change: +1 },
+          { lower: 30, change: +3 },
+          { lower: 100, change: +6 },
+        ],
+        cooldown: cdk.Duration.seconds(60),
+        evaluationPeriods: 1,
+      });
 
     // ── Migration task: run on demand (see the MigrateCommand output) ──────────────────
     const migrateTask = new ecs.FargateTaskDefinition(this, "MigrateTask", {
@@ -419,6 +464,14 @@ export class SpeakUpStack extends cdk.Stack {
       }),
     );
     workerTask.addToTaskRolePolicy(listRecordings);
+    // Worker: queue-depth metrics for its own autoscaling, in its own namespace only.
+    workerTask.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"], // PutMetricData has no resource ARNs; the condition scopes it
+        conditions: { StringEquals: { "cloudwatch:namespace": queueMetricsNamespace } },
+      }),
+    );
 
     // ── Outputs (printed after `cdk deploy`) ───────────────────────────────────────────
     const scheme = certificate ? "https" : "http";

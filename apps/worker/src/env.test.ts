@@ -71,6 +71,16 @@ describe("worker parseEnv", () => {
     ).toThrow(/FAKE_FAILURE_RATE/);
   });
 
+  it("queue metrics are off unless a namespace is set; pool size is optional", () => {
+    const env = parseEnv(base);
+    expect(env.QUEUE_METRICS_NAMESPACE).toBeUndefined();
+    expect(env.DB_POOL_MAX).toBeUndefined();
+    const set = parseEnv({ ...base, QUEUE_METRICS_NAMESPACE: "SpeakUp", DB_POOL_MAX: "5" });
+    expect(set.QUEUE_METRICS_NAMESPACE).toBe("SpeakUp");
+    expect(set.DB_POOL_MAX).toBe(5);
+    expect(() => parseEnv({ ...base, DB_POOL_MAX: "0" })).toThrow(/DB_POOL_MAX/);
+  });
+
   it("requires REDIS_URL", () => {
     expect(() => parseEnv({})).toThrow(/REDIS_URL/);
   });

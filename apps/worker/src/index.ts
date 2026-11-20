@@ -10,6 +10,7 @@ import { createLogger } from "./logger.js";
 import { runAnalysis, type PipelineDeps } from "./pipeline.js";
 import { createDeepgramStt } from "./providers/deepgram.js";
 import { createFakeLlm, createFakeStt } from "./providers/fake.js";
+import { createCloudWatchSink, publishQueueDepth } from "./queue-metrics.js";
 import { createPrismaRepo } from "./repo.js";
 import { createS3AudioStorage } from "./storage.js";
 
@@ -39,7 +40,7 @@ function main(): void {
   }
 
   const log = createLogger(env.NODE_ENV);
-  const db = createDbClient(env.DATABASE_URL);
+  const db = createDbClient(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
 
   const storage = createS3AudioStorage({
     region: env.AWS_REGION,
@@ -149,10 +150,27 @@ function main(): void {
   );
   worker.on("error", (err) => log.error({ err: err.message }, "worker error"));
 
+  // Queue depth → CloudWatch every 30 s, for the worker autoscaling policy (infra/cdk).
+  const analysisQueue = new Queue(ANALYSIS_QUEUE_NAME, { connection });
+  let metricsTimer: NodeJS.Timeout | undefined;
+  if (env.QUEUE_METRICS_NAMESPACE) {
+    const sink = createCloudWatchSink(env.AWS_REGION);
+    const namespace = env.QUEUE_METRICS_NAMESPACE;
+    const publish = () => void publishQueueDepth(analysisQueue, sink, namespace, log);
+    publish();
+    metricsTimer = setInterval(publish, 30_000);
+  }
+
   // Graceful shutdown: let in-flight jobs finish instead of leaving them half-done.
   const shutdown = async (signal: string) => {
     log.info({ signal }, "shutting down worker");
-    await Promise.all([worker.close(), maintenanceWorker.close(), maintenance.close()]);
+    clearInterval(metricsTimer);
+    await Promise.all([
+      worker.close(),
+      maintenanceWorker.close(),
+      maintenance.close(),
+      analysisQueue.close(),
+    ]);
     await db.$disconnect();
     process.exit(0);
   };
