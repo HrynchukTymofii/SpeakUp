@@ -13,6 +13,7 @@ import { buildServer } from "../server.js";
 import type { AnalysisQueue } from "../services/analysis-queue.js";
 import { createInMemoryKeyedLock } from "../services/user-lock.js";
 import type { AuthProvider } from "../services/auth-provider.js";
+import { createAttemptEventHub, type AttemptEventHub } from "../services/attempt-events.js";
 import type { BotCheck } from "../services/bot-check.js";
 import {
   WebhookSignatureError,
@@ -541,6 +542,7 @@ export function buildTestServer(
     /** Override env values (e.g. low rate limits). */
     env?: Partial<Env>;
     logStream?: Writable;
+    events?: AttemptEventHub;
   } = {},
 ) {
   const db = opts.db ?? new FakeDb();
@@ -556,6 +558,7 @@ export function buildTestServer(
     botCheck: new FakeBotCheck(),
     rateLimiter: opts.rateLimiter ?? new FakeRateLimiter(),
     locks: createInMemoryKeyedLock(),
+    attemptEvents: opts.events ?? createAttemptEventHub(),
     payments: opts.payments === undefined ? new FakePayments() : opts.payments,
     healthChecks: { db: up, redis: up },
   });

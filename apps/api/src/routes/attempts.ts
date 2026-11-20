@@ -20,6 +20,7 @@ import { currentUser } from "../plugins/auth.js";
 import { AppError } from "../plugins/error-handler.js";
 import { canAccessLesson } from "../services/access.js";
 import type { AnalysisQueue } from "../services/analysis-queue.js";
+import type { AttemptEvents } from "../services/attempt-events.js";
 import {
   attemptSelect,
   createAttemptWithUpload,
@@ -43,9 +44,20 @@ interface AttemptRoutesOptions {
   attemptsPerMinute: number;
   /** Serializes quota check + insert per user (see services/user-lock.ts). */
   locks: KeyedLock;
+  /** Worker announcements that wake long-polling results requests. */
+  events: AttemptEvents;
 }
 
 export const AttemptParamsSchema = z.object({ id: z.string().min(1).max(64) });
+
+/**
+ * Longest a results request may be held. The ALB drops connections idle for 60 s, and a short
+ * hold keeps a lost announcement from costing the user more than a few seconds.
+ */
+export const MAX_RESULT_WAIT_S = 25;
+export const AttemptWaitQuerySchema = z.object({
+  wait: z.coerce.number().int().min(0).max(MAX_RESULT_WAIT_S).optional(),
+});
 
 /**
  * Json columns come back as `unknown`-ish values. Parse them with the same schemas the worker
@@ -90,7 +102,7 @@ const notFound = () => new AppError(404, ErrorCode.NOT_FOUND, "Attempt not found
  */
 export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async (
   app,
-  { db, storage, queue, limits, rateLimiter, attemptsPerMinute, locks },
+  { db, storage, queue, limits, rateLimiter, attemptsPerMinute, locks, events },
 ) => {
   /**
    * Loads an attempt only if it belongs to the current user. Someone else's attempt gets the
@@ -249,28 +261,58 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
     },
   );
 
+  // Status + stage only: the results page asks for this repeatedly while the worker runs (83% of
+  // all API requests in the load test), so the transcript words and the feedback JSON are
+  // loaded once, when the attempt has completed.
+  const loadSummary = (id: string) =>
+    db.attempt.findUnique({
+      where: { id },
+      select: {
+        ...attemptSelect,
+        userId: true,
+        exercise: { select: exerciseSelect },
+        transcript: { select: { attemptId: true } }, // exists? → "analyzing" stage
+      },
+    });
+
   /**
-   * One attempt for the results page: status (polled while the worker runs), the exercise,
-   * and — once completed — transcript, metrics and feedback.
+   * One attempt for the results page: status, the exercise, and — once completed — transcript,
+   * metrics and feedback.
+   *
+   * `?wait=N` (long-polling): while the worker is still on it, hold the request up to N seconds
+   * and answer as soon as the worker announces a change, so the result reaches the page the
+   * moment it's ready instead of on the next poll (docs/scaling.md §2.2).
    */
   app.get(
     "/attempts/:id",
-    { schema: { params: AttemptParamsSchema, response: { 200: AttemptDetailResponseSchema } } },
-    async (request) => {
-      // The results page polls this every few seconds while the worker runs (83% of all API
-      // requests in the load test). Polls only need status + stage, so the transcript words and
-      // the feedback JSON are loaded once, when the attempt has completed.
+    {
+      schema: {
+        params: AttemptParamsSchema,
+        querystring: AttemptWaitQuerySchema,
+        response: { 200: AttemptDetailResponseSchema },
+      },
+    },
+    async (request, reply) => {
       const id = request.params.id;
-      const row = await db.attempt.findUnique({
-        where: { id },
-        select: {
-          ...attemptSelect,
-          userId: true,
-          exercise: { select: exerciseSelect },
-          transcript: { select: { attemptId: true } }, // exists? → "analyzing" stage
-        },
-      });
-      if (!row || row.userId !== currentUser(request).id) throw notFound();
+      const waitMs = (request.query.wait ?? 0) * 1000;
+      // Listen BEFORE the first read: a change landing between the read and the wait would
+      // otherwise be missed, and the request would sit out the full wait for nothing.
+      const stop = new AbortController();
+      reply.raw.once("close", () => stop.abort()); // the browser left: stop waiting
+      const changed = waitMs > 0 ? events.waitForChange(id, waitMs, stop.signal) : null;
+
+      let row;
+      try {
+        row = await loadSummary(id);
+        if (!row || row.userId !== currentUser(request).id) throw notFound();
+        if (changed && (row.status === "queued" || row.status === "processing")) {
+          await changed;
+          // Re-read even after a timeout: if an announcement got lost, this still catches up.
+          row = (await loadSummary(id)) ?? row;
+        }
+      } finally {
+        stop.abort();
+      }
 
       let result = null;
       if (row.status === "completed") {

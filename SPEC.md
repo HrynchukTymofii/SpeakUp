@@ -294,7 +294,7 @@ model WebhookEvent {
 3. `POST /v1/attempts/:id/submit` `{ durationMs }`
    - Verify ownership + status `awaiting_upload`. `HeadObject` to confirm the file exists and size is within limits.
    - Set `status=queued`, enqueue BullMQ job `analyze` with **`jobId = attemptId`** (prevents duplicate jobs if the client double-submits). Return `202`.
-4. `GET /v1/attempts/:id` → status + (when completed) transcript, metrics, feedback. Web polls every 1.5 s (max ~60 s), showing progress states: *Uploading → Transcribing → Analyzing → Done*. (Later: SSE/WebSocket push.)
+4. `GET /v1/attempts/:id` → status + (when completed) transcript, metrics, feedback. Web long-polls (`?wait=20`: the API answers when the worker announces a change via Redis pub/sub; max ~60 s in total), showing progress states: *Uploading → Transcribing → Analyzing → Done*. (Later: push notifications on mobile.)
 
 ### 6.3 Worker job `analyze(attemptId)`
 Retries: 3 attempts, exponential backoff. Idempotent: if the attempt is already `completed`, exit.
@@ -525,6 +525,7 @@ The repo owner is preparing for technical interviews. After each milestone appen
 | One Vercel project for two hosts (marketing `speakup.` / product `app.`), routed by host in `proxy.ts` | One build, one set of env vars, shared components and design tokens; the split can be switched on/off with two env vars | Two projects (or Next multi-zones) if the marketing site moves to a CMS/site builder or gets its own release cycle |
 | ECS Fargate | Containers without managing servers; same images as local | Kubernetes (EKS) only with a platform team |
 | Load tests with k6 + simulated AI providers (`ANALYSIS_PROVIDERS=fake`) on a throwaway copy of the prod stack (`SpeakUp-LoadTest`) | Measures our own system (API, S3, queue, worker, DB) at real scale for $0 in provider cost; fake latencies follow a log-normal so p99s stay realistic; same CDK code = same topology | A short real-provider run (budget-capped) to check provider rate limits; Grafana Cloud k6 for load from many regions/IPs |
+| Results reach the page by long-polling (`GET /attempts/:id?wait=20`, woken by Redis pub/sub from the worker) | The result shows up the moment it's saved, a 10 s wait is 1–2 requests instead of ~7 polls, and it works with the existing bearer-token auth and React Query; nothing to stream through the ALB; k6 tests it unchanged | SSE (or WebSockets) if the page needs a continuous stream (live transcript); APNs/FCM push on mobile |
 | Load-test sign-in = HMAC tokens limited to `loadtest_*` ids, refused in production without `LOAD_TEST_STACK=true` | Clerk tokens expire every 60 s and minting thousands would test Clerk, not us; the id prefix means a leaked secret can never act as a real user | Clerk testing tokens if Clerk ever offers bulk long-lived ones |
 | Learning progress, streak, XP and lesson suggestions derived from the attempt history in the app (no progress tables); fine-grained problems from metrics by fixed rules (`detectProblems`) | Nothing new to keep in sync; deterministic, testable suggestions; content is still changing, so no schema churn | Progress tables (or a materialized view) when history gets long, lessons gain non-recorded steps that must sync across devices, or challenges/contests need server-side state |
 

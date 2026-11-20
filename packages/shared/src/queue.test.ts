@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalyzeJobDataSchema } from "./queue.js";
+import { AnalyzeJobDataSchema, AttemptChangedEventSchema } from "./queue.js";
 
 describe("AnalyzeJobDataSchema", () => {
   it("accepts a payload with an attemptId", () => {
@@ -21,5 +21,16 @@ describe("AnalyzeJobDataSchema requestId", () => {
       attemptId: "a",
       requestId: "req-1",
     });
+  });
+});
+
+describe("AttemptChangedEventSchema", () => {
+  it("accepts an attempt id", () => {
+    expect(AttemptChangedEventSchema.parse({ attemptId: "att_1" })).toEqual({ attemptId: "att_1" });
+  });
+
+  it("rejects anything else, so a stray Redis message can't wake waiting requests", () => {
+    expect(() => AttemptChangedEventSchema.parse({ attemptId: "" })).toThrow();
+    expect(() => AttemptChangedEventSchema.parse({ attemptId: "a", status: "done" })).toThrow();
   });
 });

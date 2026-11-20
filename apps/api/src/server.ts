@@ -18,6 +18,7 @@ import { healthRoutes, type HealthChecks } from "./routes/health.js";
 import { courseRoutes } from "./routes/courses.js";
 import { meRoutes } from "./routes/me.js";
 import { attemptRoutes } from "./routes/attempts.js";
+import type { AttemptEvents } from "./services/attempt-events.js";
 import { billingPublicRoutes, billingRoutes } from "./routes/billing.js";
 import { funnelClaimRoutes, funnelGuestRoutes } from "./routes/funnel.js";
 import { webhookRoutes } from "./routes/webhooks.js";
@@ -39,6 +40,8 @@ export interface ServerDeps {
   rateLimiter: RateLimiter;
   /** Per-key locks shared by all API tasks (Redis in prod, in-memory in tests). */
   locks: KeyedLock;
+  /** Worker announcements for long-polling results (Redis pub/sub in prod, in-memory in tests). */
+  attemptEvents: AttemptEvents;
   /** Null when billing isn't configured (local dev without Paddle keys). */
   payments: PaymentProvider | null;
   healthChecks: HealthChecks;
@@ -150,6 +153,7 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
         rateLimiter: deps.rateLimiter,
         attemptsPerMinute: env.ATTEMPTS_PER_MINUTE,
         locks: deps.locks,
+        events: deps.attemptEvents,
       });
       await authed.register(funnelClaimRoutes, { db: deps.db });
       await authed.register(billingRoutes, { db: deps.db, payments: deps.payments, limits });

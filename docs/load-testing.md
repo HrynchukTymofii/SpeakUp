@@ -79,7 +79,9 @@ scaled with `-e PEAK=`:
   with 1.5 s polling, so it's accurate to ±1.5 s.
 - `result_timeouts`: share of recordings with no result after 60 s.
 - `http_req_duration` per endpoint, and `http_req_failed`.
-- `result_polls`: requests that exist only because the client polls.
+- `result_polls`: "done yet?" requests. Since long-polling (2026-11-20) the scenario waits
+  like the web app (`?wait=20`). `-e POLL=backoff` / `-e POLL=fixed` replay the older clients
+  for comparison.
 - Queue depth and Postgres connections/transactions, from
   [`sample-local.sh`](../load-tests/sample-local.sh) locally and from CloudWatch on AWS.
 

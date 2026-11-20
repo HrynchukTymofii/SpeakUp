@@ -17,7 +17,7 @@ the architecture they refer to is in [`architecture.md`](./architecture.md).
 | Bottleneck (§2)                 | Status                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 — fixed worker throughput     | **Done:** workers autoscale on queue depth (`QueueWaiting` metric, 1 → `workerMaxTasks`). Concurrency stays at 4 per task, because CPU reached ~66% of 0.5 vCPU at 4. On AWS: 4 workers handled 240 users (p95 14.8 s), and 1 → 13 workers in ~4 min drained a 664-job spike. **Open:** cold-start timeouts and admission control. |
-| 2 — polling load                | **Partly done:** polls back off (1.5 → 3 → 5 s), pending polls skip the transcript and feedback JSON, and the request user is cached for 60 s. **Open:** push (SSE / APNs / FCM).                                                                                                                                                  |
+| 2 — polling load                | **Done for web:** long-polling. The API answers the moment the worker announces a change (Redis pub/sub). Pending reads skip the transcript and feedback JSON, and the request user is cached for 60 s. **Open:** mobile push (APNs / FCM).                                                                                        |
 | 3 — DB connections              | **Partly done:** `DB_POOL_MAX` (API 8, worker 3) and `speakup:dbInstanceSize`. **Open:** RDS Proxy.                                                                                                                                                                                                                                |
 | 4 — quota race                  | **Done:** a per-user lock (`user-lock.ts`) serializes the check and the insert.                                                                                                                                                                                                                                                    |
 | 5, 6 — history queries and SPOF | Open.                                                                                                                                                                                                                                                                                                                              |
@@ -98,11 +98,16 @@ entitlements query.
 
 **Fixes:**
 
-- **Push instead of poll:** Server-Sent Events on web (the worker publishes "done" on Redis
-  pub/sub, and the API instance holding the connection forwards it). Push notifications
-  (APNs/FCM) on mobile, which also lets the user leave the screen.
-- Until then: a tiny `GET /attempts/:id/status` that skips the transcript and analysis JSON,
-  plus backoff (1.5 s → 3 s → 5 s).
+- **Push instead of poll — done for web as long-polling** (2026-11-20). After each status change
+  the worker publishes the attempt id on Redis (`attempt-events`). Every API task subscribes, and
+  the one holding `GET /attempts/:id?wait=20` for that attempt answers at once. A 10 s wait is
+  now 1–2 requests instead of ~7 polls, and the result shows up the moment it's saved. Long-polling
+  instead of SSE: it works with the existing `Authorization` header and React Query, needs no
+  streaming through the ALB, and k6 can test it as is. While a request is held it uses no DB
+  connection, only an idle socket. **Open:** push notifications (APNs/FCM) on mobile, which also
+  let the user leave the screen.
+- Also done: pending requests skip the transcript and analysis JSON, plus backoff
+  (1.5 s → 3 s → 5 s) as the fallback when the API doesn't hold the request.
 - **Cache the request user** (user id + plan) in Redis or process memory for ~60 s, so
   verifying a token doesn't need a DB round trip.
 

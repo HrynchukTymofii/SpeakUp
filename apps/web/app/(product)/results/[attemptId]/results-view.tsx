@@ -8,14 +8,14 @@ import {
 } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { ResultsReport } from "@/components/results-report";
 import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
 import { lessonsFixing } from "@/learn/personalize";
 import { TONE_SURFACE } from "@/learn/tone";
 import { ApiClientError } from "@/lib/api";
-import { MAX_POLL_MS, nextPollDelay } from "@/lib/poll";
+import { MAX_POLL_MS, nextPollDelay, RESULT_WAIT_S } from "@/lib/poll";
 import { useApi } from "@/lib/use-api";
 
 const FAILURE_MESSAGE: Record<string, string> = {
@@ -57,15 +57,26 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
     return () => clearTimeout(timer);
   }, [timedOut]);
 
+  // How long the last request took: a held one means the API is long-polling for us.
+  const lastRequestMs = useRef(0);
+
   const query = useQuery({
     queryKey: ["attempt", attemptId],
-    queryFn: () => api.getAttempt(attemptId),
+    queryFn: async () => {
+      const started = Date.now();
+      // The first load answers at once (the page has something to show); after that the API
+      // holds each request until the worker changes the attempt (lib/poll.ts).
+      const wait = lastRequestMs.current === 0 ? 0 : RESULT_WAIT_S;
+      const data = await api.getAttempt(attemptId, wait);
+      lastRequestMs.current = Math.max(1, Date.now() - started);
+      return data;
+    },
     retry: (count, err) => !(err instanceof ApiClientError && err.status < 500) && count < 2,
-    // Poll until the worker finishes; a finished attempt never changes, so stop then.
+    // Keep asking until the worker finishes; a finished attempt never changes, so stop then.
     refetchInterval: (q) => {
       const stage = q.state.data?.stage;
       if (stage === "completed" || stage === "failed" || timedOut) return false;
-      return nextPollDelay(Date.now() - waitStartedAt);
+      return nextPollDelay(Date.now() - waitStartedAt, lastRequestMs.current);
     },
   });
 
