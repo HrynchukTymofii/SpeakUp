@@ -105,6 +105,31 @@ describe("GET /v1/me — lazy provisioning + profile", () => {
   });
 });
 
+describe("signed-in user cache (load test: ~3.6 DB queries per request)", () => {
+  it("looks the user up once, not on every request", async () => {
+    const db = new FakeDb();
+    const app = await buildTestServer({ db, auth: new FakeAuth() });
+    for (let i = 0; i < 5; i++) {
+      await app.inject({ method: "GET", url: "/v1/attempts", headers: auth("clerk_1") });
+    }
+    // 1 = the first request (which also creates the user); the next 4 come from the cache.
+    expect(db.userLookupsByClerkId).toBe(1);
+  });
+
+  it("GET /me still shows answers saved through another API instance", async () => {
+    const db = new FakeDb();
+    const app = await buildTestServer({ db, auth: new FakeAuth() });
+    await app.inject({ method: "GET", url: "/v1/me", headers: auth("clerk_1") }); // now cached
+    // Another API task saved the quiz: the row changed, this process's cache didn't.
+    const [user] = db.users;
+    if (!user) throw new Error("expected a user");
+    db.users[0] = { ...user, onboarding: { goal: "presentations" } };
+
+    const me = await app.inject({ method: "GET", url: "/v1/me", headers: auth("clerk_1") });
+    expect(me.json().user.onboarding).toEqual({ goal: "presentations" });
+  });
+});
+
 describe("PUT /v1/me/onboarding", () => {
   it("saves answers and returns the updated profile", async () => {
     const app = await buildTestServer();

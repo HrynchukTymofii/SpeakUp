@@ -5,6 +5,7 @@
 // ANALYSIS_PROVIDERS=fake: no Deepgram / Anthropic calls, no provider cost.
 //
 //   k6 run -e LOAD_TEST_AUTH_SECRET=… -e PROFILE=steps -e PEAK=100 load-tests/scenarios/practice.js
+//   (-e POLL=fixed reproduces the old client that polled every 1.5 s)
 import { sleep } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 import { api, between, tokenFor, uploadToS3 } from "../lib/client.js";
@@ -14,9 +15,14 @@ import { stages } from "../lib/profiles.js";
 const AUDIO = open("../fixtures/speech-15s.webm", "b");
 const AUDIO_MS = 15_000;
 
-// Same numbers as apps/web/app/(product)/results/[attemptId]/results-view.tsx.
-const POLL_MS = 1_500;
+// Same schedule as the results page (apps/web/lib/poll.ts): 1.5 s for the first 10 s, then
+// 3 s, then 5 s, for up to 60 s. Runs before that change polled every 1.5 s (POLL=fixed).
 const MAX_POLL_MS = 60_000;
+const FIXED_POLL = __ENV.POLL === "fixed";
+function nextPollDelay(elapsedMs) {
+  if (FIXED_POLL || elapsedMs < 10_000) return 1_500;
+  return elapsedMs < 30_000 ? 3_000 : 5_000;
+}
 
 /** Submit → result visible to the user. The number a user actually feels. */
 const resultWait = new Trend("result_wait_ms", true);
@@ -78,7 +84,7 @@ export default function () {
   const start = Date.now();
   let status = "queued";
   while (Date.now() - start < MAX_POLL_MS) {
-    sleep(POLL_MS / 1000);
+    sleep(nextPollDelay(Date.now() - start) / 1000);
     polls.add(1);
     const res = api("GET", `/attempts/${attempt.id}`, token, { name: "GET /attempts/:id" });
     if (res.status !== 200) continue;

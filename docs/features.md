@@ -66,7 +66,8 @@ claimed after sign-up.
   records in the first format the browser supports (WebM/Opus, MP4/AAC on Safari, or Ogg/Opus), enforces the exercise's
   maximum length, plays back before submitting.
 - **Upload:** straight from the browser to private storage; then the analysis starts.
-- **Progress:** Uploaded → Transcribing → Analyzing, refreshed every 1.5 s, with a "check again"
+- **Progress:** Uploaded → Transcribing → Analyzing, refreshed every 1.5 s (slowing to 3–5 s on long
+  waits), with a "check again"
   button if it takes longer than a minute.
 - **Report** (`components/results-report.tsx`):
   - overall score 0–100 and a short summary

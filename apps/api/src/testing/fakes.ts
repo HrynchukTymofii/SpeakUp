@@ -61,11 +61,20 @@ export class FakeDb {
   simulateProvisioningRace = false;
   private nextId = 1;
 
+  /** How many times the auth hook looked a user up by Clerk id (user-cache tests). */
+  userLookupsByClerkId = 0;
+  /** Every `attempt.findUnique` argument, so tests can check what a route loads. */
+  attemptQueries: { select?: Record<string, unknown> }[] = [];
+
   user = {
-    findUnique: async ({ where }: { where: { clerkUserId?: string; id?: string } }) =>
-      this.users.find((u) =>
-        where.id !== undefined ? u.id === where.id : u.clerkUserId === where.clerkUserId,
-      ) ?? null,
+    findUnique: async ({ where }: { where: { clerkUserId?: string; id?: string } }) => {
+      if (where.id === undefined) this.userLookupsByClerkId++;
+      return (
+        this.users.find((u) =>
+          where.id !== undefined ? u.id === where.id : u.clerkUserId === where.clerkUserId,
+        ) ?? null
+      );
+    },
 
     upsert: async (args: {
       where: { clerkUserId: string };
@@ -164,17 +173,26 @@ export class FakeDb {
       return { ...attempt };
     },
 
-    findUnique: async ({ where }: { where: { id: string } }) => {
+    findUnique: async ({
+      where,
+      select,
+    }: {
+      where: { id: string };
+      select?: Record<string, unknown>;
+    }) => {
+      this.attemptQueries.push({ select });
       const attempt = this.attempts.find((a) => a.id === where.id);
       if (!attempt) return null;
       const exercise = this.findExercise(attempt.exerciseId);
       if (!exercise) throw new Error("attempt references a missing exercise");
       const { lesson: _lesson, ...exerciseFields } = exercise;
+      // Like Prisma: relations come back only when the select asks for them.
+      const wants = (relation: string) => !select || relation in select;
       return {
         ...attempt,
         exercise: exerciseFields,
-        transcript: this.transcripts.get(attempt.id) ?? null,
-        analysis: this.analyses.get(attempt.id) ?? null,
+        ...(wants("transcript") && { transcript: this.transcripts.get(attempt.id) ?? null }),
+        ...(wants("analysis") && { analysis: this.analyses.get(attempt.id) ?? null }),
       };
     },
 

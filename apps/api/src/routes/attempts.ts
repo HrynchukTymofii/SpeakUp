@@ -257,26 +257,38 @@ export const attemptRoutes: FastifyPluginAsyncZod<AttemptRoutesOptions> = async 
     "/attempts/:id",
     { schema: { params: AttemptParamsSchema, response: { 200: AttemptDetailResponseSchema } } },
     async (request) => {
+      // The results page polls this every few seconds while the worker runs (83% of all API
+      // requests in the load test). Polls only need status + stage, so the transcript words and
+      // the feedback JSON are loaded once, when the attempt has completed.
+      const id = request.params.id;
       const row = await db.attempt.findUnique({
-        where: { id: request.params.id },
+        where: { id },
         select: {
           ...attemptSelect,
           userId: true,
           exercise: { select: exerciseSelect },
-          transcript: { select: { text: true, words: true } },
-          analysis: { select: { overallScore: true, metrics: true, feedback: true } },
+          transcript: { select: { attemptId: true } }, // exists? → "analyzing" stage
         },
       });
       if (!row || row.userId !== currentUser(request).id) throw notFound();
+
+      let result = null;
+      if (row.status === "completed") {
+        const full = await db.attempt.findUnique({
+          where: { id },
+          select: {
+            transcript: { select: { text: true, words: true } },
+            analysis: { select: { overallScore: true, metrics: true, feedback: true } },
+          },
+        });
+        if (full?.transcript && full.analysis) result = toApiResult(full.transcript, full.analysis);
+      }
 
       return {
         attempt: toApiAttempt(row),
         stage: stageOf(row.status, row.transcript !== null),
         exercise: row.exercise,
-        result:
-          row.status === "completed" && row.analysis && row.transcript
-            ? toApiResult(row.transcript, row.analysis)
-            : null,
+        result,
       };
     },
   );
