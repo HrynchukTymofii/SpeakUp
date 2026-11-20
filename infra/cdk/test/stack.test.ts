@@ -186,6 +186,63 @@ describe("SpeakUp stack", () => {
   }, 60_000);
 });
 
+describe("worker autoscaling and connection budget (docs/scaling.md)", () => {
+  let template: Template;
+  beforeAll(() => {
+    template = synth().template;
+  }, 60_000);
+
+  const env = (name: string) =>
+    Object.fromEntries(
+      (
+        (container(template, name).Environment ?? []) as unknown as {
+          Name: string;
+          Value: string;
+        }[]
+      ).map((e) => [e.Name, e.Value]),
+    );
+
+  it("publishes queue depth from the worker, with permission for that namespace only", () => {
+    expect(env("worker").QUEUE_METRICS_NAMESPACE).toBe("SpeakUp/Test");
+    const statements = Object.values(template.findResources("AWS::IAM::Policy")).flatMap(
+      (p) => p.Properties.PolicyDocument.Statement as { Action: unknown; Condition?: unknown }[],
+    );
+    const put = statements.find((s) => s.Action === "cloudwatch:PutMetricData");
+    expect(put?.Condition).toEqual({
+      StringEquals: { "cloudwatch:namespace": "SpeakUp/Test" },
+    });
+  });
+
+  it("scales the worker 1 → 10 tasks on waiting jobs (not CPU)", () => {
+    // (The API's target is 1–4, so MaxCapacity 10 identifies the worker's.)
+    template.hasResourceProperties("AWS::ApplicationAutoScaling::ScalableTarget", {
+      MinCapacity: 1,
+      MaxCapacity: 10,
+    });
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      Namespace: "SpeakUp/Test",
+      MetricName: "QueueWaiting",
+    });
+  });
+
+  it("sizes DB pools so all tasks at max scale fit a db.t4g.micro (~80 connections)", () => {
+    const api = Number(env("api").DB_POOL_MAX);
+    const worker = Number(env("worker").DB_POOL_MAX);
+    expect(4 * api + 10 * worker).toBeLessThanOrEqual(70); // + headroom for migrations/admin
+  });
+
+  it("takes a bigger worker ceiling and DB size from context", () => {
+    const big = synth({
+      "speakup:workerMaxTasks": "20",
+      "speakup:dbInstanceSize": "small",
+    }).template;
+    big.hasResourceProperties("AWS::ApplicationAutoScaling::ScalableTarget", {
+      MaxCapacity: 20,
+    });
+    big.hasResourceProperties("AWS::RDS::DBInstance", { DBInstanceClass: "db.t4g.small" });
+  }, 60_000);
+});
+
 describe("load-test stack (speakup:loadTest=true)", () => {
   let prod: Template;
   let lt: Template;
@@ -250,6 +307,17 @@ describe("load-test stack (speakup:loadTest=true)", () => {
 });
 
 describe("config", () => {
+  it("rejects a non-numeric worker ceiling and an unknown DB size", () => {
+    const bad = (ctx: Record<string, string>) =>
+      new cdk.App({ context: { "speakup:webOrigins": "https://a.test", ...ctx } }).node;
+    expect(() => readConfig(bad({ "speakup:workerMaxTasks": "lots" }), repoRoot)).toThrow(
+      /workerMaxTasks/,
+    );
+    expect(() => readConfig(bad({ "speakup:dbInstanceSize": "huge" }), repoRoot)).toThrow(
+      /dbInstanceSize/,
+    );
+  });
+
   it("rejects a web origin with a path", () => {
     const app = new cdk.App({ context: { "speakup:webOrigins": "https://speakup.app/start" } });
     expect(() => readConfig(app.node, repoRoot)).toThrow(/must be an origin/);

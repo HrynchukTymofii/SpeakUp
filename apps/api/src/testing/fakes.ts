@@ -7,9 +7,11 @@
 import type { Attempt, DbClient, Subscription, User } from "@speakup/db";
 import type { PresignedUpload } from "@speakup/shared";
 import type { Writable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
 import { parseEnv, type Env } from "../env.js";
 import { buildServer } from "../server.js";
 import type { AnalysisQueue } from "../services/analysis-queue.js";
+import { createInMemoryKeyedLock } from "../services/user-lock.js";
 import type { AuthProvider } from "../services/auth-provider.js";
 import type { BotCheck } from "../services/bot-check.js";
 import {
@@ -48,17 +50,31 @@ export class FakeDb {
   webhookEvents: { source: string; eventId: string; type: string }[] = [];
   attemptsToday = 0;
   /**
+   * Round-trip time of the attempt count/insert, in ms. 0 = instant (default). Set it to let
+   * parallel requests interleave the way they do against real Postgres (race tests).
+   */
+  queryDelayMs = 0;
+  /**
    * Simulates two first requests racing: the next user upsert finds the row "created by the
    * other request" and fails with Prisma's unique-constraint error, like Postgres does.
    */
   simulateProvisioningRace = false;
   private nextId = 1;
 
+  /** How many times the auth hook looked a user up by Clerk id (user-cache tests). */
+  userLookupsByClerkId = 0;
+  /** Every `attempt.findUnique` argument, so tests can check what a route loads. */
+  attemptQueries: { select?: Record<string, unknown> }[] = [];
+
   user = {
-    findUnique: async ({ where }: { where: { clerkUserId?: string; id?: string } }) =>
-      this.users.find((u) =>
-        where.id !== undefined ? u.id === where.id : u.clerkUserId === where.clerkUserId,
-      ) ?? null,
+    findUnique: async ({ where }: { where: { clerkUserId?: string; id?: string } }) => {
+      if (where.id === undefined) this.userLookupsByClerkId++;
+      return (
+        this.users.find((u) =>
+          where.id !== undefined ? u.id === where.id : u.clerkUserId === where.clerkUserId,
+        ) ?? null
+      );
+    },
 
     upsert: async (args: {
       where: { clerkUserId: string };
@@ -120,11 +136,16 @@ export class FakeDb {
   attempt = {
     /** Pre-set `attemptsToday` + any attempts the test created through the API. */
     /** Like the real query: our-fault failures don't count (NO_SPEECH does). */
-    count: async ({ where }: { where: { userId: string } }) =>
-      this.attemptsToday +
-      this.attempts.filter(
-        (a) => a.userId === where.userId && !(a.status === "failed" && a.errorCode !== "NO_SPEECH"),
-      ).length,
+    count: async ({ where }: { where: { userId: string } }) => {
+      if (this.queryDelayMs) await delay(this.queryDelayMs);
+      return (
+        this.attemptsToday +
+        this.attempts.filter(
+          (a) =>
+            a.userId === where.userId && !(a.status === "failed" && a.errorCode !== "NO_SPEECH"),
+        ).length
+      );
+    },
 
     create: async ({
       data,
@@ -135,6 +156,7 @@ export class FakeDb {
         topic?: string;
       };
     }) => {
+      if (this.queryDelayMs) await delay(this.queryDelayMs);
       const now = new Date();
       const attempt: Attempt = {
         ...data,
@@ -151,17 +173,26 @@ export class FakeDb {
       return { ...attempt };
     },
 
-    findUnique: async ({ where }: { where: { id: string } }) => {
+    findUnique: async ({
+      where,
+      select,
+    }: {
+      where: { id: string };
+      select?: Record<string, unknown>;
+    }) => {
+      this.attemptQueries.push({ select });
       const attempt = this.attempts.find((a) => a.id === where.id);
       if (!attempt) return null;
       const exercise = this.findExercise(attempt.exerciseId);
       if (!exercise) throw new Error("attempt references a missing exercise");
       const { lesson: _lesson, ...exerciseFields } = exercise;
+      // Like Prisma: relations come back only when the select asks for them.
+      const wants = (relation: string) => !select || relation in select;
       return {
         ...attempt,
         exercise: exerciseFields,
-        transcript: this.transcripts.get(attempt.id) ?? null,
-        analysis: this.analyses.get(attempt.id) ?? null,
+        ...(wants("transcript") && { transcript: this.transcripts.get(attempt.id) ?? null }),
+        ...(wants("analysis") && { analysis: this.analyses.get(attempt.id) ?? null }),
       };
     },
 
@@ -524,6 +555,7 @@ export function buildTestServer(
     queue: opts.queue ?? new FakeQueue(),
     botCheck: new FakeBotCheck(),
     rateLimiter: opts.rateLimiter ?? new FakeRateLimiter(),
+    locks: createInMemoryKeyedLock(),
     payments: opts.payments === undefined ? new FakePayments() : opts.payments,
     healthChecks: { db: up, redis: up },
   });

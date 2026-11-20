@@ -166,6 +166,8 @@ Only `NEXT_PUBLIC_*` variables are exposed to the browser.
 | ------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL`                                        | web, Vercel (Prod) | Domain split: origin of the marketing site and of the product app. Set both or neither. With both set, `proxy.ts` redirects each page to its host (see `docs/architecture.md`, "Two hosts"). Empty in dev and previews.     |
 | `LOAD_TEST_AUTH_SECRET`, `LOAD_TEST_STACK`                                            | api                | Load testing only. Lets k6 sign in as `loadtest_*` users with HMAC tokens instead of Clerk. Refused in production unless `LOAD_TEST_STACK=true`. See [`docs/load-testing.md`](./docs/load-testing.md).                      |
+| `DB_POOL_MAX`                                                                         | api, worker        | Postgres connections per process (default 10). Sized in CDK so all tasks at max scale fit the database.                                                                                                                     |
+| `QUEUE_METRICS_NAMESPACE`                                                             | worker             | CloudWatch namespace for the queue depth that drives worker autoscaling. Empty locally (nothing published).                                                                                                                 |
 | `ANALYSIS_PROVIDERS`, `FAKE_STT_MEDIAN_MS`, `FAKE_LLM_MEDIAN_MS`, `FAKE_FAILURE_RATE` | worker             | Load testing only. `fake` replaces Deepgram and Claude with simulated providers (realistic delays, optional failure rate, no network calls, no keys). See [`docs/load-testing.md`](./docs/load-testing.md). Default `real`. |
 
 ## Deploy (AWS + Vercel)
@@ -186,7 +188,8 @@ Everything on AWS is defined in [`infra/cdk`](./infra/cdk) (one stack, region `u
 - **Redis (ElastiCache):** TLS, with `noeviction` set for BullMQ.
 - **Recordings bucket (S3):** private, with CORS and the abandoned-upload cleanup.
 - **ECS cluster:** the API behind a load balancer (1–4 tasks, CPU autoscaling), the worker
-  (1 task), and a migration task you run on demand.
+  (1–10 tasks, autoscaling on the number of waiting jobs, see `docs/scaling.md`), and a migration
+  task you run on demand.
 - **Permissions:** IAM task roles that can only touch `recordings/*`. API keys live in Secrets
   Manager and reach the containers as environment variables when the tasks start.
 
@@ -239,6 +242,10 @@ you never handle it.
    - `speakup:certificateArn`: the certificate's ARN. Without it the API is HTTP-only, and
      browsers block an HTTPS site from calling it. Synth warns about this.
    - `speakup:paddleEnv`: `sandbox` or `production`.
+   - Optional capacity settings (see [`docs/scaling.md`](./docs/scaling.md)):
+     `speakup:workerMaxTasks` (default `10`; each worker ≈ 55 recordings/min) and
+     `speakup:dbInstanceSize` (`micro` default, `small`/`medium`/`large`). Use at least `small`
+     above 10 workers, or the tasks' connection pools outgrow the database.
 
 ### 4. Deploy
 

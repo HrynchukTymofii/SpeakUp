@@ -505,3 +505,44 @@ One section per milestone (SPEC §13). Written to be re-read before technical in
 3. _What's the difference between unit tests in Node and component tests in jsdom?_ — Node tests run pure logic; jsdom adds a fake DOM so components render and respond to events. jsdom has no layout engine, so sizes and positions need a real browser (Playwright).
 4. _Why can two Tailwind classes like `bg-red-500 bg-blue-500` behave unexpectedly?_ — The winner is decided by order in the generated stylesheet, not in the `class` attribute. Avoid conflicting utilities (or use a merge helper like `tailwind-merge`).
 5. _How did you style a third-party auth widget (Clerk) to match?_ — Its `appearance` API: variables for colors/fonts/radius (pointing at our CSS variables) and per-element overrides. Where the library's own selector was more specific (low-alpha borders on black), we overrode only the unfocused state so its focus ring still shows.
+
+## Load testing & scaling — k6, fake AI providers, a throwaway AWS stack
+
+**What we built:**
+
+- A load-test mode for the worker (`ANALYSIS_PROVIDERS=fake`): Deepgram and Claude are replaced by stand-ins that wait as long as the real calls and cost nothing (`apps/worker/src/providers/fake.ts`).
+- Load-test sign-in: HMAC-signed tokens for `loadtest_*` users, so k6 can be thousands of signed-in people without Clerk (`apps/api/src/services/load-test-auth.ts`).
+- k6 scenarios that copy the browser step by step (`load-tests/scenarios/`), a sampler for queue and DB load, and an analyzer that turns raw k6 output into a per-minute table.
+- A throwaway `SpeakUp-LoadTest` stack from the same CDK code (`-c speakup:loadTest=true`), so the numbers come from the real topology.
+- [`docs/load-testing.md`](./docs/load-testing.md) (method and raw results) and [`docs/scaling.md`](./docs/scaling.md) (what breaks, why, and the fixes).
+
+**Key concepts (explain like to a junior):**
+
+- **Virtual user (VU) vs requests per second:** a VU is one simulated person running a script with pauses. "100 users" means 100 scripts at once, which might be only 10 requests/s. Capacity questions are about people, and k6 lets you measure both.
+- **Step test:** raise the load in steps and hold each one (`load-tests/lib/profiles.js`). Every level gets its own steady-state numbers, so you can say "fine at 60, breaks at 120" instead of quoting one blurry average.
+- **p95 / p99 (percentiles):** "95% of requests were faster than this". Averages hide the slow tail, and users feel the tail. That's why the fake providers use a **log-normal** delay instead of a fixed one: real latency has a long right tail (`sampleLatencyMs`).
+- **Throughput ceiling of a queue worker:** concurrency ÷ time per job. 4 slots ÷ ~4 s = ~1 job/s = ~60/min. Past that, the queue only grows. Little's Law says the same thing: items in the system = arrival rate × time in system.
+- **I/O-bound vs CPU-bound:** our jobs spend ~75% of their time waiting on HTTP calls. Waiting doesn't use CPU, so a bigger CPU doesn't help. More concurrent jobs per process does.
+- **Feedback loop / load amplification:** clients poll while they wait. A slower worker means longer waits, more polls, more DB load, slower writes, and longer waits again. Measured: same work done, 3× the API and DB traffic.
+- **Race condition (check-then-act):** "count, then insert" isn't atomic. Two requests can both count 2 of 3 and both insert. Measured: 120 recordings accepted where the quota allowed 60.
+- **Connection pool:** each process keeps N open DB connections (node-postgres default 10) and requests queue for them. Ten API tasks × 10 = 100 connections, which is already the limit of a small RDS instance. A pooler (RDS Proxy, PgBouncer) multiplexes many clients onto a few connections.
+
+**Why this choice / alternatives:**
+
+- **k6 vs JMeter / Locust / Artillery:** k6 scripts are plain JavaScript (the same language as the app), it's a single binary, and its per-metric thresholds make a pass/fail result. Locust is the Python equivalent. JMeter is GUI-heavy and XML-based.
+- **Fake providers vs real ones:** fake providers measure _our_ system for $0 and are repeatable. Real ones would add provider rate limits and cost to every run. A short, budget-capped real run is still worth doing once, to learn the actual rate limits.
+- **Throwaway stack vs testing production or staging:** a production test hurts real users and real budgets. A permanent staging environment costs money every day. A disposable stack from the same IaC code gives production's topology for an hour.
+
+**Where it breaks at scale & what we'd do:**
+
+- The worker queue at ~60 people practicing at once → more concurrency, queue-depth autoscaling, admission control and priorities.
+- Polling plus per-request user lookups multiply DB load → SSE / push notifications, a status-only endpoint, a cached request user.
+- Horizontal scaling multiplies DB connections → RDS Proxy, then read replicas.
+
+**Likely interview questions:**
+
+1. _How many users can your system handle?_ — Depends on what they do. Measured with k6: browsing, one API task handles 1,500 people at p95 < 10 ms and tops out around 700–950 req/s. Practicing, one worker handles ~60 people at once (~60 recordings/min). Then explain why: worker throughput = concurrency ÷ job time, and the jobs are I/O-bound.
+2. _How did you load-test something that calls paid AI APIs?_ — Swapped the providers for fakes behind the same interface, with realistic log-normal latency and an optional failure rate. Everything else stayed real. Fake results are marked so they can't be mistaken for real ones.
+3. _Your database is overloaded. What do you do first?_ — Find the requests that shouldn't exist: 83% of our API traffic was polling, and every request did a user lookup. Remove those (push, caching), then pool connections, then add read replicas, and only then a bigger instance.
+4. _What's a race condition you found?_ — The daily quota was check-then-insert. Parallel requests doubled every user's quota. Fix: an atomic Redis `INCR` with expiry, or a row lock in a transaction. Regression test: the k6 quota-race scenario must show 0 over-quota.
+5. _Why scale workers on queue depth, not CPU?_ — The worker is mostly waiting, so CPU stays low while users time out. Queue depth (or the oldest job's age) is what users actually feel.

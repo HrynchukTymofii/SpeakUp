@@ -26,6 +26,7 @@ import type { AuthProvider } from "./services/auth-provider.js";
 import type { BotCheck } from "./services/bot-check.js";
 import type { PaymentProvider } from "./services/payments/types.js";
 import type { RateLimiter } from "./services/rate-limiter.js";
+import type { KeyedLock } from "./services/user-lock.js";
 import type { Storage } from "./services/storage.js";
 
 export interface ServerDeps {
@@ -36,6 +37,8 @@ export interface ServerDeps {
   queue: AnalysisQueue;
   botCheck: BotCheck;
   rateLimiter: RateLimiter;
+  /** Per-key locks shared by all API tasks (Redis in prod, in-memory in tests). */
+  locks: KeyedLock;
   /** Null when billing isn't configured (local dev without Paddle keys). */
   payments: PaymentProvider | null;
   healthChecks: HealthChecks;
@@ -146,6 +149,7 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
         limits,
         rateLimiter: deps.rateLimiter,
         attemptsPerMinute: env.ATTEMPTS_PER_MINUTE,
+        locks: deps.locks,
       });
       await authed.register(funnelClaimRoutes, { db: deps.db });
       await authed.register(billingRoutes, { db: deps.db, payments: deps.payments, limits });
