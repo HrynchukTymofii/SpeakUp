@@ -55,9 +55,13 @@ export const meRoutes: FastifyPluginAsyncZod<MeRoutesOptions> = async (app, { db
     };
   }
 
-  app.get("/me", { schema: { response: { 200: MeResponseSchema } } }, async (request) =>
-    buildMe(currentUser(request), request.log),
-  );
+  // The auth hook's user may come from a per-process cache (plugins/auth.ts); the profile
+  // shows onboarding answers another API task may have just saved, so read the row fresh.
+  app.get("/me", { schema: { response: { 200: MeResponseSchema } } }, async (request) => {
+    const cached = currentUser(request);
+    const user = (await db.user.findUnique({ where: { id: cached.id } })) ?? cached;
+    return buildMe(user, request.log);
+  });
 
   /** Replaces the stored quiz answers (PUT = full replacement, so it's safe to retry). */
   app.put(

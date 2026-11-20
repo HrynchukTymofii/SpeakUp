@@ -15,11 +15,8 @@ import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
 import { lessonsFixing } from "@/learn/personalize";
 import { TONE_SURFACE } from "@/learn/tone";
 import { ApiClientError } from "@/lib/api";
+import { MAX_POLL_MS, nextPollDelay } from "@/lib/poll";
 import { useApi } from "@/lib/use-api";
-
-/** Poll every 1.5 s for up to ~60 s (SPEC §6.2). Later: push via SSE/WebSocket instead. */
-const POLL_MS = 1_500;
-const MAX_POLL_MS = 60_000;
 
 const FAILURE_MESSAGE: Record<string, string> = {
   [AnalysisErrorCode.NO_SPEECH]:
@@ -50,6 +47,8 @@ function continueLabel(next: string): string {
 export function ResultsView({ attemptId, next }: { attemptId: string; next?: string }) {
   const api = useApi();
   const [timedOut, setTimedOut] = useState(false);
+  // When the current wait started: polling slows down as it grows (lib/poll.ts).
+  const [waitStartedAt, setWaitStartedAt] = useState(() => Date.now());
 
   // Give up polling after a minute so a stuck job doesn't poll forever; "Check again" restarts it.
   useEffect(() => {
@@ -65,7 +64,8 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
     // Poll until the worker finishes; a finished attempt never changes, so stop then.
     refetchInterval: (q) => {
       const stage = q.state.data?.stage;
-      return stage === "completed" || stage === "failed" || timedOut ? false : POLL_MS;
+      if (stage === "completed" || stage === "failed" || timedOut) return false;
+      return nextPollDelay(Date.now() - waitStartedAt);
     },
   });
 
@@ -162,6 +162,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
               type="button"
               onClick={() => {
                 setTimedOut(false);
+                setWaitStartedAt(Date.now());
                 void query.refetch();
               }}
               className="btn btn-secondary btn-sm"

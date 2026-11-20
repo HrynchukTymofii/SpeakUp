@@ -32,6 +32,7 @@ function bearerToken(request: FastifyRequest): string | null {
  */
 export function requireAuth(scope: FastifyInstance, deps: { auth: AuthProvider; db: DbClient }) {
   scope.decorateRequest("user", null);
+  const users = createUserCache();
 
   scope.addHook("onRequest", async (request) => {
     const token = bearerToken(request);
@@ -45,8 +46,46 @@ export function requireAuth(scope: FastifyInstance, deps: { auth: AuthProvider; 
       throw unauthenticated();
     }
 
+    const cached = users.get(clerkUserId);
+    if (cached) {
+      request.user = cached;
+      return;
+    }
     request.user = await findOrCreateUser(deps, clerkUserId, request);
+    users.set(clerkUserId, request.user);
   });
+}
+
+/**
+ * The signed-in user, kept per process for a minute. Without it every request started with a
+ * DB lookup: the load test measured ~3.6 Postgres queries per API request, most of them from
+ * result polling. Routes only use the cached row for `id` (which never changes); anything that
+ * must be fresh (GET /me's onboarding answers) reads the row itself.
+ */
+const USER_CACHE_TTL_MS = 60_000;
+const USER_CACHE_MAX = 10_000;
+
+function createUserCache() {
+  const entries = new Map<string, { user: User; expiresAt: number }>();
+  return {
+    get(clerkUserId: string): User | null {
+      const entry = entries.get(clerkUserId);
+      if (!entry) return null;
+      if (entry.expiresAt < Date.now()) {
+        entries.delete(clerkUserId);
+        return null;
+      }
+      return entry.user;
+    },
+    set(clerkUserId: string, user: User) {
+      // Map keeps insertion order: when full, drop the oldest entry.
+      if (entries.size >= USER_CACHE_MAX) {
+        const oldest = entries.keys().next().value;
+        if (oldest !== undefined) entries.delete(oldest);
+      }
+      entries.set(clerkUserId, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+    },
+  };
 }
 
 /**

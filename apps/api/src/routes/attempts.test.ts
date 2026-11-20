@@ -322,6 +322,21 @@ describe("GET /v1/attempts/:id", () => {
     });
   });
 
+  it("doesn't load the transcript or analysis while the result is pending (polls stay cheap)", async () => {
+    // Load test: 83% of API requests were these polls. Words + feedback JSON are only needed once.
+    const { app, db, createAndUpload } = await setup();
+    const id = await createAndUpload();
+    attemptById(db, id).status = "processing";
+    db.attemptQueries = [];
+
+    await app.inject({ method: "GET", url: `/v1/attempts/${id}`, headers: auth });
+
+    expect(db.attemptQueries).toHaveLength(1);
+    const select = db.attemptQueries[0]?.select ?? {};
+    expect(select).not.toHaveProperty("analysis");
+    expect(JSON.stringify(select.transcript ?? {})).not.toContain("words");
+  });
+
   it("reports transcribing vs analyzing while processing", async () => {
     const { app, db, createAndUpload } = await setup();
     const id = await createAndUpload();
