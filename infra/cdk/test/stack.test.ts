@@ -229,6 +229,18 @@ describe("load-test stack (speakup:loadTest=true)", () => {
     }
   });
 
+  it("serves plain HTTP on the load balancer, ignoring the production certificate", () => {
+    const withCert = synth({
+      "speakup:loadTest": "true",
+      "speakup:certificateArn": "arn:aws:acm:us-east-1:111111111111:certificate/abc",
+    }).template;
+    withCert.resourcePropertiesCountIs(
+      "AWS::ElasticLoadBalancingV2::Listener",
+      { Protocol: "HTTPS" },
+      0,
+    );
+  }, 60_000);
+
   it("leaves the production stack untouched by any load-test setting", () => {
     expect(env(prod, "worker").ANALYSIS_PROVIDERS).toBeUndefined();
     expect(env(prod, "api").LOAD_TEST_STACK).toBeUndefined();

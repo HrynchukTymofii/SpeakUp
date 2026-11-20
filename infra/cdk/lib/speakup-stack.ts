@@ -244,9 +244,12 @@ export class SpeakUpStack extends cdk.Stack {
     const dbSecretEnv = { DB_SECRET: ecs.Secret.fromSecretsManager(dbSecret) };
 
     // ── API: Fargate behind a public Application Load Balancer ─────────────────────────
-    const certificate = config.certificateArn
-      ? acm.Certificate.fromCertificateArn(this, "ApiCertificate", config.certificateArn)
-      : undefined;
+    // The load-test stack is reached by its raw ALB hostname, which the production
+    // certificate doesn't cover: plain HTTP there (k6 sends no secrets worth protecting).
+    const certificate =
+      config.certificateArn && !loadTest
+        ? acm.Certificate.fromCertificateArn(this, "ApiCertificate", config.certificateArn)
+        : undefined;
     if (!certificate) {
       cdk.Annotations.of(this).addWarningV2(
         "speakup:no-https",
