@@ -86,6 +86,12 @@ describe("parseEnv", () => {
     );
   });
 
+  it("DB_POOL_MAX is optional and must be positive", () => {
+    expect(parseEnv(valid).DB_POOL_MAX).toBeUndefined();
+    expect(parseEnv({ ...valid, DB_POOL_MAX: "8" }).DB_POOL_MAX).toBe(8);
+    expect(() => parseEnv({ ...valid, DB_POOL_MAX: "0" })).toThrow(/DB_POOL_MAX/);
+  });
+
   it("load-test auth: off by default, needs a long secret, and is refused in production", () => {
     const secret = "x".repeat(32);
     expect(parseEnv(valid).LOAD_TEST_AUTH_SECRET).toBeUndefined();

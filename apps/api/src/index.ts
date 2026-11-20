@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   }
 
   // One DB client and one Redis connection per process, shared by all requests.
-  const db = createDbClient(env.DATABASE_URL);
+  const db = createDbClient(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
   const redis = new Redis(env.REDIS_URL);
   const queue = createBullAnalysisQueue(env.REDIS_URL);
   const storage = createS3Storage({

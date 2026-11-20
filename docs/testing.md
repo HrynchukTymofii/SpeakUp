@@ -23,6 +23,12 @@ pnpm --filter @speakup/web exec vitest  # watch mode in one package
 Env validation (`apps/api/src/env.test.ts`, `apps/worker/src/env.test.ts`) is tested in both
 services: bad config must stop the process at boot.
 
+**Load tests** are separate from `pnpm test` and not run in CI. They're k6 scenarios in
+[`load-tests/`](../load-tests) that run against a live stack (local Docker or a throwaway AWS
+stack) with simulated AI providers. The method and results are in
+[`load-testing.md`](./load-testing.md), and what they mean for the architecture is in
+[`scaling.md`](./scaling.md).
+
 ## Web: component tests
 
 - Logic tests are `*.test.ts` and run in plain Node (fast).

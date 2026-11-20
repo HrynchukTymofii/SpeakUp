@@ -17,6 +17,12 @@ export const EnvSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     REDIS_URL: z.url(),
     DATABASE_URL: z.url(),
+    // Max Postgres connections this process opens (node-postgres default: 10). Size it so
+    // (API tasks × pool) + (worker tasks × pool) stays under the DB's max_connections.
+    DB_POOL_MAX: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).optional()),
+    // CloudWatch namespace for queue-depth metrics (worker autoscaling, docs/scaling.md).
+    // Unset = don't publish (local dev).
+    QUEUE_METRICS_NAMESPACE: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
     // Jobs mostly wait on network I/O (STT, LLM), so a few in parallel per process is cheap.
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(2),
 

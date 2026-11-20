@@ -34,6 +34,9 @@ export const EnvSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     API_PORT: z.coerce.number().int().positive().default(4000),
     DATABASE_URL: z.url(),
+    // Max Postgres connections this process opens (node-postgres default: 10). Size it so
+    // (API tasks × pool) + (worker tasks × pool) stays under the DB's max_connections.
+    DB_POOL_MAX: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).optional()),
     REDIS_URL: z.url(),
     CORS_ORIGINS: commaSeparatedUrls,
     // Clerk secret key — verifies session JWTs and reads user emails. Never sent to the browser.
