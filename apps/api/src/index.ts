@@ -9,6 +9,7 @@ import { withLoadTestAuth } from "./services/load-test-auth.js";
 import { createPaddleProvider } from "./services/payments/paddle.js";
 import { createRedisRateLimiter } from "./services/rate-limiter.js";
 import { createS3Storage } from "./services/storage.js";
+import { createRedisKeyedLock } from "./services/user-lock.js";
 
 /**
  * Process entry point: load + validate config, connect dependencies, start listening,
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
     queue,
     botCheck: createTurnstileBotCheck(env.TURNSTILE_SECRET_KEY),
     rateLimiter: createRedisRateLimiter(redis),
+    locks: createRedisKeyedLock(redis),
     payments,
     rateLimitRedis: redis,
     healthChecks: {

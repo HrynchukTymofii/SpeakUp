@@ -7,9 +7,11 @@
 import type { Attempt, DbClient, Subscription, User } from "@speakup/db";
 import type { PresignedUpload } from "@speakup/shared";
 import type { Writable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
 import { parseEnv, type Env } from "../env.js";
 import { buildServer } from "../server.js";
 import type { AnalysisQueue } from "../services/analysis-queue.js";
+import { createInMemoryKeyedLock } from "../services/user-lock.js";
 import type { AuthProvider } from "../services/auth-provider.js";
 import type { BotCheck } from "../services/bot-check.js";
 import {
@@ -47,6 +49,11 @@ export class FakeDb {
   subscriptions: Omit<Subscription, "id">[] = [];
   webhookEvents: { source: string; eventId: string; type: string }[] = [];
   attemptsToday = 0;
+  /**
+   * Round-trip time of the attempt count/insert, in ms. 0 = instant (default). Set it to let
+   * parallel requests interleave the way they do against real Postgres (race tests).
+   */
+  queryDelayMs = 0;
   /**
    * Simulates two first requests racing: the next user upsert finds the row "created by the
    * other request" and fails with Prisma's unique-constraint error, like Postgres does.
@@ -120,11 +127,16 @@ export class FakeDb {
   attempt = {
     /** Pre-set `attemptsToday` + any attempts the test created through the API. */
     /** Like the real query: our-fault failures don't count (NO_SPEECH does). */
-    count: async ({ where }: { where: { userId: string } }) =>
-      this.attemptsToday +
-      this.attempts.filter(
-        (a) => a.userId === where.userId && !(a.status === "failed" && a.errorCode !== "NO_SPEECH"),
-      ).length,
+    count: async ({ where }: { where: { userId: string } }) => {
+      if (this.queryDelayMs) await delay(this.queryDelayMs);
+      return (
+        this.attemptsToday +
+        this.attempts.filter(
+          (a) =>
+            a.userId === where.userId && !(a.status === "failed" && a.errorCode !== "NO_SPEECH"),
+        ).length
+      );
+    },
 
     create: async ({
       data,
@@ -135,6 +147,7 @@ export class FakeDb {
         topic?: string;
       };
     }) => {
+      if (this.queryDelayMs) await delay(this.queryDelayMs);
       const now = new Date();
       const attempt: Attempt = {
         ...data,
@@ -524,6 +537,7 @@ export function buildTestServer(
     queue: opts.queue ?? new FakeQueue(),
     botCheck: new FakeBotCheck(),
     rateLimiter: opts.rateLimiter ?? new FakeRateLimiter(),
+    locks: createInMemoryKeyedLock(),
     payments: opts.payments === undefined ? new FakePayments() : opts.payments,
     healthChecks: { db: up, redis: up },
   });
