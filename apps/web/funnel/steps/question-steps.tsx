@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { publicEnv } from "@/lib/env";
 import { track } from "../analytics";
+import { LessonVideo } from "../lesson-video";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, OptionButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
@@ -164,14 +165,7 @@ export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
     <div className="flex flex-1 flex-col gap-6">
       <StepHeading title={step.title} />
       {videoUrl ? (
-        <video
-          src={videoUrl}
-          controls
-          playsInline
-          preload="metadata"
-          onEnded={() => setUnlocked(true)}
-          className="aspect-square w-full rounded-3xl bg-black shadow-soft"
-        />
+        <LessonVideo src={videoUrl} onEnded={() => setUnlocked(true)} />
       ) : (
         <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-3xl border border-line bg-card text-sm font-semibold text-muted">
           <Mascot mood="thinking" size={64} />
