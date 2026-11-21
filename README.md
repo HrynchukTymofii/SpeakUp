@@ -247,6 +247,10 @@ you never handle it.
      `speakup:dbInstanceSize` (`micro` default, `small`/`medium`/`large`). Use at least `small`
      above 10 workers, or the tasks' connection pools outgrow the database.
      Production sets `25` and `small` (enough for ~1,000 people practicing at once).
+   - `speakup:alarmEmail`: who gets an email when an alarm fires or recovers
+     ([`docs/runbook.md`](./docs/runbook.md#alarms)). After the deploy, AWS sends a
+     confirmation email; nothing arrives until you click its link. Without it, synth warns and
+     the alarms notify nobody.
 
 ### 4. Deploy
 
@@ -265,6 +269,7 @@ The deploy prints these outputs:
 - `MigrateCommand`: run it now to create the tables. Use Git Bash on Windows; the quoting is
   for a POSIX shell.
 - `RecordingsBucket`: the bucket's name, for reference.
+- `DashboardUrl`: the CloudWatch dashboard (alarms, API, queue, Postgres, Redis).
 
 Seed the course content by running `MigrateCommand` again with this appended:
 
