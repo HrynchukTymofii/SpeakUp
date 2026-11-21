@@ -15,6 +15,7 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import type { Construct } from "constructs";
 import type { SpeakUpConfig } from "./config.js";
+import { Monitoring } from "./monitoring.js";
 
 export interface SpeakUpStackProps extends cdk.StackProps {
   config: SpeakUpConfig;
@@ -242,14 +243,15 @@ export class SpeakUpStack extends cdk.Stack {
       cpuArchitecture: ecs.CpuArchitecture.X86_64,
       operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
     };
-    const logDriver = (name: string) =>
-      ecs.LogDrivers.awsLogs({
-        streamPrefix: name,
-        logGroup: new logs.LogGroup(this, `${name}Logs`, {
-          retention: logs.RetentionDays.ONE_MONTH, // logs hold user ids/IPs: don't keep forever
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
-        }),
+    const logGroups = new Map<string, logs.LogGroup>();
+    const logDriver = (name: string) => {
+      const logGroup = new logs.LogGroup(this, `${name}Logs`, {
+        retention: logs.RetentionDays.ONE_MONTH, // logs hold user ids/IPs: don't keep forever
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
       });
+      logGroups.set(name, logGroup); // the alarms count error lines in these
+      return ecs.LogDrivers.awsLogs({ streamPrefix: name, logGroup });
+    };
     const sharedEnv = {
       NODE_ENV: "production",
       AWS_REGION: this.region,
@@ -336,7 +338,7 @@ export class SpeakUpStack extends cdk.Stack {
     apiScaling.scaleOnCpuUtilization("CpuScaling", { targetUtilizationPercent: 60 });
 
     // ── Worker: Fargate service, no load balancer (it only pulls jobs from Redis) ──────
-    // Workers publish the queue depth here; the autoscaling alarms below read it.
+    // Workers publish the queue depth here; the autoscaling and monitoring alarms read it.
     const queueMetricsNamespace = `SpeakUp/${this.stackName}`;
     const workerTask = new ecs.FargateTaskDefinition(this, "WorkerTask", {
       cpu: 512,
@@ -402,6 +404,24 @@ export class SpeakUpStack extends cdk.Stack {
         cooldown: cdk.Duration.seconds(60),
         evaluationPeriods: 1,
       });
+
+    // ── Alarms + dashboard (lib/monitoring.ts) ─────────────────────────────────────────
+    const logGroup = (name: string) => {
+      const group = logGroups.get(name);
+      if (!group) throw new Error(`no log group ${name}`);
+      return group;
+    };
+    new Monitoring(this, "Monitoring", {
+      config,
+      namespace: queueMetricsNamespace,
+      api,
+      apiLogs: logGroup("Api"),
+      worker,
+      workerLogs: logGroup("Worker"),
+      queueWaiting,
+      db,
+      redis,
+    });
 
     // ── Migration task: run on demand (see the MigrateCommand output) ──────────────────
     const migrateTask = new ecs.FargateTaskDefinition(this, "MigrateTask", {

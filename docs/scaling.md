@@ -151,9 +151,30 @@ inside the query (`NOT IN` over a small per-user "seen topics" set).
 **Problem.** One Redis node holds the queue, rate limits, locks and schedules, with no replica.
 Postgres runs in one availability zone, and there is one NAT gateway.
 
-**Still open.** A Redis replica with automatic failover, RDS Multi-AZ, and a NAT gateway per AZ.
-Each is a config switch that roughly doubles that part's cost; worth it once there are paying
-users.
+What each one takes down today:
+
+- **NAT gateway** (one, in one AZ). Every container reaches the internet through it: Clerk,
+  Deepgram, Anthropic and Paddle, and also ECR and Secrets Manager. If its AZ fails, running API
+  tasks still answer requests that need only Postgres and Redis, but no recording gets analyzed,
+  sign-ins that need Clerk fail, and **no new task can start** (it can't pull its image or read
+  its secrets), so autoscaling and deploys stop too.
+- **Redis** (one node). The queue, rate limits, per-user locks and the cleanup schedule. While
+  it's down, nothing can be submitted or analyzed; with `noeviction`, a full Redis also refuses
+  new jobs. The `redis-memory` alarm warns before that.
+- **Postgres** (one AZ). Everything that reads or writes user data. RDS restores from backups
+  (7 days), but a lost AZ means minutes to hours of downtime.
+
+**Still open.** The plan for when there are paying users (`SPEC.md` §12), in this order, because
+the NAT gateway is the cheapest fix for the widest outage:
+
+| Step | Change (`infra/cdk/lib/speakup-stack.ts`)                     | Extra cost | Effect                                                 |
+| ---- | ------------------------------------------------------------- | ---------- | ------------------------------------------------------ |
+| 1    | `natGateways: 2`                                              | ~$33/month | each AZ keeps its own way out                          |
+| 2    | Redis `numCacheClusters: 2`, `automaticFailoverEnabled: true` | ~$12/month | a replica in the other AZ takes over in about a minute |
+| 3    | RDS `multiAz: true`                                           | ~$28/month | a standby in the other AZ takes over in 1–2 minutes    |
+
+All three are config changes with no app changes, and each should update in place; still check
+`cdk diff` for replacements before deploying.
 
 ## 3. What changes at 10× and 100×
 

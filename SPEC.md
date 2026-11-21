@@ -297,8 +297,13 @@ Clerk token and validates responses with the shared schemas; TanStack Query hold
   which only logs in development.
 - **Video hosting:** lesson videos as plain URLs today; CloudFront + HLS with signed URLs for Pro
   videos later.
-- **Scaling work** still open (cold start, RDS Proxy, single points of failure): see
+- **Scaling work** still open (cold start, RDS Proxy): see
   [`docs/scaling.md`](./docs/scaling.md#status).
+- **High availability, before the first paying users:** a NAT gateway per AZ first, then a Redis
+  replica with automatic failover, then RDS Multi-AZ (about +$75/month together). Order and what
+  each one protects: [`docs/scaling.md` §2.6](./docs/scaling.md#26-single-points-of-failure).
+- **Error tracking** (e.g. Sentry) for the API, worker and web app: stack traces grouped by cause,
+  and errors in the browser, which the CloudWatch alarms can't see. Needs an account and a DSN.
 
 ## 13. Out of scope
 
@@ -334,6 +339,7 @@ One row per significant technical choice. The bigger ones also have a decision r
 | Load-test sign-in = HMAC tokens limited to `loadtest_*` ids, refused in production without `LOAD_TEST_STACK=true`                                                                           | Clerk tokens expire every 60 s and minting thousands would test Clerk, not us; the id prefix means a leaked secret can never act as a real user                                                                        | Clerk testing tokens if Clerk ever offers bulk long-lived ones                                                                                                                |
 | Learning progress, streak, XP and lesson suggestions derived from the attempt history in the app (no progress tables); fine-grained problems from metrics by fixed rules (`detectProblems`) | Nothing new to keep in sync; deterministic, testable suggestions; content is still changing, so no schema churn                                                                                                        | Progress tables (or a materialized view) when history gets long, lessons gain non-recorded steps that must sync across devices, or challenges/contests need server-side state |
 | Production capacity: up to 25 workers on `db.t4g.small` (in `cdk.json`), not the 10 / micro defaults                                                                                        | The 1,000-user load test passed with exactly this setup; the small DB is ~$12/month more and fits 25 workers' connection pools (107 of ~190); idle cost is unchanged because workers scale down to 1                   | `medium` + RDS Proxy past ~30 workers; back to micro only if cost matters more than headroom                                                                                  |
+| Monitoring in CDK (`lib/monitoring.ts`): 11 CloudWatch alarms → one SNS topic → email, one dashboard; error counts from log metric filters on pino's `level`                                | Same stack, same review, same tests as the resources it watches; no new vendor and about $1/month; the JSON logs already carry the level                                                                               | An error tracker (Sentry) for grouped stack traces and the web app; a pager (PagerDuty/Opsgenie) on the SNS topic once someone is on call                                     |
 
 ---
 

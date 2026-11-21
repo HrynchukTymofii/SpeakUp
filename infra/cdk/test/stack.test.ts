@@ -265,6 +265,114 @@ describe("worker autoscaling and connection budget (docs/scaling.md)", () => {
   }, 60_000);
 });
 
+describe("monitoring", () => {
+  let template: Template;
+  beforeAll(() => {
+    ({ template } = synth({ "speakup:alarmEmail": "ops@speakup.test" }));
+  }, 60_000);
+
+  type Alarm = {
+    AlarmName: string;
+    AlarmActions?: unknown[];
+    OKActions?: unknown[];
+    Threshold?: number;
+    TreatMissingData?: string;
+    MetricName?: string;
+    Namespace?: string;
+  };
+  const alarms = (t: Template) =>
+    Object.values(t.findResources("AWS::CloudWatch::Alarm")).map((a) => a.Properties as Alarm);
+  /** Alarms meant for people (the autoscaling ones have generated names and no SNS action). */
+  const alerting = (t: Template) => alarms(t).filter((a) => a.AlarmName?.startsWith("Test-"));
+  const alarm = (t: Template, suffix: string) => {
+    const found = alerting(t).find((a) => a.AlarmName === `Test-${suffix}`);
+    if (!found) throw new Error(`no alarm Test-${suffix}`);
+    return found;
+  };
+
+  it("sends every alerting alarm, and its recovery, to one SNS topic", () => {
+    const topics = Object.keys(template.findResources("AWS::SNS::Topic"));
+    expect(topics).toHaveLength(1);
+    const topicRef = { Ref: topics[0] };
+    expect(alerting(template).length).toBeGreaterThanOrEqual(10);
+    for (const a of alerting(template)) {
+      expect(a.AlarmActions, a.AlarmName).toEqual([topicRef]);
+      expect(a.OKActions, a.AlarmName).toEqual([topicRef]);
+    }
+  });
+
+  it("emails the address from speakup:alarmEmail", () => {
+    template.hasResourceProperties("AWS::SNS::Subscription", {
+      Protocol: "email",
+      Endpoint: "ops@speakup.test",
+    });
+  });
+
+  it("covers the API: 5xx from targets and the load balancer, no healthy task, logged errors", () => {
+    expect(alarm(template, "api-5xx").MetricName).toBe("HTTPCode_Target_5XX_Count");
+    expect(alarm(template, "alb-5xx").MetricName).toBe("HTTPCode_ELB_5XX_Count");
+    // No datapoints means no healthy target reported at all: that is an outage, not "fine".
+    expect(alarm(template, "api-no-healthy-task").TreatMissingData).toBe("breaching");
+    expect(alarm(template, "api-errors").Namespace).toBe("SpeakUp/Test");
+  });
+
+  it("counts pino error lines (level ≥ 50) in the API and worker logs as metrics", () => {
+    template.resourceCountIs("AWS::Logs::MetricFilter", 2);
+    template.hasResourceProperties("AWS::Logs::MetricFilter", {
+      FilterPattern: "{ $.level >= 50 }",
+      MetricTransformations: [Match.objectLike({ MetricName: "WorkerErrors" })],
+    });
+    template.hasResourceProperties("AWS::Logs::MetricFilter", {
+      FilterPattern: "{ $.level >= 50 }",
+      MetricTransformations: [Match.objectLike({ MetricName: "ApiErrors" })],
+    });
+  });
+
+  it("covers the worker: a backlog that doesn't drain, silent workers, logged errors", () => {
+    const backlog = alarm(template, "queue-backlog");
+    expect(backlog.MetricName).toBe("QueueWaiting");
+    // Workers publish every 30 s; silence means no worker is running.
+    expect(backlog.TreatMissingData).toBe("breaching");
+    expect(alarm(template, "worker-errors").Namespace).toBe("SpeakUp/Test");
+  });
+
+  it("covers Postgres: CPU, free storage, connections near the instance limit", () => {
+    expect(alarm(template, "db-cpu").MetricName).toBe("CPUUtilization");
+    expect(alarm(template, "db-free-storage").MetricName).toBe("FreeStorageSpace");
+    // Default micro: ~80 max connections → alert at 80%.
+    expect(alarm(template, "db-connections").Threshold).toBe(64);
+  });
+
+  it("covers Redis: memory (noeviction means writes fail when full) and engine CPU", () => {
+    expect(alarm(template, "redis-memory").MetricName).toBe("DatabaseMemoryUsagePercentage");
+    expect(alarm(template, "redis-cpu").MetricName).toBe("EngineCPUUtilization");
+  });
+
+  it("builds one dashboard", () => {
+    template.resourceCountIs("AWS::CloudWatch::Dashboard", 1);
+  });
+
+  it("scales the connections threshold with the DB size", () => {
+    const small = synth({ "speakup:dbInstanceSize": "small" }).template;
+    expect(alarm(small, "db-connections").Threshold).toBe(152);
+  }, 60_000);
+
+  it("creates no subscription without an email, and warns", () => {
+    const { stack, template: bare } = synth();
+    bare.resourceCountIs("AWS::SNS::Subscription", 0);
+    expect(alerting(bare).length).toBeGreaterThan(0);
+    Annotations.fromStack(stack).hasWarning("*", Match.stringLikeRegexp("speakup:alarmEmail"));
+  }, 60_000);
+
+  it("never emails from the throwaway load-test stack", () => {
+    const lt = synth({
+      "speakup:loadTest": "true",
+      "speakup:alarmEmail": "ops@speakup.test",
+    }).template;
+    lt.resourceCountIs("AWS::SNS::Subscription", 0);
+  }, 60_000);
+});
+
 describe("load-test stack (speakup:loadTest=true)", () => {
   let prod: Template;
   let lt: Template;
@@ -338,6 +446,13 @@ describe("config", () => {
     expect(() => readConfig(bad({ "speakup:dbInstanceSize": "huge" }), repoRoot)).toThrow(
       /dbInstanceSize/,
     );
+  });
+
+  it("rejects an alarm email that isn't an address", () => {
+    const app = new cdk.App({
+      context: { "speakup:webOrigins": "https://a.test", "speakup:alarmEmail": "ops" },
+    });
+    expect(() => readConfig(app.node, repoRoot)).toThrow(/alarmEmail/);
   });
 
   it("rejects a web origin with a path", () => {

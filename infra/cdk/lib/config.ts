@@ -29,6 +29,12 @@ export interface SpeakUpConfig {
   workerMaxTasks: number;
   /** RDS size within the burstable Graviton class (t4g). "small"+ for workerMaxTasks > 10. */
   dbInstanceSize: "micro" | "small" | "medium" | "large";
+  /**
+   * Where alarm notifications go (an SNS email subscription; AWS sends a confirmation email
+   * first). Empty = alarms still exist and show on the dashboard, but nobody is notified.
+   * Ignored on the load-test stack.
+   */
+  alarmEmail?: string;
 }
 
 export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
@@ -63,7 +69,16 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     loadTest: get("loadTest") === "true",
     workerMaxTasks: readWorkerMaxTasks(get("workerMaxTasks")),
     dbInstanceSize: readDbInstanceSize(get("dbInstanceSize")),
+    alarmEmail: readAlarmEmail(get("alarmEmail")),
   };
+}
+
+function readAlarmEmail(value: string): string | undefined {
+  if (!value) return undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    throw new Error(`speakup:alarmEmail: "${value}" is not an email address`);
+  }
+  return value;
 }
 
 function readWorkerMaxTasks(value: string): number {
