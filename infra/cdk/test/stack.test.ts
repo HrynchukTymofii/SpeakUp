@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as cdk from "aws-cdk-lib";
 import { Annotations, Match, Template } from "aws-cdk-lib/assertions";
@@ -240,6 +241,27 @@ describe("worker autoscaling and connection budget (docs/scaling.md)", () => {
       MaxCapacity: 20,
     });
     big.hasResourceProperties("AWS::RDS::DBInstance", { DBInstanceClass: "db.t4g.small" });
+  }, 60_000);
+
+  it("production (cdk.json) runs the load-tested setup: 25 workers on a db.t4g.small", () => {
+    const cdkJson = JSON.parse(readFileSync(new URL("../cdk.json", import.meta.url), "utf8")) as {
+      context: Record<string, unknown>;
+    };
+    const prodContext = Object.fromEntries(
+      Object.entries(cdkJson.context).filter(
+        (entry): entry is [string, string] =>
+          entry[0].startsWith("speakup:") && typeof entry[1] === "string",
+      ),
+    );
+    const prod = synth(prodContext).template;
+    prod.hasResourceProperties("AWS::ApplicationAutoScaling::ScalableTarget", {
+      MaxCapacity: 25,
+    });
+    prod.hasResourceProperties("AWS::RDS::DBInstance", { DBInstanceClass: "db.t4g.small" });
+    // db.t4g.small allows ~190 connections; keep the full-scale total well under it.
+    const api = Number(env("api").DB_POOL_MAX);
+    const worker = Number(env("worker").DB_POOL_MAX);
+    expect(4 * api + 25 * worker).toBeLessThanOrEqual(150);
   }, 60_000);
 });
 

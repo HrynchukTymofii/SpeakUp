@@ -25,8 +25,10 @@ the architecture they refer to is in [`architecture.md`](./architecture.md).
 **1,000 people practicing at once: works** ([`load-testing.md` run 7](./load-testing.md#run-7-practice-1000-users-k6-inside-aws-long-polling-2026-11-20)).
 With ~25 workers running: 9,095 recordings in ~8 min, 0 timeouts, 0 failures, result in 4.2 s
 (p50) / 8.4 s (p95), RDS at 21% CPU on a `db.t4g.small`. Needs `workerMaxTasks ≥ 25` and
-`dbInstanceSize=small`. Production is still at the defaults (10 workers, micro), which is
-about 450 people practicing at once (10 × ~55 recordings/min, one recording per user every ~50 s).
+`dbInstanceSize=small`. Production runs exactly that (set in `infra/cdk/cdk.json`, 2026-11-21):
+up to 25 workers on a `db.t4g.small`. Connections at full scale: 4 API × 8 + 25 workers × 3 = 107,
+well under the small instance's limit (~190). The code defaults stay at 10 workers / micro for
+new stacks.
 
 **Open: cold start.** Starting from 1 worker, a 0 → 1,000 jump in one minute took ~10 min to
 scale out, and most recordings in that window timed out. Fixes, cheapest first:
