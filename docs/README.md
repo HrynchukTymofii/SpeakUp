@@ -1,16 +1,18 @@
 # SpeakUp documentation
 
-Start here. Each document has one job; link to it instead of repeating it.
+Start here. Each document has one job; link to it instead of repeating it. Docs describe the
+system as it is now. Unbuilt work is listed only in `SPEC.md` §12, and the reasons behind past
+choices live in the decision log (`SPEC.md` §14) and [`adr/`](./adr/README.md).
 
 **Understand the product and the system**
 
 | Document                               | What's in it                                                                                   |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| [`features.md`](./features.md)         | What the product does today, page by page; plans and limits; what's not built yet              |
+| [`features.md`](./features.md)         | What the product does today, page by page; plans and limits                                    |
 | [`architecture.md`](./architecture.md) | How web, API, worker, database, queue and storage fit together; the main flows (with diagrams) |
 | [`api.md`](./api.md)                   | Every endpoint: auth, request/response shapes, error codes, rate limits                        |
 | [`adr/`](./adr/README.md)              | Decision records: why things are built the way they are                                        |
-| [`../SPEC.md`](../SPEC.md)             | The original product and build spec: scope, milestones, decision table                         |
+| [`../SPEC.md`](../SPEC.md)             | The product spec: scope, plans, analysis rules, security rules, what's not built, decision log |
 
 **Build and operate**
 

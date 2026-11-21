@@ -113,7 +113,8 @@ the model must keep:
 - **Every attempt has an owner:** a user or a funnel session (a CHECK constraint in the database,
   not only in code).
 - **Content is seeded**, not edited in an admin UI: `packages/db/src/seed-data.ts`, applied by an
-  idempotent `pnpm db:seed`. Lesson videos are plain URLs today (configurable).
+  idempotent `pnpm db:seed`. Lesson videos are plain URLs (configurable); CloudFront + HLS is listed
+  in §12.
 - **Schema changes stay backward compatible** with the running version (expand → migrate →
   contract), because old and new tasks run side by side during a deploy.
 

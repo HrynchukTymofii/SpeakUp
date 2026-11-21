@@ -160,7 +160,8 @@ push to `main` and every pull request.
 
 All variables are documented in [`.env.example`](./.env.example). Each app validates its own
 variables with Zod at startup and exits with a readable error if something is missing.
-Only `NEXT_PUBLIC_*` variables are exposed to the browser.
+Only `NEXT_PUBLIC_*` variables are exposed to the browser. The table below covers the variables
+that need more explanation than their comment in `.env.example`.
 
 | Variable                                                                              | Where              | Purpose                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
