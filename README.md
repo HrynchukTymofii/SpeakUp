@@ -166,6 +166,7 @@ that need more explanation than their comment in `.env.example`.
 | Variable                                                                              | Where              | Purpose                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL`                                        | web, Vercel (Prod) | Domain split: origin of the marketing site and of the product app. Set both or neither. With both set, `proxy.ts` redirects each page to its host (see `docs/architecture.md`, "Two hosts"). Empty in dev and previews.     |
+| `NEXT_PUBLIC_AMPLITUDE_API_KEY`                                                       | web, Vercel        | Amplitude API key for product analytics. Prod key in Production, the dev project (or empty) in Preview. Empty = nothing is sent. See [`docs/analytics.md`](./docs/analytics.md).                                            |
 | `LOAD_TEST_AUTH_SECRET`, `LOAD_TEST_STACK`                                            | api                | Load testing only. Lets k6 sign in as `loadtest_*` users with HMAC tokens instead of Clerk. Refused in production unless `LOAD_TEST_STACK=true`. See [`docs/load-testing.md`](./docs/load-testing.md).                      |
 | `DB_POOL_MAX`                                                                         | api, worker        | Postgres connections per process (default 10). Sized in CDK so all tasks at max scale fit the database.                                                                                                                     |
 | `QUEUE_METRICS_NAMESPACE`                                                             | worker             | CloudWatch namespace for the queue depth that drives worker autoscaling. Empty locally (nothing published).                                                                                                                 |
@@ -292,7 +293,7 @@ The migrate task logs go to CloudWatch (log group `SpeakUp-MigrateLogs…`). See
 3. Environment variables (Production): `NEXT_PUBLIC_API_URL=https://api.speakup.app`,
    `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, the four `NEXT_PUBLIC_CLERK_*_URL`
    values from `.env.example`, `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, `NEXT_PUBLIC_PADDLE_ENV`,
-   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL`, and for the domain
+   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_FUNNEL_LESSON_VIDEO_URL`, `NEXT_PUBLIC_AMPLITUDE_API_KEY`, and for the domain
    split `NEXT_PUBLIC_SITE_URL=https://speakup.app` + `NEXT_PUBLIC_APP_URL=https://app.speakup.app`.
 4. Domains → add both `speakup.app` and `app.speakup.app` to the same project (both must be in
    `speakup:webOrigins`). In Paddle, set the default payment link to `https://app.speakup.app/pricing`,

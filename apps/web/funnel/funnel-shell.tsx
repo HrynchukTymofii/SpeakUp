@@ -4,7 +4,7 @@ import type { FunnelAnswers } from "@speakup/shared";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { create } from "zustand";
-import { track } from "./analytics";
+import { setUserProperties, track } from "./analytics";
 import { funnelApi } from "./api";
 import { FUNNEL_STEPS, NO_BACK_STEP_TYPES, PROGRESS_STEP_TYPES } from "./config";
 import { furthestAllowedIndex, progressOf, visibleSteps, type EngineState } from "./engine";
@@ -103,7 +103,13 @@ export function FunnelShell({ stepId }: { stepId: string }) {
   const goNext = useCallback(
     (patch?: FunnelAnswers) => {
       const store = useFunnelStore.getState();
-      if (patch) store.setAnswers(patch);
+      if (patch) {
+        store.setAnswers(patch);
+        // Answers become user properties (funnel_goal…), so app usage can be split by them.
+        setUserProperties(
+          Object.fromEntries(Object.entries(patch).map(([key, value]) => [`funnel_${key}`, value])),
+        );
+      }
       // Re-read: the answer just given may change which steps apply.
       const fresh = currentSteps(useFunnelStore.getState());
       const next = fresh[fresh.findIndex((s) => s.id === stepId) + 1];

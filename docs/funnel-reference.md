@@ -84,5 +84,6 @@ Files studied: `funnels/types.ts`, `funnels/struggle.ts` (the config), `funnels/
   Turnstile bot check, a per-IP daily limit, and a **claim** call after sign-up that moves the
   attempt to the new account. Results are shown only after the claim.
 - Guards are per step ("can't open results without a claimed attempt"), not just for `?step=`.
-- No vendor analytics yet: `track()` logs in dev.
+- Analytics go to Amplitude instead of PostHog; events and the funnel chart are in
+  [`analytics.md`](./analytics.md).
 - All copy is about speaking; social-proof numbers are `TODO(founder)` placeholders.

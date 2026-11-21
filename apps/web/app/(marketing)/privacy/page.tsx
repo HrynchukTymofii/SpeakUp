@@ -37,6 +37,14 @@ export default function PrivacyPage() {
           <strong>Technical data:</strong> your IP address, used only in hashed (unreadable) form to
           limit abuse, and server logs that never contain your recordings, transcripts or email.
         </li>
+        <li>
+          <strong>Usage data:</strong> which pages and steps you open and what you do there (for
+          example your answers in the speaking check, recordings submitted, lessons finished,
+          checkout opened), linked to a random device id and, once you have an account, your account
+          id. It also includes your browser and device type and an approximate location (country and
+          city) derived from your IP address. It never contains your email, your recordings or their
+          transcripts.
+        </li>
       </ul>
 
       <h2>Why we use it</h2>
@@ -44,6 +52,7 @@ export default function PrivacyPage() {
         <li>To analyze your speaking and show you feedback — the service you asked for.</li>
         <li>To run your account, your subscription and your lesson progress.</li>
         <li>To keep the service secure and stop automated abuse.</li>
+        <li>To understand which parts of SpeakUp help people and where they get stuck.</li>
       </ul>
       <p>We do not sell your data and we do not show ads.</p>
 
@@ -72,6 +81,9 @@ export default function PrivacyPage() {
         <li>
           <strong>Cloudflare Turnstile</strong> — the bot check in the speaking check.
         </li>
+        <li>
+          <strong>Amplitude</strong> (United States) — product analytics (the usage data above).
+        </li>
       </ul>
       <p>
         These providers process data only to provide their part of the service to us. Some of them
@@ -94,8 +106,10 @@ export default function PrivacyPage() {
 
       <h2>Cookies</h2>
       <p>
-        We use only the cookies needed to keep you signed in (set by Clerk), to run the bot check
-        and to process payments. We don’t use advertising or tracking cookies.
+        We use cookies to keep you signed in (set by Clerk), to run the bot check and to process
+        payments. One analytics cookie (set by Amplitude) holds the random device id for the usage
+        data above; it is shared between our website and the web app. We don’t use advertising
+        cookies.
       </p>
 
       <h2>Your rights</h2>

@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { AnalyticsProvider } from "./analytics-provider";
 
 /**
  * Client-side providers. The QueryClient is created inside state (not at module level) so
@@ -19,5 +20,10 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }),
   );
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AnalyticsProvider />
+      {children}
+    </QueryClientProvider>
+  );
 }

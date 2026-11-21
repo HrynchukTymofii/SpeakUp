@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mascot, type MascotMood } from "@/components/mascot";
+import { track } from "@/funnel/analytics";
 import { resultsHref } from "@/learn/practice";
 import { ApiClientError } from "@/lib/api";
 import { uploadToS3 } from "@/lib/upload";
@@ -83,7 +84,14 @@ export function ExerciseRecorder({
       return submitted.attempt;
     },
     // The results page polls the attempt until the worker is done.
-    onSuccess: (attempt) => router.push(resultsHref(attempt.id, next)),
+    onSuccess: (attempt, recording) => {
+      track("recording_submitted", {
+        exercise: exercise.slug,
+        exerciseType: exercise.type,
+        durationSec: Math.round(recording.durationMs / 1000),
+      });
+      router.push(resultsHref(attempt.id, next));
+    },
     // Today's usage and the practice history (progress, streak, used topics) changed.
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["me"] });

@@ -215,6 +215,7 @@ export function MicPermissionStep({ step, onNext }: StepProps<"mic_permission">)
 
   const ask = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
+      track("mic_permission_result", { result: "unsupported" });
       setState("unsupported");
       return;
     }
@@ -224,11 +225,14 @@ export function MicPermissionStep({ step, onNext }: StepProps<"mic_permission">)
       stream.getTracks().forEach((t) => t.stop()); // just checking permission
       if (done.current) return;
       done.current = true;
+      track("mic_permission_result", { result: "granted" });
       markCompleted(step.id);
       onNext();
     } catch (err) {
       const name = err instanceof DOMException ? err.name : "";
-      setState(name === "NotFoundError" ? "unsupported" : "denied");
+      const result = name === "NotFoundError" ? "unsupported" : "denied";
+      track("mic_permission_result", { result });
+      setState(result);
     }
   };
 

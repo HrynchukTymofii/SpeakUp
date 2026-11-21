@@ -12,5 +12,5 @@ export const LEGAL = {
   /** Days after a payment in which a refund can be requested. 14 is a common default. */
   refundWindowDays: 14,
   /** Bump when the text changes. */
-  lastUpdated: "19 November 2026",
+  lastUpdated: "21 November 2026",
 } as const;
