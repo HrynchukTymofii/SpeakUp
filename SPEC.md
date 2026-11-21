@@ -297,8 +297,13 @@ Clerk token and validates responses with the shared schemas; TanStack Query hold
   which only logs in development.
 - **Video hosting:** lesson videos as plain URLs today; CloudFront + HLS with signed URLs for Pro
   videos later.
-- **Scaling work** still open (cold start, RDS Proxy, single points of failure): see
+- **Scaling work** still open (cold start, RDS Proxy): see
   [`docs/scaling.md`](./docs/scaling.md#status).
+- **High availability, before the first paying users:** a NAT gateway per AZ first, then a Redis
+  replica with automatic failover, then RDS Multi-AZ (about +$75/month together). Order and what
+  each one protects: [`docs/scaling.md` §2.6](./docs/scaling.md#26-single-points-of-failure).
+- **Error tracking** (e.g. Sentry) for the API, worker and web app: stack traces grouped by cause,
+  and errors in the browser, which the CloudWatch alarms can't see. Needs an account and a DSN.
 
 ## 13. Out of scope
 

@@ -146,9 +146,6 @@ stack has the same alarms but never emails.
 Error counts come from log metric filters (`{ $.level >= 50 }`, pino's error and fatal levels)
 into the metrics `ApiErrors` and `WorkerErrors` in the `SpeakUp/SpeakUp` namespace.
 
-Not covered yet: errors in the web app (Vercel) and stack traces grouped by cause; that needs an
-error tracker such as Sentry.
-
 ## Scheduled work
 
 | What                                                | When                               | Where                                                      |

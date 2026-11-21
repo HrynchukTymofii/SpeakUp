@@ -191,6 +191,8 @@ Everything on AWS is defined in [`infra/cdk`](./infra/cdk) (one stack, region `u
 - **ECS cluster:** the API behind a load balancer (1–4 tasks, CPU autoscaling), the worker
   (1 task idle, up to `speakup:workerMaxTasks`, 25 in production, scaling on the number of
   waiting jobs; see `docs/scaling.md`), and a migration task you run on demand.
+- **Monitoring:** 11 CloudWatch alarms emailed through SNS to `speakup:alarmEmail`, and one
+  dashboard ([`docs/runbook.md`](./docs/runbook.md#alarms)).
 - **Permissions:** IAM task roles that can only touch `recordings/*`. API keys live in Secrets
   Manager and reach the containers as environment variables when the tasks start.
 
