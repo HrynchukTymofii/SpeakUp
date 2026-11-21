@@ -7,6 +7,8 @@
     "speakup:paddleEnv": "sandbox",
     "speakup:appSecretName": "speakup/app",
     "speakup:anthropicModel": "claude-sonnet-5-5",
+    "speakup:workerMaxTasks": "25",
+    "speakup:dbInstanceSize": "small",
     "@aws-cdk/core:checkSecretUsage": true
   }
 }

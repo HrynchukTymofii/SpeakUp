@@ -246,6 +246,7 @@ you never handle it.
      `speakup:workerMaxTasks` (default `10`; each worker ≈ 55 recordings/min) and
      `speakup:dbInstanceSize` (`micro` default, `small`/`medium`/`large`). Use at least `small`
      above 10 workers, or the tasks' connection pools outgrow the database.
+     Production sets `25` and `small` (enough for ~1,000 people practicing at once).
 
 ### 4. Deploy
 
