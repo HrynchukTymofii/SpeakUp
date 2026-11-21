@@ -3,10 +3,11 @@
 import { ErrorCode, type Exercise, type LessonResponse } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { Mascot } from "@/components/mascot";
+import { track } from "@/funnel/analytics";
 import { findLocalLesson } from "@/learn/catalog";
 import { splitLessonBody } from "@/learn/lesson-steps";
 import { ApiClientError } from "@/lib/api";
@@ -158,7 +159,7 @@ function LessonStepper({
           />
         )}
         {step.kind === "done" && (
-          <DoneStep title={lesson.title} courseHref={`/app/courses/${lesson.course.slug}`} />
+          <DoneStep title={lesson.title} lessonSlug={lesson.slug} courseSlug={lesson.course.slug} />
         )}
       </div>
 
@@ -272,7 +273,20 @@ function ExerciseStep({
   );
 }
 
-function DoneStep({ title, courseHref }: { title: string; courseHref: string }) {
+function DoneStep({
+  title,
+  lessonSlug,
+  courseSlug,
+}: {
+  title: string;
+  lessonSlug: string;
+  courseSlug: string;
+}) {
+  const courseHref = `/app/courses/${courseSlug}`;
+  useEffect(
+    () => track("lesson_completed", { lesson: lessonSlug, course: courseSlug }),
+    [lessonSlug, courseSlug],
+  );
   return (
     <div className="flex flex-col items-center gap-4 rounded-[28px] bg-sage p-8 text-center text-on-pastel shadow-soft">
       <Mascot mood="happy" size={110} label="The mascot celebrates" />

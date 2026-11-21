@@ -111,7 +111,10 @@ export function PaywallStep({ ctx }: StepProps<"paywall">) {
       {!alreadyPro && (
         <button
           type="button"
-          onClick={() => router.push("/app")}
+          onClick={() => {
+            track("funnel_free_plan_chosen");
+            router.push("/app");
+          }}
           className="py-2 text-sm font-bold text-muted underline-offset-4 hover:text-ink hover:underline"
         >
           Continue with the free plan

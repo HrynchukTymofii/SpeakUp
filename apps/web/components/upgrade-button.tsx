@@ -5,7 +5,7 @@ import { ErrorCode } from "@speakup/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { track } from "@/funnel/analytics";
 import { ApiClientError } from "@/lib/api";
 import { getPaddle, onPaddleEvent, paddleConfigured } from "@/lib/paddle";
@@ -39,6 +39,11 @@ export function UpgradeButton({
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const [phase, setPhase] = useState<Phase>("idle");
+  // The Paddle listener below is registered once; it reads the latest phase from here.
+  const phaseRef = useRef(phase);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
   const [message, setMessage] = useState<string | null>(null);
   const alreadyPro = useMe().data?.entitlements.plan === "pro";
 
@@ -54,6 +59,7 @@ export function UpgradeButton({
   useEffect(() => {
     if (phase !== "activating") return;
     if (nowPro) {
+      track("pro_activated", { placement });
       // Lessons, quotas and the profile all depend on the plan → refetch everything.
       void queryClient.invalidateQueries();
       queueMicrotask(() => {
@@ -64,16 +70,28 @@ export function UpgradeButton({
     }
     const timer = setTimeout(() => setPhase("timeout"), ACTIVATION_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [phase, nowPro, queryClient, onActivated]);
+  }, [phase, nowPro, queryClient, onActivated, placement]);
 
   // Paddle tells us when the payment went through.
   useEffect(
     () =>
       onPaddleEvent((event) => {
-        if (event.name === "checkout.completed") setPhase("activating");
-        if (event.name === "checkout.closed") setPhase((p) => (p === "opening" ? "idle" : p));
+        if (event.name === "checkout.completed") {
+          const totals = event.data?.totals;
+          track(
+            "checkout_completed",
+            { placement },
+            totals && { amount: totals.total, currency: event.data?.currency_code },
+          );
+          setPhase("activating");
+        }
+        if (event.name === "checkout.closed") {
+          // Closed without paying (after paying, the phase is already "activating").
+          if (phaseRef.current === "opening") track("checkout_closed", { placement });
+          setPhase((p) => (p === "opening" ? "idle" : p));
+        }
       }),
-    [],
+    [placement],
   );
 
   const start = async () => {

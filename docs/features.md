@@ -215,8 +215,11 @@ problem) in `learn/catalog.ts`.
 - Funnel recordings from visitors who never create an account are deleted after 7 days.
 - Uploads that were never submitted are deleted after a day.
 - IP addresses are stored only as salted hashes (for abuse limits).
+- Usage analytics (Amplitude): pages opened, funnel answers and key actions, tied to a random device
+  id and, after sign-up, the account id. Never emails, recordings or transcripts
+  ([`analytics.md`](./analytics.md)).
 
 ## Not built yet
 
-The list of what isn't built yet (contests, AI-generated topics, a full history page, product
-analytics, the mobile app…) is kept in one place: `SPEC.md` §12.
+The list of what isn't built yet (contests, AI-generated topics, a full history page, the
+mobile app…) is kept in one place: `SPEC.md` §12.

@@ -11,6 +11,7 @@ choices live in the decision log (`SPEC.md` §14) and [`adr/`](./adr/README.md).
 | [`features.md`](./features.md)         | What the product does today, page by page; plans and limits                                    |
 | [`architecture.md`](./architecture.md) | How web, API, worker, database, queue and storage fit together; the main flows (with diagrams) |
 | [`api.md`](./api.md)                   | Every endpoint: auth, request/response shapes, error codes, rate limits                        |
+| [`analytics.md`](./analytics.md)       | Product analytics (Amplitude): identity, event catalog, the funnel chart, web → app handoff    |
 | [`adr/`](./adr/README.md)              | Decision records: why things are built the way they are                                        |
 | [`../SPEC.md`](../SPEC.md)             | The product spec: scope, plans, analysis rules, security rules, what's not built, decision log |
 

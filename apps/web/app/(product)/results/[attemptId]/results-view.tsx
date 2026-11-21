@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
+import { track } from "@/funnel/analytics";
 import { ResultsReport } from "@/components/results-report";
 import { COURSE_META, DEFAULT_META, PROBLEM_LABEL } from "@/learn/catalog";
 import { lessonsFixing } from "@/learn/personalize";
@@ -79,6 +80,20 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
       return nextPollDelay(Date.now() - waitStartedAt, lastRequestMs.current);
     },
   });
+
+  // Once per attempt, when the analysis has an outcome (the page may have waited for it).
+  const outcome = query.data?.stage === "completed" || query.data?.stage === "failed";
+  const tracked = useRef<string | null>(null);
+  useEffect(() => {
+    const data = query.data;
+    if (!outcome || !data || tracked.current === attemptId) return;
+    tracked.current = attemptId;
+    track("results_viewed", {
+      status: data.stage,
+      exercise: data.exercise.slug,
+      score: data.result?.overallScore,
+    });
+  }, [outcome, query.data, attemptId]);
 
   const backLink = (
     <Link href={next ?? "/app"} className="link w-fit text-sm font-bold">

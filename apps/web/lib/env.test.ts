@@ -63,3 +63,17 @@ describe("NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_APP_URL (domain split)", () => {
     ).toThrow();
   });
 });
+
+describe("NEXT_PUBLIC_AMPLITUDE_API_KEY", () => {
+  const parseKey = (value: string | undefined) =>
+    PublicEnvSchema.parse({
+      NEXT_PUBLIC_API_URL: "http://localhost:4000",
+      NEXT_PUBLIC_AMPLITUDE_API_KEY: value,
+    }).NEXT_PUBLIC_AMPLITUDE_API_KEY;
+
+  it("is optional: unset or empty turns analytics off", () => {
+    expect(parseKey(undefined)).toBeUndefined();
+    expect(parseKey("")).toBeUndefined();
+    expect(parseKey("abc123")).toBe("abc123");
+  });
+});
