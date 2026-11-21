@@ -41,8 +41,10 @@ state is kept in the browser so a reload resumes where the visitor left off. Ste
 2. **Reflections:** two short screens that respond to earlier answers (`personalize.ts`).
 3. **Mini-lesson:** a short video on what we measure; "Continue" unlocks after 10 s or at the end.
 4. **Microphone permission:** explained first, with per-browser help when it's blocked.
-5. **Speaking check:** read a paragraph aloud (3-2-1 countdown, timer, live level meter, max 45 s),
-   play it back, re-record or submit. A bot check runs invisibly before submit.
+5. **Speaking check:** answer a short prompt picked by the visitor's goal, without a script
+   (`check-<goal>`, e.g. "tell me about yourself" for interviews; 3-2-1 countdown, timer, live
+   level meter, max 45 s), play it back, re-record or submit. A bot check runs invisibly before
+   submit.
 6. **Sign-up gate:** "your analysis is being prepared" with live progress while the visitor creates
    an account. Signing in to an existing account works too.
 7. **Results (short version):** animated score, pace / filler words / long pauses, one strength and
@@ -66,16 +68,19 @@ claimed after sign-up.
   records in the first format the browser supports (WebM/Opus, MP4/AAC on Safari, or Ogg/Opus), enforces the exercise's
   maximum length, plays back before submitting.
 - **Upload:** straight from the browser to private storage; then the analysis starts.
-- **Progress:** Uploaded → Transcribing → Analyzing, refreshed every 1.5 s (slowing to 3–5 s on long
-  waits), with a "check again"
-  button if it takes longer than a minute.
+- **Progress:** Uploaded → Transcribing → Analyzing. The page long-polls, so each stage and the
+  result show up the moment the worker reaches them; a "check again" button appears if it takes
+  longer than a minute.
 - **Report** (`components/results-report.tsx`):
   - overall score 0–100 and a short summary
   - pace in words per minute on a scale, with the 130–160 target band
-  - pauses (count, long ones over 1.5 s, the longest)
+  - pauses: hesitations, long ones over 1.5 s and, for read-aloud, the share of commas and full
+    stops that got a pause
+  - voice: pitch and loudness variation, pace changes, sentences that trail off
   - filler words (count and per minute)
   - reading accuracy for read-aloud exercises (missed, changed, extra words), or unclear words otherwise
-  - what went well, up to four things to work on (each with evidence from the recording and a tip),
+  - a score per skill (pace, pauses, fillers, voice, content or accuracy)
+  - what went well, up to six things to work on (each with evidence from the recording and a tip),
     and one next step
   - the transcript with filler words highlighted, long pauses marked in place and unclear words underlined
 - **Fix it with a lesson** (signed-in results page): every problem found in the recording links
@@ -213,12 +218,5 @@ problem) in `learn/catalog.ts`.
 
 ## Not built yet
 
-- Contests, and comparing a "legend" recording with the original speech.
-- AI-generated topic banks for the practice modes.
-- Server-side storage for in-app lesson progress and the user's story (kept on the device today).
-
-- A history page of past attempts (the API stores them; the dashboard doesn't list them yet).
-- Product analytics: funnel events (`funnel_step_viewed`, `funnel_answer`, `paywall_viewed`,
-  `checkout_started`…) are tracked through one function, `apps/web/funnel/analytics.ts`, which only
-  logs to the console in development. Connecting a real analytics tool means changing that function.
-- The mobile app (Expo) mentioned in `SPEC.md`.
+The list of what isn't built yet (contests, AI-generated topics, a full history page, product
+analytics, the mobile app…) is kept in one place: `SPEC.md` §12.
