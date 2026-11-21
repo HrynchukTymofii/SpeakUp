@@ -30,3 +30,14 @@ Start here. Each document has one job; link to it instead of repeating it.
 | Document                                       | What's in it                                                   |
 | ---------------------------------------------- | -------------------------------------------------------------- |
 | [`../LEARNING_NOTES.md`](../LEARNING_NOTES.md) | Per-milestone notes: concepts, trade-offs, interview questions |
+
+**Kept outside the repo**
+
+Some project material lives in a `SpeakUp Project/` folder next to the repo on the owner's machine,
+not in git: it is either too heavy or not ours to publish.
+
+| Folder              | What's in it                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `videos/`           | Remotion project for marketing videos (e.g. the funnel filler-words video, served from S3)     |
+| `resources/photos/` | Photos of a published workbook used as direction for lesson content; copyrighted, never commit |
+| `logs/`             | Scratch logs from local dev runs; safe to delete                                               |
