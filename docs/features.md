@@ -39,7 +39,9 @@ state is kept in the browser so a reload resumes where the visitor left off. Ste
 1. **Questions:** goal, situations where speaking is hard, first language, nervous symptoms,
    self-rated confidence (1–5), time per day. Single-choice answers move on with one tap.
 2. **Reflections:** two short screens that respond to earlier answers (`personalize.ts`).
-3. **Mini-lesson:** a short video on what we measure; "Continue" unlocks after 10 s or at the end.
+3. **Mini-lesson:** a short video on what we measure. It starts by itself, with sound when the
+   browser allows it, otherwise muted with a "Tap for sound" button. "Continue" unlocks after 10 s
+   or at the end.
 4. **Microphone permission:** explained first, with per-browser help when it's blocked.
 5. **Speaking check:** answer a short prompt picked by the visitor's goal, without a script
    (`check-<goal>`, e.g. "tell me about yourself" for interviews; 3-2-1 countdown, timer, live
