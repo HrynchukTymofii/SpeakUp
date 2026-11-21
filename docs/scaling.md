@@ -75,7 +75,10 @@ the slots are full of waiting, not computing.
 wait). Workers publish the number of waiting jobs to CloudWatch every 30 s; ECS step scaling adds
 1, 3 or 6 tasks when more than 8, 30 or 100 jobs wait, and removes one at a time when the queue is
 empty. Stopping tasks finish their jobs first (120 s). Concurrency stays at 4 per task, because CPU
-reached ~66% of 0.5 vCPU at 4 (ffmpeg and scoring do use some).
+reached ~66% of 0.5 vCPU at 4 (ffmpeg and scoring do use some). Every scale-out, of the workers
+or the API, sends an email with its trigger, and a monthly AWS budget warns when the bill heads
+past its limit ([`runbook.md`](./runbook.md#scaling-and-cost-emails)), so capacity never grows
+without a reason on record.
 
 **Still open.**
 

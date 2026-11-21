@@ -192,16 +192,20 @@ Everything on AWS is defined in [`infra/cdk`](./infra/cdk) (one stack, region `u
 - **ECS cluster:** the API behind a load balancer (1–4 tasks, CPU autoscaling), the worker
   (1 task idle, up to `speakup:workerMaxTasks`, 25 in production, scaling on the number of
   waiting jobs; see `docs/scaling.md`), and a migration task you run on demand.
-- **Monitoring:** 11 CloudWatch alarms emailed through SNS to `speakup:alarmEmail`, and one
-  dashboard ([`docs/runbook.md`](./docs/runbook.md#alarms)).
+- **Firewall (AWS WAF)** in front of the API's load balancer: blocks known malicious IPs and any
+  IP sending more than 3,000 requests in 5 minutes (`infra/cdk/lib/firewall.ts`).
+- **Monitoring:** 12 CloudWatch alarms, an email each time the API or the workers scale out
+  (with the reason), and a monthly AWS budget, all sent through SNS to `speakup:alarmEmail`;
+  one dashboard ([`docs/runbook.md`](./docs/runbook.md#alarms)).
 - **Permissions:** IAM task roles that can only touch `recordings/*`. API keys live in Secrets
   Manager and reach the containers as environment variables when the tasks start.
 
 **Cost:** roughly **$125–135/month** before traffic (NAT gateway ~$33, two Fargate tasks ~$36,
-load balancer ~$17, RDS `db.t4g.small` ~$28, ElastiCache ~$12, the rest small). Extra workers
-under load cost ~$0.02 per task-hour; with `dbInstanceSize=micro` RDS is ~$12 less.
-`cdk synth` is free; `cdk deploy` starts billing. Set an AWS budget alert first
-(Billing → Budgets).
+load balancer ~$17, RDS `db.t4g.small` ~$28, ElastiCache ~$12, WAF ~$7, the rest small). Extra
+workers under load cost ~$0.02 per task-hour; with `dbInstanceSize=micro` RDS is ~$12 less.
+`cdk synth` is free; `cdk deploy` starts billing. The stack creates an AWS budget
+(`speakup:monthlyBudgetUsd`, $100 in production) that emails when the month is forecast past
+80% of it and when it's exceeded.
 
 ### Prerequisites
 
@@ -256,6 +260,8 @@ you never handle it.
      ([`docs/runbook.md`](./docs/runbook.md#alarms)). After the deploy, AWS sends a
      confirmation email; nothing arrives until you click its link. Without it, synth warns and
      the alarms notify nobody.
+   - `speakup:monthlyBudgetUsd`: the monthly AWS budget in dollars (default `100`). It covers
+     the whole account, so the load-test stack doesn't create one.
 
 ### 4. Deploy
 
