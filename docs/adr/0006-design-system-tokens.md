@@ -1,6 +1,6 @@
 # 0006. One design system on true black, colors as tokens
 
-- **Status:** Accepted
+- **Status:** Superseded in part by [0008](./0008-app-theme-sat-learner.md) (the app's colors; tokens and the mascot stay)
 - **Date:** 2026-11-18
 
 ## Context

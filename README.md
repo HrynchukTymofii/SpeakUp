@@ -37,13 +37,13 @@ pnpm install
 cp .env.example .env          # one .env at the repo root, used by every app
 pnpm infra:up                 # start Postgres + Redis + local S3 in Docker
 pnpm db:migrate               # apply migrations (creates tables)
-pnpm db:seed                  # load the course, lessons and baseline exercise
+pnpm db:seed                  # load the courses, lessons and exercises
 pnpm dev                      # web + api + worker (+ shared in watch mode)
 ```
 
 Check it works:
 
-- http://localhost:3000 — web placeholder page
+- http://localhost:3000 — the landing page (`/start` for the funnel, `/app` after sign-in)
 - http://localhost:4000/health — `{"status":"ok"}` (liveness)
 - http://localhost:4000/health/ready — pings Postgres + Redis (readiness)
 - the worker logs `worker ready`
@@ -87,8 +87,8 @@ locally (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpe
 `FFMPEG_PATH` at the binary. Without it, analyses still complete with transcript-only metrics
 (a warning is logged per job). The Docker image ships it.
 
-Flow: record → `/results/<attemptId>` polls every 1.5 s → worker runs Deepgram → decodes the
-audio (ffmpeg) → metrics + scores → Claude → the report appears.
+Flow: record → `/results/<attemptId>` waits for the worker (long-polling) → worker runs Deepgram →
+decodes the audio (ffmpeg) → metrics + scores → Claude → the report appears.
 
 ### Web funnel (`/start`)
 
@@ -188,13 +188,14 @@ Everything on AWS is defined in [`infra/cdk`](./infra/cdk) (one stack, region `u
 - **Redis (ElastiCache):** TLS, with `noeviction` set for BullMQ.
 - **Recordings bucket (S3):** private, with CORS and the abandoned-upload cleanup.
 - **ECS cluster:** the API behind a load balancer (1–4 tasks, CPU autoscaling), the worker
-  (1–10 tasks, autoscaling on the number of waiting jobs, see `docs/scaling.md`), and a migration
-  task you run on demand.
+  (1 task idle, up to `speakup:workerMaxTasks`, 25 in production, scaling on the number of
+  waiting jobs; see `docs/scaling.md`), and a migration task you run on demand.
 - **Permissions:** IAM task roles that can only touch `recordings/*`. API keys live in Secrets
   Manager and reach the containers as environment variables when the tasks start.
 
-**Cost:** roughly **$110–120/month** at these smallest sizes before traffic (NAT gateway ~$33,
-two Fargate tasks ~$36, load balancer ~$17, RDS ~$16, ElastiCache ~$12, the rest small).
+**Cost:** roughly **$125–135/month** before traffic (NAT gateway ~$33, two Fargate tasks ~$36,
+load balancer ~$17, RDS `db.t4g.small` ~$28, ElastiCache ~$12, the rest small). Extra workers
+under load cost ~$0.02 per task-hour; with `dbInstanceSize=micro` RDS is ~$12 less.
 `cdk synth` is free; `cdk deploy` starts billing. Set an AWS budget alert first
 (Billing → Budgets).
 
