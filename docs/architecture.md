@@ -29,13 +29,37 @@ flowchart LR
 | ------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Web    | [`apps/web`](../apps/web)               | Pages, the funnel, the recorder; talks only to the API (and to Clerk/Paddle/S3 directly from the browser) |
 | API    | [`apps/api`](../apps/api)               | Auth, access rules, quotas, attempts, billing, webhooks. Stateless; scales 1–4 tasks                      |
-| Worker | [`apps/worker`](../apps/worker)         | Slow work: speech-to-text, metrics, LLM feedback; daily cleanup                                           |
+| Worker | [`apps/worker`](../apps/worker)         | Slow work: speech-to-text, audio analysis, LLM feedback; daily cleanup. Scales 1–25 tasks on queue depth  |
 | Shared | [`packages/shared`](../packages/shared) | Zod schemas and constants used by web, API and worker (API contracts, queue payloads, analysis shapes)    |
 | DB     | [`packages/db`](../packages/db)         | Prisma schema, migrations, seed, typed client                                                             |
 | Infra  | [`infra/cdk`](../infra/cdk)             | AWS resources as code (one stack)                                                                         |
 
 The repo is a pnpm + Turborepo monorepo: a change to a shared schema is seen by all three apps at
 once, and `turbo` builds `shared` before anything that imports it.
+
+## Tech stack
+
+| Concern        | Choice                                                     | Notes                                                                 |
+| -------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| Monorepo       | pnpm workspaces + Turborepo                                | Turborepo orders and caches build/test/lint across packages; dev only |
+| Web            | Next.js (App Router), TypeScript, Tailwind v4              | TanStack Query for server state, Zustand for the funnel               |
+| API            | Fastify + `fastify-type-provider-zod`                      | helmet, CORS, `@fastify/rate-limit` on Redis                          |
+| Worker         | BullMQ on Redis                                            | ffmpeg in the image for audio analysis                                |
+| Database       | PostgreSQL 16 + Prisma                                     | Local: Docker. Production: RDS                                        |
+| Queue, limits  | Redis 7                                                    | Local: Docker. Production: ElastiCache                                |
+| Auth           | Clerk                                                      | Web: `@clerk/nextjs`; API verifies tokens with `@clerk/backend`       |
+| Storage        | S3: private recordings bucket, public `media/*` bucket     | Local: LocalStack or a real dev bucket                                |
+| Speech-to-text | Deepgram `nova-2` (REST)                                   | Behind `SttProvider`                                                  |
+| LLM            | Anthropic Claude (official SDK)                            | Model from `ANTHROPIC_MODEL`                                          |
+| Payments       | Paddle Billing                                             | Behind `PaymentProvider`                                              |
+| Bot check      | Cloudflare Turnstile                                       | Anonymous funnel recordings only                                      |
+| Validation     | Zod (shared schemas in `packages/shared`)                  | Env, HTTP, webhooks, queue jobs, LLM output                           |
+| Logging        | pino with request ids, redaction in the logger             | CloudWatch in production                                              |
+| Tests          | Vitest, React Testing Library, CDK assertions, k6 for load | See [`testing.md`](./testing.md)                                      |
+| CI             | GitHub Actions                                             | Format, lint, typecheck, test, image builds                           |
+| Hosting        | Vercel (web); AWS ECS Fargate (API, worker), CDK           | One stack in `us-east-1`; see the runbook                             |
+
+Why each was chosen, and when we'd switch: `SPEC.md` §14 and [`adr/`](./adr/README.md).
 
 ## Two hosts, one web project
 
@@ -214,24 +238,35 @@ erDiagram
 
 ## Analysis pipeline (worker)
 
-1. **Speech-to-text** — Deepgram `nova-2` with `filler_words=true` and punctuation (newer models
-   dropped "um/uh", which would hide filler words from users).
-2. **Metrics** (pure functions, `apps/worker/src/metrics/`) — words per minute against a 130–160
-   target, pauses (≥ 0.5 s; long ≥ 1.5 s), filler words ("um", "uh"… always; "like", "so",
-   "basically", "actually", "you know" only in filler positions), low-confidence words, and for
-   read-aloud exercises reading accuracy (missed / changed / extra words).
-3. **Guard** — fewer than 5 real words → `NO_SPEECH`, no LLM call.
-4. **Feedback** — Claude with structured JSON output (score, summary, strengths, up to 4 issues with
-   evidence and a tip, next step), validated with Zod; one repair round if validation fails.
-5. **Save** — analysis + cost estimate; the attempt becomes `completed`.
+One `analyze` job runs [`apps/worker/src/pipeline.ts`](../apps/worker/src/pipeline.ts). The
+product rules (thresholds, what is measured, feedback shape) are in `SPEC.md` §6.3; this is where
+each step lives.
 
-## Security measures (summary)
+| Step                            | Code                                     | Notes                                                                                                |
+| ------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1. Speech-to-text               | `providers/deepgram.ts` (`SttProvider`)  | `nova-2` keeps "um/uh" ([ADR 0004](./adr/0004-deepgram-nova-2.md)); transcript saved now             |
+| 2. Audio features (best effort) | `audio/` (ffmpeg decode, loudness, YIN)  | Real silences and per-word pitch/loudness; on failure, metrics use the transcript only               |
+| 3. Metrics                      | `metrics/` (pure functions)              | Pace, pauses, punctuation, voice, language, fillers, unclear words, reading accuracy                 |
+| 4. Guard                        | `pipeline.ts`                            | Fewer than 5 real words → `NO_SPEECH`, no LLM call                                                   |
+| 5. Scores                       | `scoring.ts`                             | Per-skill subscores by rules; overall = weighted mean                                                |
+| 6. Feedback                     | `feedback/` (prompt, Claude call, retry) | Structured output, Zod-validated, one repair round ([ADR 0005](./adr/0005-llm-structured-output.md)) |
+| 7. Save                         | `repo.ts`                                | Analysis with model, prompt version, latency, cost; attempt `completed`                              |
 
-- Validation with Zod at every boundary: env vars at boot, HTTP bodies/params, queue payloads,
-  webhooks, LLM output.
-- Rate limits: global per-IP (300/min, Redis-backed so it holds across tasks), per-user attempt burst
-  (10/min), per-IP funnel analyses (3/day, IP stored only as a salted hash).
-- Bot check (Cloudflare Turnstile) before any anonymous analysis.
-- Private recordings bucket, encryption at rest, TLS-only; pre-signed URLs expire in minutes.
-- Logs redact tokens, emails, transcripts and audio URLs.
-- Security headers (helmet), CORS allowlist, 100 KB body limit.
+After each status change the worker publishes the attempt id on the Redis channel
+`attempt-events` (`attempt-events.ts`); API tasks holding a long-polling request answer it at once.
+Every 30 s the worker also publishes the queue depth to CloudWatch (`queue-metrics.ts`), which
+drives worker autoscaling. The daily funnel cleanup runs on a separate `maintenance` queue
+(`cleanup.ts`).
+
+**Retries:** jobs get 3 tries with exponential backoff (5 s, 10 s), set by the API when it adds
+the job (`apps/api/src/services/analysis-queue.ts`). A `PipelineError` says whether a failure is
+retryable; permanent ones become BullMQ's `UnrecoverableError` and fail at once. A worker that dies
+mid-job loses its lock, and BullMQ hands the job to another worker.
+
+## Security
+
+The full list of requirements is `SPEC.md` §9. In short: Zod validation at every boundary, a
+verified Clerk token as the only source of identity, Redis-backed rate limits (per IP, per user,
+per IP per day for the funnel), Turnstile before any anonymous analysis, a private encrypted
+bucket with short-lived pre-signed URLs, logs redacted by the logger itself, helmet, a CORS
+allowlist and a 100 KB body limit.

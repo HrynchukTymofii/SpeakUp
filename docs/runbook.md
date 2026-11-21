@@ -178,6 +178,6 @@ worker tasks run.
 
 ## Costs
 
-Roughly $110–120/month for AWS at the current sizes before traffic, plus Deepgram and Anthropic
-usage. Each analysis stores its estimated cost (`Analysis.costUsdMicros`), so spend per user/day can
+Roughly $125–135/month for AWS at the current sizes before traffic (breakdown in the README's
+[Deploy section](../README.md#deploy-aws--vercel)), plus Deepgram and Anthropic usage. Each analysis stores its estimated cost (`Analysis.costUsdMicros`), so spend per user/day can
 be queried. Guardrails to set before launch: README → [Cost guardrails](../README.md#cost-guardrails-to-set-up-before-launch).

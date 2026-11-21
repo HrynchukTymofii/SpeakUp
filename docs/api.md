@@ -249,7 +249,7 @@ On `failed`, `attempt.errorCode` is `NO_SPEECH`, `STT_FAILED`, `LLM_INVALID_OUTP
 | ------ | -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
 | POST   | `/v1/funnel/sessions`            | —     | Start a session → `201 { "token": "…" }` (returned once; only its hash is stored)                                  |
 | PATCH  | `/v1/funnel/sessions/current`    | guest | Save answers (merged) and the current step → `204`                                                                 |
-| GET    | `/v1/funnel/exercise`            | guest | The baseline text (max length capped at 45 s)                                                                      |
+| GET    | `/v1/funnel/exercise`            | guest | The speaking check for the session's goal (`check-<goal>`, else `check-general`; max 45 s)                         |
 | POST   | `/v1/funnel/attempts`            | guest | Create the baseline attempt; body `{ mimeType, turnstileToken }`                                                   |
 | POST   | `/v1/funnel/attempts/:id/submit` | guest | Same as the signed-in submit                                                                                       |
 | GET    | `/v1/funnel/attempts/:id`        | guest | Progress only: `{ "attempt": { id, status, stage } }` — never the result                                           |

@@ -25,8 +25,9 @@ Both use SpeakUp's own mascot.
 
 1. **Tokens, not hex.** Every color is a CSS variable in `apps/web/app/globals.css`, exposed to
    Tailwind through `@theme`. Components write `bg-card`, `text-muted`, `border-line`, never `#141414`.
-2. **Black canvas, warm accents.** Surfaces are neutral black/near-black greys; personality comes
-   from the warm pastels (peach, butter, sage, sky, lav, rose) and the blue mascot.
+2. **Neutral canvas, pastel accents.** Surfaces are neutral (light lavender or near-black in the
+   app, true black on the marketing site); personality comes from the pastels (lavender, butter,
+   sage, sky, rose) and the blue mascot.
 3. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
    (and `text-on-pastel-muted` for secondary text) — never cream text on a pastel.
 4. **Big and soft.** Large Outfit headlines, pill buttons, generously rounded cards (20–28 px),
@@ -38,7 +39,8 @@ Both use SpeakUp's own mascot.
 
 ## 2. Color tokens
 
-Defined in `:root` in `apps/web/app/globals.css`; the Tailwind name is the variable name with
+These are the marketing site's values (the app's are in the next table). Defined in `:root` in
+`apps/web/app/globals.css`; the Tailwind name is the variable name with
 the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2`).
 
 | Group     | Token                             | Value                             | Use                                                  |
