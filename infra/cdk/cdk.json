@@ -9,6 +9,7 @@
     "speakup:anthropicModel": "claude-sonnet-5-5",
     "speakup:workerMaxTasks": "25",
     "speakup:dbInstanceSize": "small",
+    "speakup:monthlyBudgetUsd": "100",
     "@aws-cdk/core:checkSecretUsage": true
   }
 }

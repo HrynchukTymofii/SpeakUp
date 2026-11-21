@@ -296,7 +296,8 @@ describe("monitoring", () => {
     const topicRef = { Ref: topics[0] };
     expect(alerting(template).length).toBeGreaterThanOrEqual(10);
     for (const a of alerting(template)) {
-      expect(a.AlarmActions, a.AlarmName).toEqual([topicRef]);
+      // (The worker scale-out alarm also triggers its scaling policy.)
+      expect(a.AlarmActions, a.AlarmName).toContainEqual(topicRef);
       expect(a.OKActions, a.AlarmName).toEqual([topicRef]);
     }
   });
@@ -370,6 +371,154 @@ describe("monitoring", () => {
       "speakup:alarmEmail": "ops@speakup.test",
     }).template;
     lt.resourceCountIs("AWS::SNS::Subscription", 0);
+  }, 60_000);
+});
+
+describe("scaling and cost alerts", () => {
+  let template: Template;
+  beforeAll(() => {
+    ({ template } = synth({ "speakup:alarmEmail": "ops@speakup.test" }));
+  }, 60_000);
+
+  type Alarm = {
+    AlarmName?: string;
+    AlarmDescription?: string;
+    AlarmActions?: unknown[];
+    OKActions?: unknown[];
+    Threshold?: number;
+    MetricName?: string;
+    Namespace?: string;
+    EvaluationPeriods?: number;
+  };
+  const alarms = (t: Template) =>
+    Object.values(t.findResources("AWS::CloudWatch::Alarm")).map((a) => a.Properties as Alarm);
+  const topicRef = (t: Template) => ({ Ref: Object.keys(t.findResources("AWS::SNS::Topic"))[0] });
+
+  it("emails when the worker scale-out alarm fires, and again when the backlog is gone", () => {
+    // The alarm that drives the step scaling itself, so the email names the real trigger.
+    const scaleOut = alarms(template).find(
+      (a) => a.MetricName === "QueueWaiting" && a.Threshold === 8,
+    );
+    expect(scaleOut?.AlarmActions).toContainEqual(topicRef(template));
+    expect(scaleOut?.OKActions).toEqual([topicRef(template)]);
+    expect(scaleOut?.AlarmDescription).toMatch(/scal/i);
+  });
+
+  it("emails when API CPU crosses the autoscaling target (60%) for 3 minutes", () => {
+    const api = alarms(template).find((a) => a.AlarmName === "Test-api-scaling-out");
+    expect(api).toMatchObject({
+      MetricName: "CPUUtilization",
+      Namespace: "AWS/ECS",
+      Threshold: 60,
+      EvaluationPeriods: 3,
+      AlarmActions: [topicRef(template)],
+      OKActions: [topicRef(template)],
+    });
+  });
+
+  it("sets a $100/month AWS budget that warns on forecast and on actual spend", () => {
+    template.hasResourceProperties("AWS::Budgets::Budget", {
+      Budget: Match.objectLike({
+        BudgetType: "COST",
+        TimeUnit: "MONTHLY",
+        BudgetLimit: { Amount: 100, Unit: "USD" },
+      }),
+      NotificationsWithSubscribers: Match.arrayWith([
+        Match.objectLike({
+          Notification: Match.objectLike({ NotificationType: "FORECASTED", Threshold: 80 }),
+          Subscribers: [{ SubscriptionType: "SNS", Address: topicRef(template) }],
+        }),
+        Match.objectLike({
+          Notification: Match.objectLike({ NotificationType: "ACTUAL", Threshold: 100 }),
+        }),
+      ]),
+    });
+  });
+
+  it("lets AWS Budgets publish to the alarm topic", () => {
+    template.hasResourceProperties("AWS::SNS::TopicPolicy", {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: "sns:Publish",
+            Principal: { Service: "budgets.amazonaws.com" },
+          }),
+        ]),
+      },
+    });
+  });
+
+  it("takes the budget from context", () => {
+    const big = synth({ "speakup:monthlyBudgetUsd": "250" }).template;
+    big.hasResourceProperties("AWS::Budgets::Budget", {
+      Budget: Match.objectLike({ BudgetLimit: { Amount: 250, Unit: "USD" } }),
+    });
+  }, 60_000);
+
+  it("adds no budget to the load-test stack (the budget covers the whole account)", () => {
+    synth({ "speakup:loadTest": "true" }).template.resourceCountIs("AWS::Budgets::Budget", 0);
+  }, 60_000);
+});
+
+describe("API firewall (AWS WAF)", () => {
+  let template: Template;
+  beforeAll(() => {
+    ({ template } = synth({ "speakup:alarmEmail": "ops@speakup.test" }));
+  }, 60_000);
+
+  type Rule = {
+    Name: string;
+    Action?: { Block?: { CustomResponse?: { ResponseCode: number } } };
+    Statement: {
+      RateBasedStatement?: { Limit: number; AggregateKeyType: string; EvaluationWindowSec: number };
+      ManagedRuleGroupStatement?: { VendorName: string; Name: string };
+    };
+  };
+  const rules = () => {
+    const acls = Object.values(template.findResources("AWS::WAFv2::WebACL"));
+    expect(acls).toHaveLength(1);
+    return acls[0]?.Properties.Rules as Rule[];
+  };
+
+  it("sits in front of the API load balancer and lets traffic through by default", () => {
+    template.hasResourceProperties("AWS::WAFv2::WebACL", {
+      Scope: "REGIONAL",
+      DefaultAction: { Allow: {} },
+    });
+    const albs = Object.keys(template.findResources("AWS::ElasticLoadBalancingV2::LoadBalancer"));
+    template.hasResourceProperties("AWS::WAFv2::WebACLAssociation", {
+      ResourceArn: { Ref: albs[0] },
+    });
+  });
+
+  it("blocks one IP flooding the API with a 429, above the API's own per-IP limit", () => {
+    const rate = rules().find((r) => r.Statement.RateBasedStatement);
+    expect(rate?.Statement.RateBasedStatement).toMatchObject({
+      AggregateKeyType: "IP",
+      EvaluationWindowSec: 300,
+    });
+    // The API allows 300/min per IP (SPEC §9) and answers with a friendly 429 itself; the
+    // firewall only stops floods well past that, before they reach a container.
+    const limit = rate?.Statement.RateBasedStatement?.Limit ?? 0;
+    expect(limit).toBeGreaterThan(300 * 5);
+    expect(rate?.Action?.Block?.CustomResponse?.ResponseCode).toBe(429);
+  });
+
+  it("blocks known malicious IPs (AWS reputation list)", () => {
+    expect(rules().map((r) => r.Statement.ManagedRuleGroupStatement?.Name)).toContain(
+      "AWSManagedRulesAmazonIpReputationList",
+    );
+  });
+
+  it("emails when the firewall starts blocking a flood", () => {
+    const flood = Object.values(template.findResources("AWS::CloudWatch::Alarm"))
+      .map((a) => a.Properties as { AlarmName?: string; Namespace?: string; MetricName?: string })
+      .find((a) => a.AlarmName === "Test-api-flood-blocked");
+    expect(flood).toMatchObject({ Namespace: "AWS/WAFV2", MetricName: "BlockedRequests" });
+  });
+
+  it("has no firewall on the load-test stack (k6 sends everything from a few IPs)", () => {
+    synth({ "speakup:loadTest": "true" }).template.resourceCountIs("AWS::WAFv2::WebACL", 0);
   }, 60_000);
 });
 
@@ -453,6 +602,13 @@ describe("config", () => {
       context: { "speakup:webOrigins": "https://a.test", "speakup:alarmEmail": "ops" },
     });
     expect(() => readConfig(app.node, repoRoot)).toThrow(/alarmEmail/);
+  });
+
+  it("rejects a monthly budget that isn't a positive whole number of dollars", () => {
+    const app = new cdk.App({
+      context: { "speakup:webOrigins": "https://a.test", "speakup:monthlyBudgetUsd": "lots" },
+    });
+    expect(() => readConfig(app.node, repoRoot)).toThrow(/monthlyBudgetUsd/);
   });
 
   it("rejects a web origin with a path", () => {
