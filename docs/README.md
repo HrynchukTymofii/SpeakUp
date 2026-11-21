@@ -25,19 +25,14 @@ Start here. Each document has one job; link to it instead of repeating it.
 | [`design-system.md`](./design-system.md)       | Web UI: color tokens, fonts, components, the mascot, third-party theming          |
 | [`funnel-reference.md`](./funnel-reference.md) | How the reference (Holy Hush) funnel works and what SpeakUp does differently      |
 
-**Learn**
-
-| Document                                       | What's in it                                                   |
-| ---------------------------------------------- | -------------------------------------------------------------- |
-| [`../LEARNING_NOTES.md`](../LEARNING_NOTES.md) | Per-milestone notes: concepts, trade-offs, interview questions |
-
 **Kept outside the repo**
 
 Some project material lives in a `SpeakUp Project/` folder next to the repo on the owner's machine,
-not in git: it is either too heavy or not ours to publish.
+not in git: it is too heavy, not ours to publish, or personal.
 
 | Folder              | What's in it                                                                                   |
 | ------------------- | ---------------------------------------------------------------------------------------------- |
 | `videos/`           | Remotion project for marketing videos (e.g. the funnel filler-words video, served from S3)     |
 | `resources/photos/` | Photos of a published workbook used as direction for lesson content; copyrighted, never commit |
 | `logs/`             | Scratch logs from local dev runs; safe to delete                                               |
+| `interview-prep/`   | The owner's interview notes (formerly `LEARNING_NOTES.md`); personal, so not in the repo       |

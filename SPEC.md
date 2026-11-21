@@ -2,7 +2,7 @@
 
 > Working name: **SpeakUp**. A speaking & communication skills trainer: users take lessons, record themselves speaking, and get AI feedback on pace, pauses, filler words, clarity and (for read-aloud tasks) accuracy.
 >
-> This document is the single source of truth for the build. Read it fully before writing code. Work **milestone by milestone** (section 12). After each milestone, stop, summarize what was built, and append an entry to `LEARNING_NOTES.md` (section 13).
+> This document is the single source of truth for the build. Read it fully before writing code. Work **milestone by milestone** (section 12).
 
 ---
 
@@ -128,7 +128,6 @@ speakup/
 │  └─ cdk/                 # (Milestone 8) AWS infrastructure
 ├─ .github/workflows/ci.yml
 ├─ .env.example
-├─ LEARNING_NOTES.md
 └─ README.md
 ```
 
@@ -490,22 +489,7 @@ Data fetching: a small typed API client in `apps/web/lib/api.ts` that attaches t
 
 ---
 
-## 13. LEARNING_NOTES.md (required after every milestone)
-
-The repo owner is preparing for technical interviews. After each milestone append a section:
-
-```
-## M<n> — <title>
-**What we built:** 3–5 bullets.
-**Key concepts (explain like to a junior):** each concept used (e.g. "pre-signed URL", "idempotency", "BullMQ job", "DB index") in 2–4 sentences, tied to the actual file where it appears.
-**Why this choice / alternatives:** 1–3 trade-offs (e.g. Fastify vs Express vs NestJS).
-**Where it breaks at scale & what we'd do:** 2–3 bullets.
-**Likely interview questions:** 3–5 questions with short answers.
-```
-
----
-
-## 14. Decision log (for interview conversation)
+## 14. Decision log
 
 | Decision | Why | Alternative & when we'd switch |
 |---|---|---|

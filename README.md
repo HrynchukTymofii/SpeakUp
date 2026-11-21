@@ -3,8 +3,8 @@
 Speaking & communication skills trainer: users record themselves speaking and get AI feedback on
 pace, pauses, filler words, clarity and (for read-aloud tasks) accuracy.
 
-The full build spec is in [`SPEC.md`](./SPEC.md). Interview-prep notes per milestone are in
-[`LEARNING_NOTES.md`](./LEARNING_NOTES.md).
+The product spec is in [`SPEC.md`](./SPEC.md); all other documentation starts at
+[`docs/README.md`](./docs/README.md).
 
 ## Repo layout
 

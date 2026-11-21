@@ -163,17 +163,3 @@ cost, and are worth turning on once there are paying users.
 | **Today** (~60 practicing at once)            | Worker queue                                       | Queue-depth autoscaling (done); admission control; push instead of poll                                                     |
 | **10×** (~600 practicing, thousands browsing) | DB connections, polling load, provider rate limits | RDS Proxy; SSE/push; cached auth; atomic quota; bigger DB class; provider enterprise tiers; circuit breakers                |
 | **100×** (~6,000 practicing)                  | Single primary DB, single Redis, provider cost     | Read replicas; Redis cluster (queue separate from rate limits); sharded queues per region; self-hosted Whisper for STT cost |
-
-## 4. Interview questions this answers
-
-- **"How many users can it handle?"** It depends on what they're doing. Browsing: hundreds of
-  requests per second on one 0.5-vCPU task. Practicing: ~60 people at once on one worker,
-  measured with k6. Then explain why those two numbers are so different.
-- **"How do you scale the worker?"** Add concurrency first (the jobs are I/O-bound), then add
-  tasks based on queue depth, because CPU is the wrong signal. Then admission control and
-  priorities.
-- **"How would you handle huge database load?"** Remove the requests that shouldn't exist (polls
-  → push, per-request user lookups → cache), pool the connections (RDS Proxy), and move reads to
-  replicas. A bigger instance comes last.
-- **"How did you test it without paying for the AI providers?"** Fake providers with realistic
-  latency distributions, everything else real, on a throwaway copy of the production stack.

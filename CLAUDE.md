@@ -20,7 +20,6 @@ A task is done only when all of these are true:
    - changed behavior or UI conventions → the matching file in `docs/`
    - changed product scope → `SPEC.md`
    - a significant technical choice → a row in `SPEC.md` §14 (decision log)
-   - finished milestone → a `LEARNING_NOTES.md` section (format in `SPEC.md` §13)
 5. **Committed in small logical commits** (see Git below).
 6. **Reported:** what changed, how it was verified (real command output), what was skipped and why,
    risks and follow-ups. UI changes include screenshots at 375 px.
