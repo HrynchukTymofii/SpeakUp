@@ -12,15 +12,25 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteHeader homeHref="/">
-        <a href={appHref("/sign-in")} className="btn btn-sm px-3 text-ink hover:bg-card">
+        {/* Section links only fit from tablet up; on phones the page is one short scroll. */}
+        <Link href="/#how" className="link hidden px-2 py-2 font-semibold md:inline">
+          How it works
+        </Link>
+        <Link href="/#feedback" className="link hidden px-2 py-2 font-semibold md:inline">
+          Feedback
+        </Link>
+        <Link href="/#lessons" className="link hidden px-2 py-2 font-semibold md:inline">
+          Lessons
+        </Link>
+        <a href={appHref("/sign-in")} className="link px-1 py-2 font-semibold whitespace-nowrap">
           Sign in
         </a>
-        <a href={appHref("/start")} className="btn btn-primary btn-sm">
-          Get started
+        <a href={appHref("/start")} className="btn btn-ink btn-sm whitespace-nowrap">
+          Start the check
         </a>
       </SiteHeader>
       {children}
-      <footer className="border-t border-line">
+      <footer className="border-t border-line bg-card/60">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} SpeakUp</p>
           <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">

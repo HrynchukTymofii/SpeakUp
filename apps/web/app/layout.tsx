@@ -9,7 +9,8 @@ import "./globals.css";
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 
-export const viewport: Viewport = { themeColor: "#000000", colorScheme: "dark" };
+// Both hosts are light by default (the app also follows a dark OS setting; see globals.css).
+export const viewport: Viewport = { themeColor: "#f7f7fa", colorScheme: "light dark" };
 
 export const metadata: Metadata = {
   title: "SpeakUp — speaking skills trainer",
