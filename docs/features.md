@@ -15,7 +15,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 
 | Route                           | Host | Who              | What                                                                                          |
 | ------------------------------- | ---- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `/`                             | site | everyone         | Landing: value proposition, "how it works", entry to the funnel                               |
+| `/`                             | site | everyone         | Landing: value proposition, how it works, example feedback, lessons, entry to the funnel      |
 | `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`)                       |
 | `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                                                 |
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |

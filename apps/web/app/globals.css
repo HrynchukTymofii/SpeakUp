@@ -1,55 +1,66 @@
 @import "tailwindcss";
 
 /*
- * Design tokens: the Holy Hush / Lumen kit's "dark · warm" theme, on a true-black base.
- * The warm pastel accents are kept; the brown page/card/line greys are replaced with neutral
- * blacks. Components use these through Tailwind (bg-card, text-muted, border-line…), never hex.
+ * Design tokens for the marketing site: the "Glow" theme (mobile design 11). A near-white page
+ * with one soft lavender glow, white cards with a little depth, black for anything you press.
+ * Components use these through Tailwind (bg-card, text-muted, border-line…), never hex.
+ * The app (product) redefines them below.
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* surfaces (neutral black) */
-  --page: #000000;
-  --bg: #0a0a0a;
-  --card: #141414;
-  --card-2: #1c1c1c;
-  --line: #222222;
-  --line-2: #2e2e2e;
+  /* surfaces */
+  --page: #f7f7fa;
+  --bg: #f7f7fa;
+  --card: #ffffff;
+  --card-2: #f1f1f5;
+  --line: #e8e8ee;
+  --line-2: #dcdce4;
 
-  /* text (warm cream) */
-  --ink: #f7eee5;
-  --muted: #a39b94;
-  --dim: #6b6560;
+  /* text */
+  --ink: #0e0e12;
+  --muted: #6b6b77; /* 5:1 on the page */
+  --dim: #9a9aa6;
 
-  /* warm accents */
-  --peach: #f2b29a;
-  --peach-2: #f4a585;
-  --orange: #f29a4a;
-  --butter: #f3d894;
-  --sage: #c8ddbe;
-  --sky: #c6dce6;
-  --lav: #d9cbee;
-  --rose: #f1c9c5;
-  --on-pastel: #2b211c;
-  --on-pastel-muted: #574840; /* ≥ 4.8:1 on every pastel (WCAG AA for small text) */
-  --danger: #f07c72;
+  /* accents: one lavender, plus the shared pastels for the odd chip */
+  --peach: #e4ddff; /* the accent surface: lavender wash */
+  --peach-2: #d6ccff;
+  --orange: #a996ff;
+  --butter: #fee7a6;
+  --sage: #cdefd9;
+  --sky: #cfe3f7;
+  --lav: #f1edff;
+  --rose: #ffd6de;
+  --on-pastel: #0e0e12;
+  --on-pastel-muted: #4a4a55; /* ≥ 6:1 on every pastel */
+  --danger: #b4233f;
 
   /* mascot body: the "Sky" blob from the Genesis funnel */
   --mascot-light: #f4fcff;
   --mascot-mid: #aeddf7;
   --mascot-deep: #5ba6df;
 
-  --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
-  --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
-  --shadow-peach: 0 12px 26px -12px rgba(242, 154, 106, 0.55);
+  /* "depth": a light top edge, a tight contact shadow and a soft drop */
+  --shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(14, 14, 18, 0.04),
+    0 1px 2px rgba(30, 20, 80, 0.06), 0 4px 8px -4px rgba(30, 20, 80, 0.1),
+    0 18px 32px -18px rgba(30, 20, 80, 0.38);
+  --shadow-sm:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 2px rgba(30, 20, 80, 0.06),
+    0 10px 20px -14px rgba(30, 20, 80, 0.35);
+  --shadow-peach: 0 10px 20px -10px rgba(106, 77, 240, 0.6);
+  --shadow-ink:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 2px 3px rgba(0, 0, 0, 0.18), 0 24px 40px -20px rgba(14, 14, 18, 0.6);
 
-  /* accent for text, links and focus rings (pastels are surfaces, too light for text) */
-  --brand: var(--peach-2);
+  /* accent for text, links, focus rings and small highlights */
+  --brand: #6a4df0; /* 5.3:1 on the page */
+  --glow: #e4ddff;
   /* graph-paper lines and the dotted path background */
-  --grid: rgba(255, 255, 255, 0.06);
-  --dot: rgba(255, 255, 255, 0.12);
+  --grid: rgba(14, 14, 18, 0.06);
+  --dot: rgba(14, 14, 18, 0.12);
   /* the "ledge" under raised path nodes */
-  --edge: rgba(0, 0, 0, 0.55);
+  --edge: #dcdce4;
 }
 
 /*
@@ -92,6 +103,8 @@
   --shadow: 0 18px 40px -26px rgba(60, 35, 110, 0.35);
   --shadow-sm: 0 8px 20px -14px rgba(60, 35, 110, 0.3);
   --shadow-peach: 0 12px 26px -12px rgba(122, 75, 219, 0.45);
+  --shadow-ink: 0 18px 40px -22px rgba(11, 10, 15, 0.6);
+  --glow: #e4cdff;
 }
 @media (prefers-color-scheme: dark) {
   :root:has(.app-theme) {
@@ -149,6 +162,7 @@
   --shadow-soft: var(--shadow);
   --shadow-soft-sm: var(--shadow-sm);
   --shadow-peach: var(--shadow-peach);
+  --shadow-ink: var(--shadow-ink);
 }
 
 @layer base {
@@ -232,6 +246,32 @@
     box-shadow:
       0 2px 0 var(--edge),
       var(--shadow-sm);
+  }
+  /* Glow (marketing): white card with a slight top-to-bottom gradient; shadow-soft adds the depth. */
+  .surface {
+    background-image: linear-gradient(
+      180deg,
+      var(--card),
+      color-mix(in srgb, var(--card-2) 35%, var(--card))
+    );
+  }
+  /* The one dark card: a raised black tile with a light top edge. */
+  .surface-ink {
+    background-image: linear-gradient(160deg, #34333d 0%, #16161b 45%, #0b0b0e 100%);
+    box-shadow: var(--shadow-ink);
+    color: #ffffff;
+  }
+  /* Black pill buttons get the same gentle gradient and top highlight, so they look pressable. */
+  .btn-ink {
+    background-image: linear-gradient(180deg, #2e2d36, #0e0e12 60%);
+    color: #ffffff;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 2px 3px rgba(0, 0, 0, 0.2),
+      0 16px 26px -14px rgba(14, 14, 18, 0.6);
+  }
+  .btn-ink:hover {
+    opacity: 0.92;
   }
   /* Pastel surfaces keep dark ink (kit rule). */
   .pastel {

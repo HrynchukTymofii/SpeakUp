@@ -14,7 +14,8 @@ decision table in `SPEC.md` §14; these records cover the decisions made while b
 | [0005](./0005-llm-structured-output.md)         | Claude structured output, validated, with one repair round | Accepted                   |
 | [0006](./0006-design-system-tokens.md)          | One design system on true black, colors as tokens          | Superseded in part by 0008 |
 | [0007](./0007-branches-worktrees-prs.md)        | Branch + PR per task, one worktree per agent session       | Accepted                   |
-| [0008](./0008-app-theme-sat-learner.md)         | The app gets its own light theme; the site stays dark      | Accepted                   |
+| [0008](./0008-app-theme-sat-learner.md)         | The app gets its own light theme; the site stays dark      | Superseded in part by 0009 |
+| [0009](./0009-marketing-site-glow-theme.md)     | The marketing site moves to a light "Glow" theme           | Accepted                   |
 
 ## Template
 

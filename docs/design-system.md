@@ -9,14 +9,16 @@ Two themes share one set of token names:
   graph-paper texture on pastel cards, a floating black tab bar. Light by default, dark when the
   OS asks for it. The `(product)` layout renders `.app-theme`, and `:root:has(.app-theme)`
   redefines the tokens (see "App theme" below).
-- **The marketing site** keeps the **dark · warm** theme of the Holy Hush / Lumen design kit on a
-  true-black background (the `:root` values below).
+- **The marketing site** (landing and legal pages) uses the **Glow** design: a near-white page
+  with one soft lavender glow, white cards with a little depth, black for anything you press,
+  headlines in light + bold Manrope (the `:root` values below; [ADR 0009](./adr/0009-marketing-site-glow-theme.md)).
 
 Both use SpeakUp's own mascot.
 
 - App theme source (outside this repo): `SAT/app/constants/palette.ts`, `SAT/redesign-previews/v3/app.html`
 
-- Source kit (outside this repo): `FPG/design/kit/kit.css`, `FPG/design/app.html`, `FPG/design/web.html`
+- Glow source (outside this repo): `SpeakUp Project/mobile/designs/11-glow-final.html` and the
+  landing mockup `SpeakUp Project/website/landing.html`
 - Mascot reference (outside this repo): `Genesis/Funnel/index.html` (the `blob()` mascot)
 
 ---
@@ -25,9 +27,10 @@ Both use SpeakUp's own mascot.
 
 1. **Tokens, not hex.** Every color is a CSS variable in `apps/web/app/globals.css`, exposed to
    Tailwind through `@theme`. Components write `bg-card`, `text-muted`, `border-line`, never `#141414`.
-2. **Neutral canvas, pastel accents.** Surfaces are neutral (light lavender or near-black in the
-   app, true black on the marketing site); personality comes from the pastels (lavender, butter,
-   sage, sky, rose) and the blue mascot.
+2. **Neutral canvas, few accents.** Surfaces are neutral (light lavender or near-black in the
+   app, near-white on the marketing site). The app gets its personality from the pastels
+   (lavender, butter, sage, sky, rose); the site from one lavender glow, a single black card and
+   the blue mascot.
 3. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
    (and `text-on-pastel-muted` for secondary text) — never cream text on a pastel.
 4. **Big and soft.** Large Outfit headlines, pill buttons, generously rounded cards (20–28 px),
@@ -43,29 +46,25 @@ These are the marketing site's values (the app's are in the next table). Defined
 `apps/web/app/globals.css`; the Tailwind name is the variable name with
 the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2`).
 
-| Group     | Token                             | Value                             | Use                                                  |
-| --------- | --------------------------------- | --------------------------------- | ---------------------------------------------------- |
-| Surfaces  | `page`                            | `#000000`                         | page background (`html`, `body`, header)             |
-|           | `bg`                              | `#0a0a0a`                         | alternative section background                       |
-|           | `card`                            | `#141414`                         | cards, options, inputs                               |
-|           | `card-2`                          | `#1c1c1c`                         | raised/hover surfaces, progress tracks               |
-|           | `line`                            | `#222222`                         | card borders, dividers                               |
-|           | `line-2`                          | `#2e2e2e`                         | stronger borders (secondary buttons, inputs)         |
-| Text      | `ink`                             | `#f7eee5`                         | main text (warm cream); also the primary button fill |
-|           | `muted`                           | `#a39b94`                         | secondary text                                       |
-|           | `dim`                             | `#6b6560`                         | decorative only — fails contrast for text (3.2:1)    |
-| Accents   | `peach` / `peach-2`               | `#f2b29a` / `#f4a585`             | brand accent, selected options, scores, "Try this"   |
-|           | `orange`                          | `#f29a4a`                         | gradient stop only                                   |
-|           | `butter`                          | `#f3d894`                         | reading passages, progress gradient end              |
-|           | `sage`                            | `#c8ddbe`                         | success, "what went well", check marks               |
-|           | `sky`                             | `#c6dce6`                         | info cards, long-pause chips                         |
-|           | `lav`                             | `#d9cbee`                         | "next step", exercise type pills                     |
-|           | `rose`                            | `#f1c9c5`                         | errors-as-cards, high severity, mascot cheeks        |
-| On pastel | `on-pastel` / `on-pastel-muted`   | `#2b211c` / `#574840`             | text on any pastel                                   |
-| Status    | `danger`                          | `#f07c72`                         | inline error text, recording dot                     |
-| Mascot    | `mascot-light` / `-mid` / `-deep` | `#f4fcff` / `#aeddf7` / `#5ba6df` | mascot body gradient only                            |
+| Group     | Token                              | Value                             | Use                                               |
+| --------- | ---------------------------------- | --------------------------------- | ------------------------------------------------- |
+| Surfaces  | `page` / `bg`                      | `#f7f7fa`                         | page background (`html`, `body`, header)          |
+|           | `card` / `card-2`                  | `#ffffff` / `#f1f1f5`             | cards; chips, number badges, progress tracks      |
+|           | `line` / `line-2`                  | `#e8e8ee` / `#dcdce4`             | dividers, footer border; stronger borders         |
+| Text      | `ink`                              | `#0e0e12`                         | main text; also the black buttons and card        |
+|           | `muted`                            | `#6b6b77`                         | secondary text (5:1 on the page)                  |
+|           | `dim`                              | `#9a9aa6`                         | decorative only — fails contrast for text         |
+| Accent    | `brand`                            | `#6a4df0`                         | the one lavender: links, focus, dots, small pills |
+|           | `glow`                             | `#e4ddff`                         | the soft radial glow behind the hero and cards    |
+|           | `peach` / `peach-2`                | `#e4ddff` / `#d6ccff`             | lavender wash surfaces (lesson art)               |
+|           | `lav`                              | `#f1edff`                         | icon tiles, "Try this next" notes                 |
+|           | `butter` / `sage` / `sky` / `rose` | app pastels                       | rarely used on the site                           |
+| On pastel | `on-pastel` / `on-pastel-muted`    | `#0e0e12` / `#4a4a55`             | text on any pastel                                |
+| Status    | `danger`                           | `#b4233f`                         | inline error text                                 |
+| Mascot    | `mascot-light` / `-mid` / `-deep`  | `#f4fcff` / `#aeddf7` / `#5ba6df` | mascot body gradient only                         |
 
-Shadows: `shadow-soft` (cards), `shadow-soft-sm` (small cards), `shadow-peach` (peach buttons).
+Shadows: `shadow-soft` (cards; on the site it is the layered "depth" shadow with a light top edge),
+`shadow-soft-sm` (small cards), `shadow-peach` (accent pills), `shadow-ink` (the black card).
 
 Also: `brand` (accent for text, links and focus rings: pastels are surfaces, too light for text),
 `grid` / `dot` (graph-paper lines, path dots) and `edge` (the ledge under raised buttons).
@@ -105,6 +104,10 @@ shift). **No serif fonts** — the kit's Literata is deliberately not used.
 Common sizes: page titles `text-[40px]`, funnel step titles `text-[28px]`, card titles
 `text-xl`, scores `text-7xl`. Headline line-height is tight (`leading-[1.05]`–`leading-tight`).
 
+**Marketing site (Glow):** headings use Manrope, not Outfit: `font-sans font-light` with a
+tight negative tracking (`tracking-[-0.035em]`) and the key words in `<b className="font-bold">`
+("Speak with **confidence**"). Big numbers are `font-light` too.
+
 ---
 
 ## 4. Component classes
@@ -126,6 +129,12 @@ same element override them (utilities come later in the cascade).
 | `paper`         | graph-paper texture (SAT Learner); put it on pastel cards and icon tiles                                   |
 | `dots`          | dotted canvas (behind the lesson path)                                                                     |
 | `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                           |
+| `surface`       | Glow (site): white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth            |
+| `surface-ink`   | Glow (site): the one raised black card (gradient, light top edge, own shadow, white text)                  |
+| `btn-ink`       | Glow (site): black pill with a gentle gradient and top highlight — the site's main call to action          |
+
+Landing building blocks: `app/(marketing)/landing-visuals.tsx` (the hero phone with its floating
+cards, the step pictures, the lesson art, the feedback icons).
 
 App building blocks: `IconTile` (pastel square on graph paper with an emoji) and `PlayCircle`
 (the black play button in white "Continue" pills) in `components/icon-tile.tsx`; the floating
