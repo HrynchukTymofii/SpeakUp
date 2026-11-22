@@ -22,6 +22,7 @@ choices live in the decision log (`SPEC.md` §14) and [`adr/`](./adr/README.md).
 | [`../README.md`](../README.md)                 | Repo layout, local setup, scripts, environment variables, first-time deploy       |
 | [`runbook.md`](./runbook.md)                   | Production: deploy, migrations, rollback, logs, rotating secrets, common problems |
 | [`../CLAUDE.md`](../CLAUDE.md)                 | Working rules: definition of done, git workflow, code and UI rules                |
+| [`agent-pipeline.md`](./agent-pipeline.md)     | `/ship`: the planner, implementer, verifier and reviewer agents and how they run  |
 | [`testing.md`](./testing.md)                   | How each package is tested, component tests, testing rules                        |
 | [`load-testing.md`](./load-testing.md)         | How we load-test (k6, fake AI providers, throwaway AWS stack) and the raw results |
 | [`scaling.md`](./scaling.md)                   | Where the system breaks under load, why, and the fixes in order                   |
