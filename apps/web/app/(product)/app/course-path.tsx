@@ -5,6 +5,7 @@ import { Mascot } from "@/components/mascot";
 import { COURSE_META, DEFAULT_META } from "@/learn/catalog";
 import type { LearnCourse } from "@/learn/personalize";
 import { lessonState, pathStates, type PathState } from "@/learn/progress";
+import { Icon } from "@/components/icons";
 
 /** Zig-zag offsets (px) for the path nodes, like a winding trail. */
 const OFFSETS = [0, 56, 80, 56, 0, -56, -80, -56];
@@ -27,8 +28,10 @@ export function CoursePath({ course, completed }: { course: LearnCourse; complet
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
-        <h1 className="font-display text-[30px] leading-[1.05] font-semibold tracking-tight">
-          <span aria-hidden>{meta.icon} </span>
+        <h1 className="flex items-center gap-3 font-display text-[30px] leading-[1.05] font-bold tracking-tight">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-lav text-brand">
+            <Icon name={meta.icon} />
+          </span>
           {course.title}
         </h1>
         <p className="text-sm font-semibold text-muted tabular-nums">

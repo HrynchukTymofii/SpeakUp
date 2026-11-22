@@ -76,10 +76,7 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
           {Math.floor(pct)}%
         </p>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-card-2">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-peach to-butter"
-            style={{ width: `${pct}%` }}
-          />
+          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
         </div>
       </div>
       <ul className="card flex w-full flex-col gap-3.5">

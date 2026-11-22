@@ -137,7 +137,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
         />
       </div>
 
-      <Card className="border-0 bg-butter text-lg leading-relaxed font-medium text-on-pastel">
+      <Card className="text-lg leading-relaxed font-medium text-ink">
         {exercise.isPending
           ? "Loading…"
           : (text ?? "Couldn’t load the text. Please reload the page.")}

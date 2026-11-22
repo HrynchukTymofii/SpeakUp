@@ -1,4 +1,5 @@
 import type { Problem } from "@speakup/shared";
+import type { IconName } from "@/components/icons";
 
 /**
  * App-side metadata for the learning content. Lesson text and exercises live in the DB (seeded
@@ -14,21 +15,21 @@ export type Tone = "peach" | "butter" | "sage" | "sky" | "lav" | "rose";
 
 export interface CourseMeta {
   tone: Tone;
-  /** One short emoji badge for the course card and path header. */
-  icon: string;
+  /** The line icon on the course card and path header (components/icons.tsx). */
+  icon: IconName;
 }
 
 export const COURSE_META: Record<string, CourseMeta> = {
-  "speak-with-confidence": { tone: "peach", icon: "🎙️" },
-  "be-interesting": { tone: "sage", icon: "💬" },
-  "pitch-prep": { tone: "butter", icon: "🚀" },
-  "presentation-prep": { tone: "lav", icon: "🎤" },
-  "job-interviews": { tone: "sky", icon: "💼" },
-  meetings: { tone: "rose", icon: "📋" },
-  confidence: { tone: "sky", icon: "🧘" },
+  "speak-with-confidence": { tone: "peach", icon: "mic" },
+  "be-interesting": { tone: "sage", icon: "chat" },
+  "pitch-prep": { tone: "butter", icon: "rocket" },
+  "presentation-prep": { tone: "lav", icon: "presentation" },
+  "job-interviews": { tone: "sky", icon: "briefcase" },
+  meetings: { tone: "rose", icon: "clipboard" },
+  confidence: { tone: "sky", icon: "breath" },
 };
 
-export const DEFAULT_META: CourseMeta = { tone: "peach", icon: "📘" };
+export const DEFAULT_META: CourseMeta = { tone: "peach", icon: "book" };
 
 /** The funnel goal → the course built for it. `clarity` is served by the basics. */
 export const GOAL_COURSE: Record<string, string> = {

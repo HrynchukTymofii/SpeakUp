@@ -8,6 +8,7 @@ import { LessonVideo } from "../lesson-video";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, OptionButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
+import { Icon } from "@/components/icons";
 
 /** Tiny haptic tick on phones that support it (like the reference funnel). */
 function vibrate() {
@@ -243,8 +244,11 @@ export function MicPermissionStep({ step, onNext }: StepProps<"mic_permission">)
         title="Next: a 45-second speaking check"
         subtitle="You’ll read a short paragraph out loud. We need your microphone to record it."
       />
-      <Card className="flex flex-col gap-1.5 border-0 bg-sky text-on-pastel">
-        <p className="font-bold">🔒 Your recording is private</p>
+      <Card className="flex flex-col gap-1.5 bg-lav text-on-pastel">
+        <p className="flex items-center gap-2 font-bold">
+          <Icon name="lock" className="size-[18px] text-brand" />
+          Your recording is private
+        </p>
         <p className="text-sm text-on-pastel-muted">
           It’s used only to analyze your speaking, and it’s deleted if you don’t create an account.
         </p>

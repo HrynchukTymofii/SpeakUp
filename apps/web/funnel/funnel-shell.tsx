@@ -161,7 +161,7 @@ export function FunnelShell({ stepId }: { stepId: string }) {
             aria-valuenow={Math.round(progressOf(steps, step) * 100)}
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-peach to-butter transition-[width] duration-500 ease-out"
+              className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
               style={{ width: `${progressOf(steps, step) * 100}%` }}
             />
           </div>

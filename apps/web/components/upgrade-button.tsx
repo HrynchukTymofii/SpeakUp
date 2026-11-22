@@ -105,7 +105,7 @@ export function UpgradeButton({
         items: [{ priceId: checkout.priceId, quantity: 1 }],
         customData: checkout.customData,
         ...(checkout.customerEmail && { customer: { email: checkout.customerEmail } }),
-        settings: { displayMode: "overlay", theme: "dark" },
+        settings: { displayMode: "overlay", theme: "light" },
       });
     } catch (err) {
       if (err instanceof ApiClientError && err.code === ErrorCode.WRONG_STATE) {
@@ -135,7 +135,7 @@ export function UpgradeButton({
 
   if (!paddleConfigured()) {
     return (
-      <p className="rounded-[20px] bg-butter p-4 text-sm font-medium text-on-pastel">
+      <p className="rounded-[20px] bg-lav p-4 text-sm font-medium text-on-pastel">
         Checkout isn’t configured (set NEXT_PUBLIC_PADDLE_CLIENT_TOKEN).
       </p>
     );
@@ -144,7 +144,7 @@ export function UpgradeButton({
   if (phase === "active") {
     return (
       <p role="status" className="rounded-[20px] bg-sage p-4 font-bold text-on-pastel">
-        You’re on SpeakUp Pro 🎉 Every lesson is unlocked.
+        You’re on SpeakUp Pro. Every lesson is unlocked.
       </p>
     );
   }

@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 export function StepHeading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[28px] leading-[1.1] font-semibold text-balance text-ink">
+      <h1 className="font-display text-[28px] leading-[1.12] font-bold tracking-[-0.025em] text-balance text-ink">
         {title}
       </h1>
       {subtitle && <p className="text-base leading-relaxed text-muted">{subtitle}</p>}
@@ -37,8 +37,8 @@ export function OptionButton({
       style={{ animationDelay: `${index * 40}ms` }}
       className={`funnel-option flex min-h-15 w-full items-center justify-between gap-3 rounded-[20px] border-[1.5px] px-5 py-4 text-left text-base font-bold transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] ${
         selected
-          ? "border-peach bg-peach text-on-pastel shadow-peach"
-          : "border-line bg-card text-ink hover:border-line-2 hover:bg-card-2"
+          ? "border-ink bg-card text-ink shadow-soft"
+          : "border-transparent bg-card text-ink shadow-soft-sm hover:bg-card-2"
       }`}
     >
       <span>{label}</span>
@@ -46,7 +46,7 @@ export function OptionButton({
         <span
           aria-hidden
           className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-xs font-extrabold ${
-            selected ? "border-on-pastel bg-on-pastel text-brand" : "border-line-2"
+            selected ? "border-ink bg-ink text-page" : "border-line-2"
           }`}
         >
           {selected ? "✓" : ""}
@@ -83,7 +83,7 @@ export function ContinueButton({
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   // A caller's own background (e.g. a pastel) replaces the default card surface + border;
   // two bg-* utilities on one element would fight over CSS order.
-  const surface = /(^|\s)bg-/.test(className) ? "" : "border border-line bg-card";
+  const surface = /(^|\s)bg-/.test(className) ? "" : "bg-card";
   return <div className={`rounded-3xl p-5 shadow-soft-sm ${surface} ${className}`}>{children}</div>;
 }
 

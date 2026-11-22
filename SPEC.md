@@ -25,7 +25,7 @@ comments link here by section number (e.g. "SPEC §6.3"), so the numbers stay st
    Prisma, BullMQ) before using them. Pin dependency versions exactly.
 6. **One visual language** across the web app: the design system in
    [`docs/design-system.md`](./docs/design-system.md) (tokens instead of raw colors,
-   Manrope/Outfit, the mascot). The funnel (§15) also has to feel interactive: animated step
+   Manrope, the mascot). The funnel (§15) also has to feel interactive: animated step
    transitions, a progress bar, loaders.
 7. **Never commit secrets.** Every env var is documented in `.env.example` with a comment.
 

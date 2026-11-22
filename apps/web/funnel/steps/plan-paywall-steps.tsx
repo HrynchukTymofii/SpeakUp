@@ -13,8 +13,8 @@ import { Card, ContinueButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
 import { CheckoutTerms } from "@/components/checkout-terms";
 
-/** Pastel per week, cycling (pastel surfaces keep dark ink). */
-const WEEK_COLORS = ["bg-peach", "bg-butter", "bg-sage", "bg-sky", "bg-lav", "bg-rose"];
+/** Week badges: the first week in ink (where you start), the rest on the lavender wash (Glow). */
+const WEEK_COLORS = ["bg-ink text-page", "bg-lav text-on-pastel"];
 
 /** "Your 4-week plan" (SPEC §15.2 step 17): derived from goal, focus and time; no promised outcomes. */
 export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
@@ -24,7 +24,7 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
     <div className="flex flex-1 flex-col gap-5">
       <StepHeading title={plan.headline} subtitle={`${plan.minutesPerDay} minutes a day`} />
       {baselineScore !== null && baselineScore > 0 && (
-        <Card className="flex items-center justify-between border-0 bg-butter text-on-pastel">
+        <Card className="surface-glow flex items-center justify-between">
           <span className="font-semibold text-on-pastel-muted">Your starting point</span>
           <span className="font-display text-2xl font-semibold tabular-nums">
             {baselineScore}/100
@@ -36,7 +36,7 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
           <li key={week.week}>
             <Card className="flex gap-4">
               <span
-                className={`flex size-11 shrink-0 flex-col items-center justify-center rounded-2xl font-display leading-none font-semibold text-on-pastel ${WEEK_COLORS[i % WEEK_COLORS.length]}`}
+                className={`flex size-11 shrink-0 flex-col items-center justify-center rounded-2xl font-display leading-none font-semibold ${i === 0 ? WEEK_COLORS[0] : WEEK_COLORS[1]}`}
               >
                 <span className="text-[9px] font-extrabold tracking-wider uppercase">Wk</span>
                 <span className="text-lg">{week.week}</span>

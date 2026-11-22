@@ -13,7 +13,11 @@ interface Tab {
 }
 
 const icon = (d: string) => (
-  <svg aria-hidden viewBox="0 0 24 24" className="size-6 fill-none stroke-current stroke-2">
+  <svg
+    aria-hidden
+    viewBox="0 0 24 24"
+    className="size-[22px] fill-none stroke-current stroke-[1.8]"
+  >
     <path d={d} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
@@ -50,17 +54,17 @@ const TABS: Tab[] = [
 ];
 
 /**
- * Bottom navigation of the signed-in app: a floating black pill with icons (SAT Learner style),
- * the active tab in a light circle. Thumb-reachable on phones; labels are for screen readers.
+ * Bottom navigation of the signed-in app (Glow): a white bar with rounded top corners, icons with
+ * labels, the active tab in ink with a small dot under it. Thumb-reachable on phones.
  */
 export function AppTabBar() {
   const path = usePathname();
   return (
     <nav
       aria-label="App"
-      className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(16px,env(safe-area-inset-bottom))]"
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl rounded-t-[28px] bg-card/90 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-1px_0_rgba(14,14,18,0.04),0_-14px_30px_-18px_rgba(30,20,80,0.3)] backdrop-blur-md"
     >
-      <ul className="flex items-center gap-1 rounded-full bg-ink p-1.5 shadow-soft">
+      <ul className="flex justify-around pt-2.5">
         {TABS.map((tab) => {
           const active = tab.match(path);
           return (
@@ -68,13 +72,16 @@ export function AppTabBar() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                aria-label={tab.label}
-                title={tab.label}
-                className={`flex size-13 items-center justify-center rounded-full transition-colors ${
-                  active ? "bg-page text-ink" : "text-page/65 hover:text-page"
+                className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl px-2 py-1 text-[11px] transition-colors ${
+                  active ? "font-extrabold text-ink" : "font-semibold text-muted hover:text-ink"
                 }`}
               >
                 {tab.icon}
+                {tab.label}
+                <span
+                  aria-hidden
+                  className={`size-1 rounded-full ${active ? "bg-ink" : "bg-transparent"}`}
+                />
               </Link>
             </li>
           );

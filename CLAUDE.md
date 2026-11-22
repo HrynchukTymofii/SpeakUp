@@ -49,7 +49,8 @@ A task is done only when all of these are true:
 ## UI (`apps/web`)
 
 - Follow [`docs/design-system.md`](./docs/design-system.md): color tokens only (no hex, no
-  `slate-*`), `btn` + variant classes, Manrope/Outfit, the `Mascot` for emotional beats.
+  `slate-*`), `btn` + variant classes, Manrope, the `Mascot` for emotional beats, line icons from
+  `components/icons.tsx` — never emoji.
 - Check every changed screen at 375 px: no horizontal scroll, contrast ≥ 4.5:1 for text, visible
   focus, works with reduced motion.
 

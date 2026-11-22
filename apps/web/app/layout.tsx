@@ -1,16 +1,15 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
-import { Manrope, Outfit } from "next/font/google";
+import { Manrope } from "next/font/google";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
 
-// Body: Manrope. Headings: Outfit (same pair as the Holy Hush kit, minus its serif).
+// One family for everything (Glow): Manrope, light to extra-bold.
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 
-// Both hosts are light by default (the app also follows a dark OS setting; see globals.css).
-export const viewport: Viewport = { themeColor: "#f7f7fa", colorScheme: "light dark" };
+// Both hosts are light (the Glow theme has no dark variant; see globals.css).
+export const viewport: Viewport = { themeColor: "#f7f7fa", colorScheme: "light" };
 
 export const metadata: Metadata = {
   title: "SpeakUp — speaking skills trainer",
@@ -24,8 +23,8 @@ export const metadata: Metadata = {
  */
 const clerkAppearance = {
   variables: {
-    colorPrimary: "var(--peach)",
-    colorPrimaryForeground: "var(--on-pastel)",
+    colorPrimary: "var(--ink)",
+    colorPrimaryForeground: "var(--page)",
     colorBackground: "var(--card)",
     colorForeground: "var(--ink)", // Clerk 7's name for `colorText`
     colorMutedForeground: "var(--muted)",
@@ -35,17 +34,17 @@ const clerkAppearance = {
     colorBorder: "var(--line-2)",
     colorDanger: "var(--danger)",
     colorSuccess: "var(--sage)",
-    colorShadow: "#000000",
-    colorModalBackdrop: "rgba(0, 0, 0, 0.7)",
+    colorShadow: "#1e1450",
+    colorModalBackdrop: "rgba(14, 14, 18, 0.4)",
     fontFamily: "var(--font-manrope), system-ui, sans-serif",
     fontFamilyButtons: "var(--font-manrope), system-ui, sans-serif",
     borderRadius: "1rem",
   },
   elements: {
-    cardBox: { borderRadius: "28px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" },
-    headerTitle: { fontFamily: "var(--font-outfit), system-ui, sans-serif", fontSize: "1.5rem" },
+    cardBox: { borderRadius: "28px", border: "none", boxShadow: "var(--shadow)" },
+    headerTitle: { fontFamily: "var(--font-manrope), system-ui, sans-serif", fontSize: "1.5rem" },
     formButtonPrimary: { borderRadius: "999px", fontWeight: 800, minHeight: "44px" },
-    // Clerk draws these borders as ~7%-alpha box-shadows (invisible on black) from a more
+    // Clerk draws these borders as ~7%-alpha box-shadows (too faint) from a more
     // specific selector, hence !important — only when unfocused, so Clerk's focus ring still shows.
     socialButtonsBlockButton: {
       borderRadius: "999px",
@@ -65,7 +64,7 @@ const clerkAppearance = {
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${manrope.variable} ${outfit.variable}`}>
+    <html lang="en" className={manrope.variable}>
       <body className="min-h-dvh bg-page font-sans text-ink antialiased">
         {/* Clerk Core 3: ClerkProvider goes inside <body>, not around <html>. */}
         {/* Themed via `clerkAppearance` above. */}

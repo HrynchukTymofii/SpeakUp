@@ -11,8 +11,8 @@ import { useLearnData, type LearnData } from "@/learn/use-learn-data";
 import { BaselineCard } from "./baseline-card";
 
 /**
- * Learn tab, in the SAT Learner look: level / streak / today on top, one big "continue" card,
- * lessons picked from what we heard, and the courses as cards.
+ * Learn tab, in the Glow look: a greeting, three stat cards (today's goal is the one black
+ * card), one "continue" card, lessons picked from what we heard, and the courses as cards.
  */
 export function LearnView() {
   const { data, error } = useLearnData();
@@ -28,13 +28,13 @@ export function LearnView() {
 
   return (
     <>
-      <StatusBar data={data} />
       <header className="flex items-end justify-between gap-3">
-        <h1 className="font-display text-[34px] leading-[1.02] font-semibold tracking-tight">
-          Let’s speak up.
+        <h1 className="text-[34px] leading-[1.05] font-light tracking-[-0.035em]">
+          Let’s <b className="font-bold">speak up.</b>
         </h1>
-        <Mascot mood={data.today >= DAILY_GOAL ? "happy" : "idle"} size={64} />
+        <Mascot mood={data.today >= DAILY_GOAL ? "happy" : "idle"} size={56} />
       </header>
+      <StatusBar data={data} />
       {data.hasAnalysis ? <ContinueCard data={data} /> : <BaselineCard />}
       {data.suggestions.length > 0 && <Suggestions suggestions={data.suggestions} />}
       <CourseGrid data={data} />
@@ -42,24 +42,37 @@ export function LearnView() {
   );
 }
 
-/** Level, streak and today's goal: the game layer, always at the top. */
+/** Today's goal, streak and level as three stat cards; the goal is the one black card. */
 export function StatusBar({ data }: { data: LearnData }) {
   const { streak, level, today } = data;
   const doneToday = Math.min(today, DAILY_GOAL);
+  const stat = "flex min-h-24 flex-col justify-between rounded-[22px] p-3.5";
   return (
-    <section
-      aria-label="Your progress"
-      className="flex items-center justify-between font-display text-lg font-bold tabular-nums"
-    >
-      <span title={`${level.intoLevel}/${level.perLevel} XP to the next level`}>
-        LVL {level.level}
-      </span>
-      <span aria-label={`${streak} day streak`}>
-        <span aria-hidden>🔥</span> {streak}
-      </span>
-      <span aria-label={`${doneToday} of ${DAILY_GOAL} recordings today`}>
-        <span aria-hidden>⚡</span> {doneToday}/{DAILY_GOAL}
-      </span>
+    <section aria-label="Your progress" className="grid grid-cols-3 gap-2.5 tabular-nums">
+      <p
+        className={`${stat} surface-ink`}
+        aria-label={`${doneToday} of ${DAILY_GOAL} recordings today`}
+      >
+        <b className="text-[28px] leading-none font-semibold tracking-tight">
+          {doneToday}/{DAILY_GOAL}
+        </b>
+        <span aria-hidden className="text-xs font-medium text-white/75">
+          Today
+        </span>
+      </p>
+      <p className={`${stat} surface shadow-soft`} aria-label={`${streak} day streak`}>
+        <b className="text-[28px] leading-none font-semibold tracking-tight">{streak}</b>
+        <span aria-hidden className="text-xs font-medium text-muted">
+          Day streak
+        </span>
+      </p>
+      <p
+        className={`${stat} surface shadow-soft`}
+        title={`${level.intoLevel}/${level.perLevel} XP to the next level`}
+      >
+        <b className="text-[28px] leading-none font-semibold tracking-tight">{level.level}</b>
+        <span className="text-xs font-medium text-muted">Level</span>
+      </p>
     </section>
   );
 }
@@ -70,23 +83,20 @@ function ContinueCard({ data }: { data: LearnData }) {
   const { course, lesson, number, done } = up;
   const percent = Math.round((done / course.lessons.length) * 100);
   return (
-    <section className="paper flex flex-col gap-4 rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft">
-      <p className="text-sm font-bold">
+    <section className="surface-glow flex flex-col gap-4 rounded-[28px] p-5 shadow-soft">
+      <p className="text-sm font-semibold text-muted">
         {course.title} · Lesson {number} of {course.lessons.length}
       </p>
-      <h2 className="font-display text-[30px] leading-[1.05] font-semibold">{lesson.title}</h2>
+      <h2 className="text-[28px] leading-[1.08] font-bold tracking-[-0.025em]">{lesson.title}</h2>
       <div className="flex items-center gap-3">
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-on-pastel/15" aria-hidden>
-          <span
-            className="block h-full rounded-full bg-on-pastel"
-            style={{ width: `${percent}%` }}
-          />
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10" aria-hidden>
+          <span className="block h-full rounded-full bg-ink" style={{ width: `${percent}%` }} />
         </span>
         <span className="text-sm font-bold tabular-nums">{percent}%</span>
       </div>
       <Link
         href={`/app/lessons/${lesson.slug}`}
-        className="flex items-center justify-between rounded-full bg-white py-2 pr-2 pl-5 font-bold text-on-pastel shadow-soft-sm"
+        className="flex items-center justify-between rounded-full bg-card py-2 pr-2 pl-5 font-bold text-ink shadow-soft-sm"
       >
         Continue lesson
         <PlayCircle />
@@ -98,7 +108,7 @@ function ContinueCard({ data }: { data: LearnData }) {
 function Suggestions({ suggestions }: { suggestions: Suggestion[] }) {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="picked-heading">
-      <h2 id="picked-heading" className="font-display text-xl font-semibold">
+      <h2 id="picked-heading" className="text-xl font-semibold">
         Picked for you
       </h2>
       <ul className="flex flex-col gap-2">
@@ -108,7 +118,7 @@ function Suggestions({ suggestions }: { suggestions: Suggestion[] }) {
             <li key={s.lesson.slug}>
               <Link
                 href={`/app/lessons/${s.lesson.slug}`}
-                className="flex items-center gap-3 rounded-[22px] bg-card p-3 shadow-soft-sm transition-transform active:scale-[0.98]"
+                className="surface flex items-center gap-3 rounded-[22px] p-3 shadow-soft transition-transform active:scale-[0.98]"
               >
                 <IconTile icon={meta.icon} surface={TONE_SURFACE[meta.tone]} />
                 <span className="flex min-w-0 flex-1 flex-col">
@@ -130,7 +140,7 @@ function Suggestions({ suggestions }: { suggestions: Suggestion[] }) {
 function CourseGrid({ data }: { data: LearnData }) {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="courses-heading">
-      <h2 id="courses-heading" className="font-display text-xl font-semibold">
+      <h2 id="courses-heading" className="text-xl font-semibold">
         Courses
       </h2>
       <ul className="grid grid-cols-2 gap-3">
@@ -144,14 +154,14 @@ function CourseGrid({ data }: { data: LearnData }) {
             <li key={course.slug}>
               <Link
                 href={`/app/courses/${course.slug}`}
-                className="flex h-full min-h-44 flex-col justify-between gap-3 rounded-[24px] bg-card p-4 shadow-soft-sm transition-transform active:scale-[0.98]"
+                className="surface flex h-full min-h-44 flex-col justify-between gap-3 rounded-[24px] p-4 shadow-soft transition-transform active:scale-[0.98]"
               >
                 <span className="flex items-start justify-between gap-2">
                   <IconTile icon={meta.icon} surface={TONE_SURFACE[meta.tone]} />
                   {i === 0 && data.goal && <span className="pill bg-ink text-page">Goal</span>}
                 </span>
                 <span className="flex flex-col gap-2">
-                  <span className="font-display text-lg leading-tight font-semibold">
+                  <span className="text-[17px] leading-tight font-bold tracking-tight">
                     {course.title}
                   </span>
                   <span

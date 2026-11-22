@@ -5,9 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { Card, ContinueButton, OptionButton } from "./ui";
 
 describe("Card", () => {
-  it("uses the default card surface", () => {
+  it("uses the default card surface: white with a shadow, no border (Glow)", () => {
     render(<Card>body</Card>);
-    expect(screen.getByText("body")).toHaveClass("bg-card", "border-line");
+    const card = screen.getByText("body");
+    expect(card).toHaveClass("bg-card", "shadow-soft-sm");
+    expect(card).not.toHaveClass("border");
   });
 
   it("drops the default surface when the caller passes its own background", () => {
