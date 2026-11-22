@@ -15,6 +15,7 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import type { Construct } from "constructs";
 import type { SpeakUpConfig } from "./config.js";
+import { ApiFirewall } from "./firewall.js";
 import { Monitoring } from "./monitoring.js";
 
 export interface SpeakUpStackProps extends cdk.StackProps {
@@ -334,8 +335,15 @@ export class SpeakUpStack extends cdk.Stack {
     });
     // Give in-flight requests 30 s to finish when a task is replaced (default 300 s).
     api.targetGroup.setAttribute("deregistration_delay.timeout_seconds", "30");
+    const apiCpuTarget = 60;
     const apiScaling = api.service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });
-    apiScaling.scaleOnCpuUtilization("CpuScaling", { targetUtilizationPercent: 60 });
+    apiScaling.scaleOnCpuUtilization("CpuScaling", { targetUtilizationPercent: apiCpuTarget });
+
+    // Flood / DDoS protection for the API (lib/firewall.ts). Not on the load-test stack: k6
+    // sends everything from a few IPs and would trip the per-IP rule on purpose.
+    const firewall = loadTest
+      ? undefined
+      : new ApiFirewall(this, "ApiFirewall", { loadBalancer: api.loadBalancer });
 
     // ── Worker: Fargate service, no load balancer (it only pulls jobs from Redis) ──────
     // Workers publish the queue depth here; the autoscaling and monitoring alarms read it.
@@ -390,20 +398,27 @@ export class SpeakUpStack extends cdk.Stack {
       statistic: "Maximum",
       period: cdk.Duration.minutes(1),
     });
-    worker
-      .autoScaleTaskCount({ minCapacity: 1, maxCapacity: config.workerMaxTasks })
-      .scaleOnMetric("QueueDepthScaling", {
-        metric: queueWaiting,
-        adjustmentType: appscaling.AdjustmentType.CHANGE_IN_CAPACITY,
-        scalingSteps: [
-          { upper: 0, change: -1 },
-          { lower: 8, change: +1 },
-          { lower: 30, change: +3 },
-          { lower: 100, change: +6 },
-        ],
-        cooldown: cdk.Duration.seconds(60),
-        evaluationPeriods: 1,
-      });
+    const workerTaskCount = worker.autoScaleTaskCount({
+      minCapacity: 1,
+      maxCapacity: config.workerMaxTasks,
+    });
+    workerTaskCount.scaleOnMetric("QueueDepthScaling", {
+      metric: queueWaiting,
+      adjustmentType: appscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+      scalingSteps: [
+        { upper: 0, change: -1 },
+        { lower: 8, change: +1 },
+        { lower: 30, change: +3 },
+        { lower: 100, change: +6 },
+      ],
+      cooldown: cdk.Duration.seconds(60),
+      evaluationPeriods: 1,
+    });
+    // scaleOnMetric returns nothing; monitoring needs the policy's scale-out alarm.
+    const workerScaling = workerTaskCount.node
+      .findAll()
+      .find((c): c is appscaling.StepScalingPolicy => c instanceof appscaling.StepScalingPolicy);
+    if (!workerScaling) throw new Error("worker has no step scaling policy");
 
     // ── Alarms + dashboard (lib/monitoring.ts) ─────────────────────────────────────────
     const logGroup = (name: string) => {
@@ -416,9 +431,12 @@ export class SpeakUpStack extends cdk.Stack {
       namespace: queueMetricsNamespace,
       api,
       apiLogs: logGroup("Api"),
+      apiCpuTarget,
       worker,
       workerLogs: logGroup("Worker"),
       queueWaiting,
+      workerScaling,
+      firewall,
       db,
       redis,
     });
