@@ -8,6 +8,7 @@ import { cleanupFunnelSessions, createPrismaCleanupRepo } from "./cleanup.js";
 import { loadRootDotEnv, parseEnv } from "./env.js";
 import { PipelineError } from "./errors.js";
 import { createClaudeSender } from "./feedback/claude.js";
+import { createErrorReporter, shouldReportJobFailure } from "./error-reporter.js";
 import { createLogger } from "./logger.js";
 import { runAnalysis, type PipelineDeps } from "./pipeline.js";
 import { createDeepgramStt } from "./providers/deepgram.js";
@@ -42,6 +43,11 @@ function main(): void {
   }
 
   const log = createLogger(env.NODE_ENV);
+  const errorReporter = createErrorReporter({
+    dsn: env.SENTRY_DSN,
+    environment: env.NODE_ENV,
+    service: "worker",
+  });
   const db = createDbClient(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
 
   const storage = createS3AudioStorage({
@@ -108,6 +114,9 @@ function main(): void {
         });
         await runAnalysis(job.data, { isFinalAttempt }, deps, jobLog);
       } catch (err) {
+        if (shouldReportJobFailure(err, isFinalAttempt)) {
+          errorReporter.capture(err, { queue: ANALYSIS_QUEUE_NAME, jobId: String(job.id) });
+        }
         // A non-retryable failure (no speech, bad request…) must not use up the remaining
         // retries: UnrecoverableError tells BullMQ to fail the job right away.
         if (err instanceof PipelineError && !err.retryable) {
@@ -148,9 +157,10 @@ function main(): void {
     },
     { connection, concurrency: 1 },
   );
-  maintenanceWorker.on("failed", (job, err) =>
-    log.error({ jobId: job?.id, err: err.message }, "maintenance job failed"),
-  );
+  maintenanceWorker.on("failed", (job, err) => {
+    log.error({ jobId: job?.id, err: err.message }, "maintenance job failed");
+    errorReporter.capture(err, { queue: MAINTENANCE_QUEUE, jobId: String(job?.id) });
+  });
 
   worker.on("ready", () =>
     log.info({ queue: ANALYSIS_QUEUE_NAME, concurrency: env.WORKER_CONCURRENCY }, "worker ready"),
@@ -183,17 +193,22 @@ function main(): void {
     ]);
     await db.$disconnect();
     publisher.disconnect();
+    await errorReporter.flush(2000);
     process.exit(0);
   };
   // Unknown state after an unhandled error: log and exit; the orchestrator restarts the worker,
   // and BullMQ hands any in-flight job to another worker (stalled-job detection).
+  // Report first: these are exactly the errors worth a stack trace in Sentry.
+  const crash = (err: unknown, message: string) => {
+    log.fatal({ err }, message);
+    errorReporter.capture(err, { kind: "crash" });
+    void errorReporter.flush(2000).finally(() => process.exit(1));
+  };
   process.on("unhandledRejection", (reason) => {
-    log.fatal({ err: reason }, "unhandled promise rejection — exiting");
-    process.exit(1);
+    crash(reason, "unhandled promise rejection — exiting");
   });
   process.on("uncaughtException", (err) => {
-    log.fatal({ err }, "uncaught exception — exiting");
-    process.exit(1);
+    crash(err, "uncaught exception — exiting");
   });
   process.once("SIGINT", () => void shutdown("SIGINT"));
   process.once("SIGTERM", () => void shutdown("SIGTERM"));

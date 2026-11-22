@@ -38,6 +38,8 @@ export const EnvSchema = z
     // (API tasks × pool) + (worker tasks × pool) stays under the DB's max_connections.
     DB_POOL_MAX: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).optional()),
     REDIS_URL: z.url(),
+    // Sentry project DSN for error reports. Unset = error tracking off.
+    SENTRY_DSN: z.preprocess(emptyAsUndefined, z.url().optional()),
     CORS_ORIGINS: commaSeparatedUrls,
     // Clerk secret key — verifies session JWTs and reads user emails. Never sent to the browser.
     CLERK_SECRET_KEY: z.string().startsWith("sk_", "must be a Clerk secret key (sk_...)"),
