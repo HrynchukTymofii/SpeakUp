@@ -84,6 +84,11 @@ export default function PrivacyPage() {
         <li>
           <strong>Amplitude</strong> (United States) — product analytics (the usage data above).
         </li>
+        <li>
+          <strong>Sentry</strong> (United States) — error reports: what went wrong in our code, with
+          your browser type and our internal ids, so we can fix it. Never your recordings or what
+          you said.
+        </li>
       </ul>
       <p>
         These providers process data only to provide their part of the service to us. Some of them

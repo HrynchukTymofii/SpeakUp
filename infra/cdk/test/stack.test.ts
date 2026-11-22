@@ -374,6 +374,37 @@ describe("monitoring", () => {
   }, 60_000);
 });
 
+describe("error tracking (Sentry)", () => {
+  const env = (t: Template, name: string) =>
+    Object.fromEntries(
+      ((container(t, name).Environment ?? []) as unknown as { Name: string; Value: string }[]).map(
+        (e) => [e.Name, e.Value],
+      ),
+    );
+
+  it("passes speakup:sentryDsn to the API and the worker", () => {
+    const dsn = "https://abc@o1.ingest.sentry.io/2";
+    const t = synth({ "speakup:sentryDsn": dsn }).template;
+    expect(env(t, "api").SENTRY_DSN).toBe(dsn);
+    expect(env(t, "worker").SENTRY_DSN).toBe(dsn);
+  }, 60_000);
+
+  it("never reports from the load-test stack (it fails jobs on purpose)", () => {
+    const t = synth({
+      "speakup:loadTest": "true",
+      "speakup:sentryDsn": "https://abc@o1.ingest.sentry.io/2",
+    }).template;
+    expect(env(t, "api").SENTRY_DSN).toBeUndefined();
+    expect(env(t, "worker").SENTRY_DSN).toBeUndefined();
+  }, 60_000);
+
+  it("sets no SENTRY_DSN without one (error tracking off)", () => {
+    const t = synth().template;
+    expect(env(t, "api").SENTRY_DSN).toBeUndefined();
+    expect(env(t, "worker").SENTRY_DSN).toBeUndefined();
+  }, 60_000);
+});
+
 describe("scaling and cost alerts", () => {
   let template: Template;
   beforeAll(() => {
@@ -602,6 +633,13 @@ describe("config", () => {
       context: { "speakup:webOrigins": "https://a.test", "speakup:alarmEmail": "ops" },
     });
     expect(() => readConfig(app.node, repoRoot)).toThrow(/alarmEmail/);
+  });
+
+  it("rejects a Sentry DSN that isn't a URL", () => {
+    const app = new cdk.App({
+      context: { "speakup:webOrigins": "https://a.test", "speakup:sentryDsn": "not-a-dsn" },
+    });
+    expect(() => readConfig(app.node, repoRoot)).toThrow(/sentryDsn/);
   });
 
   it("rejects a monthly budget that isn't a positive whole number of dollars", () => {

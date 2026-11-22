@@ -102,6 +102,29 @@ The error body users see contains the `requestId` too, so a support report can b
 Logs never contain tokens, emails, transcripts or audio URLs: the redaction list is shared in
 `packages/shared/src/logging.ts` and applied by both services.
 
+## Errors in Sentry
+
+The API, the worker and the web app (browser and Next server) report errors to Sentry when a DSN is
+set (`speakup:sentryDsn` in `cdk.json` for AWS, `NEXT_PUBLIC_SENTRY_DSN` in Vercel Production).
+Sentry groups them by cause with the stack trace and counts how often each happens; the logs stay
+the full record. Filter by the `service` tag (`api`, `worker`) or `environment`
+(`production`, `preview`).
+
+What is reported:
+
+- **API:** every 5xx (an unhandled error or an `AppError` ≥ 500), tagged with `requestId` and
+  `route`. Look the `requestId` up in the logs (see Logs) for the whole request.
+- **Worker:** a recording that ends without feedback (the last try, or a failure that won't be
+  retried), tagged with `jobId`; failed maintenance jobs. Never `NO_SPEECH` (the user's silence).
+- **Both:** crashes (an uncaught exception or unhandled rejection) before the process exits.
+- **Web:** uncaught errors in the browser and errors while rendering or handling requests on the
+  server.
+
+What is never sent: errors only, no tracing, no session replay, no breadcrumbs, and every event is
+scrubbed (`packages/shared/src/error-reporting.ts`). A test sends a real event through the SDK to
+a local server and checks that no token, cookie, query string, email, IP or transcript arrives.
+Browser stack traces are minified (no source maps are uploaded yet).
+
 ## Rotating a secret
 
 1. Create the new key at the provider (Clerk, Paddle, Turnstile, Deepgram, Anthropic).

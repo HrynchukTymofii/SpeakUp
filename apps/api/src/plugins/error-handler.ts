@@ -1,6 +1,7 @@
 import { ErrorCode, type ApiError } from "@speakup/shared";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { hasZodFastifySchemaValidationErrors } from "fastify-type-provider-zod";
+import { noopErrorReporter, type ErrorReporter } from "../services/error-reporter.js";
 
 /**
  * Throw this from routes/services for expected failures ("not signed in", "not yours").
@@ -46,10 +47,23 @@ function body(code: string, message: string, requestId: string): ApiError {
  *
  * Called directly on the root instance (not registered as a plugin) so it applies to every route.
  */
-export function setupErrorHandling(app: FastifyInstance): void {
+export function setupErrorHandling(
+  app: FastifyInstance,
+  reporter: ErrorReporter = noopErrorReporter,
+): void {
+  // Only 5xx: those are our bugs or outages. 4xx are the client's and expected.
+  const report = (error: unknown, request: FastifyRequest) =>
+    reporter.capture(error, {
+      requestId: request.id,
+      route: request.routeOptions.url ?? "unknown",
+    });
+
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
-      if (error.statusCode >= 500) request.log.error({ err: error }, error.message);
+      if (error.statusCode >= 500) {
+        request.log.error({ err: error }, error.message);
+        report(error, request);
+      }
       return reply
         .code(error.statusCode)
         .headers(error.headers)
@@ -72,6 +86,7 @@ export function setupErrorHandling(app: FastifyInstance): void {
     }
 
     request.log.error({ err: error }, "unhandled error");
+    report(error, request);
     return reply
       .code(500)
       .send(body(ErrorCode.INTERNAL, "Something went wrong. Please try again.", request.id));

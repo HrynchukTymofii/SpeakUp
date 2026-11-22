@@ -46,6 +46,9 @@ export const PublicEnvSchema = z
     // Product analytics (funnel/analytics.ts, docs/analytics.md). Amplitude's browser API key is
     // public by design. Empty = analytics off (local dev, previews).
     NEXT_PUBLIC_AMPLITUDE_API_KEY: z.preprocess(emptyAsUndefined, z.string().optional()),
+    // Error tracking (lib/error-tracking.ts). A Sentry DSN is public by design (it only allows
+    // sending events). Empty = error tracking off (local dev).
+    NEXT_PUBLIC_SENTRY_DSN: z.preprocess(emptyAsUndefined, z.url().optional()),
     // Domain split (see lib/hosts.ts): the marketing site and the product app. Set both or neither;
     // unset (local dev, previews) = one host serves every page.
     NEXT_PUBLIC_SITE_URL: optionalOrigin,
@@ -63,6 +66,7 @@ export const publicEnv = PublicEnvSchema.parse({
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
   NEXT_PUBLIC_PADDLE_ENV: process.env.NEXT_PUBLIC_PADDLE_ENV,
   NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 });

@@ -14,6 +14,7 @@ import {
 import type { Env } from "./env.js";
 import { requireAuth } from "./plugins/auth.js";
 import { AppError, setupErrorHandling } from "./plugins/error-handler.js";
+import type { ErrorReporter } from "./services/error-reporter.js";
 import { healthRoutes, type HealthChecks } from "./routes/health.js";
 import { courseRoutes } from "./routes/courses.js";
 import { meRoutes } from "./routes/me.js";
@@ -47,6 +48,8 @@ export interface ServerDeps {
   healthChecks: HealthChecks;
   /** Shared store for the global per-IP rate limit. Omitted in tests → in-memory store. */
   rateLimitRedis?: Redis;
+  /** Unexpected 5xx go here (Sentry in prod). Omitted → not reported. */
+  errorReporter?: ErrorReporter;
   /** Tests only: capture log output to check redaction. */
   logStream?: Writable;
 }
@@ -90,7 +93,7 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   // Zod schemas on routes validate input and serialize output.
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  setupErrorHandling(app);
+  setupErrorHandling(app, deps.errorReporter);
 
   await app.register(helmet);
   // @fastify/cors only allows GET/HEAD/POST by default; the web app also sends PUT and PATCH.

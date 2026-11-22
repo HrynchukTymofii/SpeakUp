@@ -9,6 +9,7 @@ import { withLoadTestAuth } from "./services/load-test-auth.js";
 import { createPaddleProvider } from "./services/payments/paddle.js";
 import { createRedisRateLimiter } from "./services/rate-limiter.js";
 import { createRedisAttemptEvents } from "./services/attempt-events.js";
+import { createErrorReporter } from "./services/error-reporter.js";
 import { createS3Storage } from "./services/storage.js";
 import { createRedisKeyedLock } from "./services/user-lock.js";
 
@@ -26,6 +27,12 @@ async function main(): Promise<void> {
     console.error((err as Error).message);
     process.exit(1);
   }
+
+  const errorReporter = createErrorReporter({
+    dsn: env.SENTRY_DSN,
+    environment: env.NODE_ENV,
+    service: "api",
+  });
 
   // One DB client and one Redis connection per process, shared by all requests.
   const db = createDbClient(env.DATABASE_URL, { poolMax: env.DB_POOL_MAX });
@@ -62,6 +69,7 @@ async function main(): Promise<void> {
 
   const app = await buildServer({
     env,
+    errorReporter,
     db,
     auth,
     storage,
@@ -89,17 +97,22 @@ async function main(): Promise<void> {
     await db.$disconnect();
     redis.disconnect();
     subscriber.disconnect();
+    await errorReporter.flush(2000);
     process.exit(0);
   };
   // A promise rejection nobody handled means the process is in an unknown state. Log it and
   // exit; the orchestrator (ECS) starts a fresh container. Staying up half-broken is worse.
+  // Report first: these are exactly the errors worth a stack trace in Sentry.
+  const crash = (err: unknown, message: string) => {
+    app.log.fatal({ err }, message);
+    errorReporter.capture(err, { kind: "crash" });
+    void errorReporter.flush(2000).finally(() => process.exit(1));
+  };
   process.on("unhandledRejection", (reason) => {
-    app.log.fatal({ err: reason }, "unhandled promise rejection — exiting");
-    process.exit(1);
+    crash(reason, "unhandled promise rejection — exiting");
   });
   process.on("uncaughtException", (err) => {
-    app.log.fatal({ err }, "uncaught exception — exiting");
-    process.exit(1);
+    crash(err, "uncaught exception — exiting");
   });
   process.once("SIGINT", () => void shutdown("SIGINT"));
   process.once("SIGTERM", () => void shutdown("SIGTERM"));

@@ -17,6 +17,8 @@ export const EnvSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     REDIS_URL: z.url(),
     DATABASE_URL: z.url(),
+    // Sentry project DSN for error reports. Unset = error tracking off.
+    SENTRY_DSN: z.preprocess(emptyAsUndefined, z.url().optional()),
     // Max Postgres connections this process opens (node-postgres default: 10). Size it so
     // (API tasks × pool) + (worker tasks × pool) stays under the DB's max_connections.
     DB_POOL_MAX: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).optional()),
