@@ -1,16 +1,20 @@
 import * as cdk from "aws-cdk-lib";
+import type * as appscaling from "aws-cdk-lib/aws-applicationautoscaling";
+import * as budgets from "aws-cdk-lib/aws-budgets";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cwActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import type * as ecs from "aws-cdk-lib/aws-ecs";
 import type * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import type * as elasticache from "aws-cdk-lib/aws-elasticache";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
 import type * as rds from "aws-cdk-lib/aws-rds";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 import type { SpeakUpConfig } from "./config.js";
+import type { ApiFirewall } from "./firewall.js";
 
 export interface MonitoringProps {
   config: SpeakUpConfig;
@@ -18,9 +22,15 @@ export interface MonitoringProps {
   namespace: string;
   api: ecsPatterns.ApplicationLoadBalancedFargateService;
   apiLogs: logs.ILogGroup;
+  /** The API's target-tracking CPU %; AWS owns those alarms, so we mirror the scale-out one. */
+  apiCpuTarget: number;
   worker: ecs.FargateService;
   workerLogs: logs.ILogGroup;
   queueWaiting: cloudwatch.Metric;
+  /** The worker's step-scaling policy on queue depth; its scale-out alarm also emails. */
+  workerScaling: appscaling.StepScalingPolicy;
+  /** Absent on the load-test stack. */
+  firewall?: ApiFirewall;
   db: rds.DatabaseInstance;
   redis: elasticache.CfnReplicationGroup;
 }
@@ -43,6 +53,9 @@ const DB_MAX_CONNECTIONS: Record<SpeakUpConfig["dbInstanceSize"], number> = {
  * feedback, or a resource is about to run out. Each one notifies the SNS topic when it fires
  * and again when it recovers. The thresholds come from the load tests (docs/load-testing.md):
  * normal traffic never crosses them. What to do when one fires is in docs/runbook.md "Alarms".
+ *
+ * Two kinds of email are informational instead: each scale-out (with its trigger) and the
+ * monthly AWS budget, so a bigger bill always comes with a reason.
  */
 export class Monitoring extends Construct {
   readonly topic: sns.Topic;
@@ -151,6 +164,53 @@ export class Monitoring extends Construct {
       evaluationPeriods: 1,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
+    if (props.firewall) {
+      alarm(
+        "api-flood-blocked",
+        "The API firewall (WAF) blocked 100+ requests from IPs over its per-IP limit in 5 minutes.",
+        props.firewall.blockedByRateLimit,
+        {
+          threshold: 100,
+          comparisonOperator: atLeast,
+          evaluationPeriods: 1,
+          treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        },
+      );
+    }
+
+    // ── Scaling: an email whenever we scale out, saying why ─────────────────────────────
+    // Not a fault: "more load arrived, more tasks are starting" (and an OK email when it
+    // settles), so every spike, and every bigger bill, comes with a reason.
+    //
+    // API: target tracking creates and owns its alarms, so this one mirrors its scale-out
+    // rule (average CPU above the target for 3 one-minute periods).
+    const apiCpu = api.service.metricCpuUtilization({ period: oneMin, statistic: "Average" });
+    alarm(
+      "api-scaling-out",
+      `Scaling: API CPU stayed above ${props.apiCpuTarget}% for 3 minutes, so ECS is adding ` +
+        "API tasks (up to 4). The OK email means CPU is back under the target.",
+      apiCpu,
+      {
+        threshold: props.apiCpuTarget,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        evaluationPeriods: 3,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      },
+    );
+    // Worker: the step-scaling alarm itself, so the email shows the exact queue depth that
+    // triggered it. It fires once per spike (the steps keep adding tasks while it stays in
+    // ALARM) and recovers when fewer than 8 recordings wait.
+    const workerScaleOut = props.workerScaling.upperAlarm;
+    if (!workerScaleOut) throw new Error("worker scaling has no scale-out alarm");
+    const workerScaleOutCfn = workerScaleOut.node.defaultChild as cloudwatch.CfnAlarm;
+    workerScaleOutCfn.alarmName = `${stackName}-worker-scaling-out`;
+    workerScaleOutCfn.alarmDescription =
+      "Scaling: 8+ recordings are waiting, so ECS is adding workers: +1 task at 8 waiting, " +
+      `+3 at 30, +6 at 100, up to ${config.workerMaxTasks}. The OK email means fewer than 8 ` +
+      'wait again; workers then stop one at a time. Runbook: docs/runbook.md "Alarms".';
+    workerScaleOut.addAlarmAction(new cwActions.SnsAction(this.topic));
+    workerScaleOut.addOkAction(new cwActions.SnsAction(this.topic));
+    this.alarms.push(workerScaleOut);
 
     // ── Worker ──────────────────────────────────────────────────────────────────────────
     // Autoscaling drained 1,000 users' recordings in ~8 min, so a backlog still there after
@@ -225,6 +285,42 @@ export class Monitoring extends Construct {
       evaluationPeriods: 3,
     });
 
+    // ── Cost: a monthly AWS budget ──────────────────────────────────────────────────────
+    // Covers the whole account, so only the production stack creates it. AWS refreshes cost
+    // data a few times a day: this catches a runaway month, not the last hour's spike.
+    if (!config.loadTest) {
+      this.topic.addToResourcePolicy(
+        new iam.PolicyStatement({
+          actions: ["sns:Publish"],
+          principals: [new iam.ServicePrincipal("budgets.amazonaws.com")],
+          resources: [this.topic.topicArn],
+          conditions: { StringEquals: { "aws:SourceAccount": cdk.Aws.ACCOUNT_ID } },
+        }),
+      );
+      const notify = (notificationType: "ACTUAL" | "FORECASTED", threshold: number) => ({
+        notification: {
+          notificationType,
+          comparisonOperator: "GREATER_THAN",
+          threshold,
+          thresholdType: "PERCENTAGE",
+        },
+        subscribers: [{ subscriptionType: "SNS", address: this.topic.topicArn }],
+      });
+      new budgets.CfnBudget(this, "MonthlyBudget", {
+        budget: {
+          budgetName: `${stackName}-monthly`,
+          budgetType: "COST",
+          timeUnit: "MONTHLY",
+          budgetLimit: { amount: config.monthlyBudgetUsd, unit: "USD" },
+        },
+        notificationsWithSubscribers: [
+          // Early warning: at this pace the month ends above 80% of the budget.
+          notify("FORECASTED", 80),
+          notify("ACTUAL", 100),
+        ],
+      });
+    }
+
     // ── Dashboard ───────────────────────────────────────────────────────────────────────
     const graph = (
       title: string,
@@ -248,8 +344,9 @@ export class Monitoring extends Construct {
             lb.targetResponseTime({ period: fiveMin, statistic: "p50" }),
             lb.targetResponseTime({ period: fiveMin, statistic: "p95" }),
           ]),
-          graph("API tasks: CPU % and healthy count", [api.service.metricCpuUtilization()], {
+          graph("API tasks: CPU % and healthy count", [apiCpu], {
             right: [healthyTasks],
+            leftAnnotations: [{ value: props.apiCpuTarget, label: "scale-out target" }],
           }),
         ],
         [
@@ -272,7 +369,13 @@ export class Monitoring extends Construct {
           }),
           graph("Postgres free storage (bytes)", [dbFreeStorage]),
         ],
-        [graph("Redis memory %", [redisMemory]), graph("Redis engine CPU %", [redisCpu])],
+        [
+          graph("Redis memory %", [redisMemory]),
+          graph("Redis engine CPU %", [redisCpu]),
+          ...(props.firewall
+            ? [graph("Firewall: blocked by the per-IP limit", [props.firewall.blockedByRateLimit])]
+            : []),
+        ],
       ],
     });
 

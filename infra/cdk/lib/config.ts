@@ -40,6 +40,11 @@ export interface SpeakUpConfig {
    * Ignored on the load-test stack.
    */
   alarmEmail?: string;
+  /**
+   * Monthly AWS budget in USD for the whole account. Emails the alarm topic when the month's
+   * forecast passes 80% of it and when actual spend passes it. Not created on the load-test stack.
+   */
+  monthlyBudgetUsd: number;
 }
 
 export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
@@ -76,6 +81,7 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     workerMaxTasks: readWorkerMaxTasks(get("workerMaxTasks")),
     dbInstanceSize: readDbInstanceSize(get("dbInstanceSize")),
     alarmEmail: readAlarmEmail(get("alarmEmail")),
+    monthlyBudgetUsd: readMonthlyBudget(get("monthlyBudgetUsd")),
   };
 }
 
@@ -93,6 +99,15 @@ function readAlarmEmail(value: string): string | undefined {
     throw new Error(`speakup:alarmEmail: "${value}" is not an email address`);
   }
   return value;
+}
+
+function readMonthlyBudget(value: string): number {
+  if (!value) return 100;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error("speakup:monthlyBudgetUsd must be a whole number of dollars, at least 1");
+  }
+  return n;
 }
 
 function readWorkerMaxTasks(value: string): number {
