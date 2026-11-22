@@ -17,6 +17,11 @@ export interface SpeakUpConfig {
   appSecretName: string;
   anthropicModel: string;
   /**
+   * Sentry DSN for the API's and worker's error reports (public by design: it only allows
+   * sending events, so it lives here, not in Secrets Manager). Empty = error tracking off.
+   */
+  sentryDsn?: string;
+  /**
    * `-c speakup:loadTest=true`: a separate, throwaway `SpeakUp-LoadTest` stack for load tests
    * (docs/load-testing.md). Simulated Deepgram/Claude, its own generated secrets, load-test
    * auth on, nothing retained on delete. Never set it for the production stack.
@@ -66,11 +71,20 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     paddleEnv,
     appSecretName: get("appSecretName") || "speakup/app",
     anthropicModel: get("anthropicModel") || "claude-sonnet-5-5",
+    sentryDsn: readSentryDsn(get("sentryDsn")),
     loadTest: get("loadTest") === "true",
     workerMaxTasks: readWorkerMaxTasks(get("workerMaxTasks")),
     dbInstanceSize: readDbInstanceSize(get("dbInstanceSize")),
     alarmEmail: readAlarmEmail(get("alarmEmail")),
   };
+}
+
+function readSentryDsn(value: string): string | undefined {
+  if (!value) return undefined;
+  if (!URL.canParse(value) || !value.startsWith("https://")) {
+    throw new Error(`speakup:sentryDsn: "${value}" is not a Sentry DSN (https://…)`);
+  }
+  return value;
 }
 
 function readAlarmEmail(value: string): string | undefined {

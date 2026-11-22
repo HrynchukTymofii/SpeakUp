@@ -257,6 +257,8 @@ export class SpeakUpStack extends cdk.Stack {
       AWS_REGION: this.region,
       S3_BUCKET: bucket.bucketName,
       REDIS_URL: redisUrl,
+      // Error reports (Sentry). Not from load tests: they fail jobs on purpose.
+      ...(config.sentryDsn && !loadTest && { SENTRY_DSN: config.sentryDsn }),
     };
     const dbSecretEnv = { DB_SECRET: ecs.Secret.fromSecretsManager(dbSecret) };
 
