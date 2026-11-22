@@ -1,15 +1,21 @@
 import { PRACTICE_MODES, type PracticeMode } from "@speakup/shared";
 import type { Tone } from "./catalog";
+import type { IconName } from "@/components/icons";
 
 /** The Practice tab's mode cards. One line each: nobody reads more on a card. */
 export const MODE_INFO: Record<
   PracticeMode,
-  { label: string; icon: string; short: string; tone: Tone }
+  { label: string; icon: IconName; short: string; tone: Tone }
 > = {
-  topic: { label: "One-minute topic", icon: "⏱️", short: "60 seconds, no prep", tone: "butter" },
-  questions: { label: "Question storm", icon: "❓", short: "Ask, ask, ask", tone: "lav" },
-  convince: { label: "Convince me", icon: "🔥", short: "Make a silly idea matter", tone: "rose" },
-  twister: { label: "Tongue twister", icon: "👅", short: "Clear, then faster", tone: "sage" },
+  topic: { label: "One-minute topic", icon: "timer", short: "60 seconds, no prep", tone: "butter" },
+  questions: { label: "Question storm", icon: "question", short: "Ask, ask, ask", tone: "lav" },
+  convince: {
+    label: "Convince me",
+    icon: "flame",
+    short: "Make a silly idea matter",
+    tone: "rose",
+  },
+  twister: { label: "Tongue twister", icon: "waves", short: "Clear, then faster", tone: "sage" },
 };
 
 export function parseMode(value: string): PracticeMode | undefined {

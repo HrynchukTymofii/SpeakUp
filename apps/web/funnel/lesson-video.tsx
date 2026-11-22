@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/icons";
 
 /**
  * The funnel's mini-lesson video. It starts on its own when the step opens.
@@ -62,7 +63,7 @@ export function LessonVideo({ src, onEnded }: { src: string; onEnded: () => void
           // Bottom corner: the video's captions are burned in at the top.
           className="btn btn-primary btn-sm absolute right-3 bottom-14 shadow-soft"
         >
-          <span aria-hidden>🔊</span> Tap for sound
+          <Icon name="speaker" className="size-4" /> Tap for sound
         </button>
       )}
     </div>

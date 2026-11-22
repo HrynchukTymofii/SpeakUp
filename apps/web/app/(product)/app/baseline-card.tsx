@@ -29,19 +29,21 @@ export function BaselineCard() {
 
   const { exercise } = baseline.data;
   return (
-    <section className="paper flex flex-col gap-4 rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft">
-      <p className="text-sm font-bold">Start here · {exercise.maxDurationSec} seconds</p>
-      <h2 className="font-display text-[30px] leading-[1.05] font-semibold">
+    <section className="surface-glow flex flex-col gap-4 rounded-[28px] p-5 shadow-soft">
+      <p className="text-sm font-semibold text-muted">
+        Start here · {exercise.maxDurationSec} seconds
+      </p>
+      <h2 className="text-[28px] leading-[1.08] font-bold tracking-[-0.025em]">
         Take the speaking check
       </h2>
       {open ? (
         <>
           {exercise.referenceText && (
-            <blockquote className="rounded-3xl bg-card p-5 text-[17px] leading-relaxed font-medium text-ink">
+            <blockquote className="rounded-3xl bg-card p-5 text-[17px] leading-relaxed font-medium text-ink shadow-soft-sm">
               {exercise.referenceText}
             </blockquote>
           )}
-          <div className="rounded-3xl bg-card p-4 text-ink">
+          <div className="rounded-3xl bg-card p-4 text-ink shadow-soft-sm">
             <ExerciseRecorder exercise={exercise} next="/app" />
           </div>
         </>
@@ -49,7 +51,7 @@ export function BaselineCard() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center justify-between rounded-full bg-white py-2 pr-2 pl-5 font-bold shadow-soft-sm"
+          className="flex items-center justify-between rounded-full bg-card py-2 pr-2 pl-5 font-bold shadow-soft-sm"
         >
           Start
           <PlayCircle />

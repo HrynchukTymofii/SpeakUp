@@ -2,20 +2,14 @@
 
 How the SpeakUp web app (`apps/web`) looks and why, and how to build new UI that matches.
 
-Two themes share one set of token names:
+One theme, **Glow**, for the whole web app: the marketing site (landing, legal pages) and the
+product (funnel, sign-in, `/app`, results, pricing). A near-white page with one soft lavender
+glow, white cards with a little depth, black for anything you press, headlines in Manrope, line
+icons instead of emoji. Light only. See [ADR 0009](./adr/0009-marketing-site-glow-theme.md)
+(site) and [ADR 0010](./adr/0010-app-glow-theme.md) (app).
 
-- **The app** (everything under the `(product)` layout: funnel, sign-in, `/app`, results,
-  pricing) uses the **SAT Learner** design: lavender, butter and black on a light lavender page,
-  graph-paper texture on pastel cards, a floating black tab bar. Light by default, dark when the
-  OS asks for it. The `(product)` layout renders `.app-theme`, and `:root:has(.app-theme)`
-  redefines the tokens (see "App theme" below).
-- **The marketing site** (landing and legal pages) uses the **Glow** design: a near-white page
-  with one soft lavender glow, white cards with a little depth, black for anything you press,
-  headlines in light + bold Manrope (the `:root` values below; [ADR 0009](./adr/0009-marketing-site-glow-theme.md)).
-
-Both use SpeakUp's own mascot.
-
-- App theme source (outside this repo): `SAT/app/constants/palette.ts`, `SAT/redesign-previews/v3/app.html`
+Both hosts use SpeakUp's own mascot. The `(product)` layout still renders `.app-theme`, a hook
+for app-only rules; it no longer changes any token.
 
 - Glow source (outside this repo): `SpeakUp Project/mobile/designs/11-glow-final.html` and the
   landing mockup `SpeakUp Project/website/landing.html`
@@ -27,22 +21,24 @@ Both use SpeakUp's own mascot.
 
 1. **Tokens, not hex.** Every color is a CSS variable in `apps/web/app/globals.css`, exposed to
    Tailwind through `@theme`. Components write `bg-card`, `text-muted`, `border-line`, never `#141414`.
-2. **Neutral canvas, few accents.** Surfaces are neutral (light lavender or near-black in the
-   app, near-white on the marketing site). The app gets its personality from the pastels
-   (lavender, butter, sage, sky, rose); the site from one lavender glow, a single black card and
-   the blue mascot.
-3. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
+2. **Neutral canvas, few accents.** Surfaces are near-white; personality comes from one
+   lavender glow, a single black card per screen and the blue mascot. The soft pastels (sage,
+   rose, butter, sky) only carry meaning: good, fix, highlight, info.
+3. **No emoji.** Use the line icons in `components/icons.tsx` (or an image). A test
+   (`lib/no-emoji.test.ts`) fails if an emoji appears in the UI source; text symbols like ✓
+   and × are fine.
+4. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
    (and `text-on-pastel-muted` for secondary text) — never cream text on a pastel.
-4. **Big and soft.** Large Outfit headlines, pill buttons, generously rounded cards (20–28 px),
-   soft large shadows.
-5. **Mobile first.** Every screen is designed and checked at **375 px** wide first.
-6. **Motion is optional.** All animation switches off under `prefers-reduced-motion: reduce`.
+5. **Big and soft.** Large Manrope headlines, pill buttons, generously rounded cards (20–28 px),
+   the layered "depth" shadow.
+6. **Mobile first.** Every screen is designed and checked at **375 px** wide first.
+7. **Motion is optional.** All animation switches off under `prefers-reduced-motion: reduce`.
 
 ---
 
 ## 2. Color tokens
 
-These are the marketing site's values (the app's are in the next table). Defined in `:root` in
+Defined in `:root` in
 `apps/web/app/globals.css`; the Tailwind name is the variable name with
 the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2`).
 
@@ -63,28 +59,12 @@ the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2
 | Status    | `danger`                           | `#b4233f`                         | inline error text                                 |
 | Mascot    | `mascot-light` / `-mid` / `-deep`  | `#f4fcff` / `#aeddf7` / `#5ba6df` | mascot body gradient only                         |
 
-Shadows: `shadow-soft` (cards; on the site it is the layered "depth" shadow with a light top edge),
+Shadows: `shadow-soft` (cards: the layered "depth" shadow with a light top edge),
 `shadow-soft-sm` (small cards), `shadow-peach` (accent pills), `shadow-ink` (the black card).
 
 Also: `brand` (accent for text, links and focus rings: pastels are surfaces, too light for text),
-`grid` / `dot` (graph-paper lines, path dots) and `edge` (the ledge under raised buttons).
-
-### App theme (SAT Learner)
-
-| Token                        | Light                             | Dark                  |
-| ---------------------------- | --------------------------------- | --------------------- |
-| `page` / `bg`                | `#f4f1f9`                         | `#0b0a0f`             |
-| `card` / `card-2`            | `#ffffff` / `#efeaf7`             | `#17151c` / `#221f29` |
-| `line` / `line-2`            | `#e5dfee` / `#d8d0e6`             | `#2b2733` / `#3a3544` |
-| `ink` / `muted`              | `#0b0a0f` / `#6b6577`             | `#f4f1f8` / `#9c95a8` |
-| `brand`                      | `#7a4bdb`                         | `#c9aafb`             |
-| `peach` (the accent surface) | `#c9aafb` (lavender)              | same                  |
-| `butter` / `sage` / `lav`    | `#fee7a6` / `#cdefd9` / `#e4cdff` | same                  |
-| `sky` / `rose`               | `#cfe3f7` / `#ffd6de`             | same                  |
-| `on-pastel` / `-muted`       | `#0b0a0f` / `#4a4553`             | same                  |
-
-The token keeps its old name (`peach`) so every component follows without edits; in the app it
-is lavender.
+`grid` / `dot` (graph-paper lines, path dots: transparent in Glow, so `paper` and `dots` draw
+nothing) and `edge` (the ledge under raised buttons).
 
 **Adding a token:** add the variable to `:root`, then map it in `@theme inline`
 (`--color-<name>: var(--<name>);`). Keep values in one place — the `@theme` entry only points at the variable.
@@ -96,17 +76,18 @@ is lavender.
 | Role                  | Font        | How                                                 |
 | --------------------- | ----------- | --------------------------------------------------- |
 | Body, UI              | **Manrope** | default (`font-sans`)                               |
-| Headings, big numbers | **Outfit**  | `font-display` (all `h1`–`h3` get it automatically) |
+| Headings, big numbers | **Manrope** | `font-display` (all `h1`–`h3` get it automatically) |
 
-Both load through `next/font/google` in `app/layout.tsx` (self-hosted at build time, no layout
-shift). **No serif fonts** — the kit's Literata is deliberately not used.
+One family, loaded through `next/font/google` in `app/layout.tsx` (self-hosted at build time, no
+layout shift). Outfit was dropped with Glow. **No serif fonts.**
 
 Common sizes: page titles `text-[40px]`, funnel step titles `text-[28px]`, card titles
 `text-xl`, scores `text-7xl`. Headline line-height is tight (`leading-[1.05]`–`leading-tight`).
 
-**Marketing site (Glow):** headings use Manrope, not Outfit: `font-sans font-light` with a
-tight negative tracking (`tracking-[-0.035em]`) and the key words in `<b className="font-bold">`
-("Speak with **confidence**"). Big numbers are `font-light` too.
+**Big headlines** (landing, the Learn greeting): `font-light` with tight negative tracking
+(`tracking-[-0.035em]`) and the key words in `<b className="font-bold">` ("Let’s **speak up.**").
+Big numbers are `font-light` too. Card and step titles are `font-bold` with slight negative
+tracking.
 
 ---
 
@@ -118,29 +99,31 @@ same element override them (utilities come later in the cascade).
 | Class           | What it is                                                                                                 |
 | --------------- | ---------------------------------------------------------------------------------------------------------- |
 | `btn`           | base pill button (height ≥ 52 px, extra-bold, press-scale, disabled state). Always combine with a variant: |
-| `btn-primary`   | cream pill on black — the main call to action                                                              |
-| `btn-peach`     | peach pill with peach glow (upgrade/checkout)                                                              |
-| `btn-secondary` | dark pill with a border                                                                                    |
+| `btn-primary`   | black pill with a gentle gradient — the main call to action (same look as `btn-ink`)                       |
+| `btn-peach`     | the lavender (`brand`) pill — upgrade/checkout only                                                        |
+| `btn-secondary` | white pill with a little depth                                                                             |
 | `btn-sm`        | smaller size modifier                                                                                      |
-| `card`          | rounded 28 px card on `card` with border + soft shadow                                                     |
+| `card`          | rounded 28 px white card with a slight gradient and the depth shadow (no border)                           |
 | `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                     |
 | `pill`          | small rounded badge; add a `bg-*` and text color                                                           |
 | `link`          | muted text link that brightens on hover                                                                    |
-| `paper`         | graph-paper texture (SAT Learner); put it on pastel cards and icon tiles                                   |
+| `paper`         | graph-paper texture; draws nothing in Glow (`--grid` is transparent)                                       |
 | `dots`          | dotted canvas (behind the lesson path)                                                                     |
 | `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                           |
-| `surface`       | Glow (site): white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth            |
-| `surface-ink`   | Glow (site): the one raised black card (gradient, light top edge, own shadow, white text)                  |
-| `btn-ink`       | Glow (site): black pill with a gentle gradient and top highlight — the site's main call to action          |
+| `surface`       | Glow: white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth                   |
+| `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                         |
+| `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                  |
+| `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                            |
 
 Landing building blocks: `app/(marketing)/landing-visuals.tsx` (the hero phone with its floating
 cards, the step pictures, the lesson art, the feedback icons).
 
-App building blocks: `IconTile` (pastel square on graph paper with an emoji) and `PlayCircle`
-(the black play button in white "Continue" pills) in `components/icon-tile.tsx`; the floating
-black tab bar `components/app-tab-bar.tsx`; the Learn status row (LVL · 🔥 streak · ⚡ today) in
-`app/(product)/app/learn-view.tsx`; the lesson path with its START bubble and mascot in
-`app/(product)/app/course-path.tsx`.
+App building blocks: `Icon` (line icons, `components/icons.tsx`), `IconTile` (a lavender square
+with an icon) and `PlayCircle` (the black play button in white "Continue" pills) in
+`components/icon-tile.tsx`; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
+with labels, the active tab in ink with a dot); the Learn stat cards (today's goal is the black
+card, then streak and level) in `app/(product)/app/learn-view.tsx`; the lesson path with its START
+bubble and mascot in `app/(product)/app/course-path.tsx`.
 
 > Tailwind v4 cannot `@apply` a custom class, so variants are composed in markup
 > (`className="btn btn-primary"`), not inside CSS.
@@ -193,8 +176,8 @@ Implementation notes:
 | Widget                        | How it's themed                                                     | Where                           |
 | ----------------------------- | ------------------------------------------------------------------- | ------------------------------- |
 | Clerk (sign-in/up, user menu) | `appearance` prop on `<ClerkProvider>` using the same CSS variables | `app/layout.tsx`                |
-| Paddle checkout               | `settings.theme: "dark"`                                            | `components/upgrade-button.tsx` |
-| Cloudflare Turnstile          | `theme: "dark"` (only visible when Cloudflare is unsure)            | `funnel/turnstile.tsx`          |
+| Paddle checkout               | `settings.theme: "light"`                                           | `components/upgrade-button.tsx` |
+| Cloudflare Turnstile          | `theme: "light"` (only visible when Cloudflare is unsure)           | `funnel/turnstile.tsx`          |
 
 Clerk gotchas (Clerk 7):
 

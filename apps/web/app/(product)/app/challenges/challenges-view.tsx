@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
+import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { useMyStory } from "@/learn/local-progress";
 import { LEGENDS } from "@/learn/practice";
@@ -105,7 +106,7 @@ function StoryChallenge({
 
       {finished ? (
         <p className="rounded-2xl bg-on-pastel/10 p-3 font-bold">
-          🎉 Seven days done! Now the real test: tell it in your next conversation.
+          Seven days done! Now the real test: tell it in your next conversation.
         </p>
       ) : doneToday ? (
         <p className="font-bold">
@@ -160,7 +161,7 @@ function Legends({ exercises }: { exercises: Exercise[] }) {
                   <span className="text-xs font-semibold text-muted">{legend.talk}</span>
                 </span>
                 <span aria-hidden className="text-xl text-muted">
-                  {isOpen ? "−" : "▶"}
+                  {isOpen ? "−" : <Icon name="play" className="size-5" />}
                 </span>
               </button>
               {isOpen && (

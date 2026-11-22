@@ -18,6 +18,7 @@ import { TONE_SURFACE } from "@/learn/tone";
 import { ApiClientError } from "@/lib/api";
 import { MAX_POLL_MS, nextPollDelay, RESULT_WAIT_S } from "@/lib/poll";
 import { useApi } from "@/lib/use-api";
+import { Icon } from "@/components/icons";
 
 const FAILURE_MESSAGE: Record<string, string> = {
   [AnalysisErrorCode.NO_SPEECH]:
@@ -230,13 +231,13 @@ function FixWithLessons({ result }: { result: AttemptResult }) {
             <li key={lesson.slug}>
               <Link
                 href={`/app/lessons/${lesson.slug}`}
-                className="flex items-center gap-3 rounded-[20px] border-[1.5px] border-line-2 bg-card-2 p-3 transition-colors hover:border-peach"
+                className="surface flex items-center gap-3 rounded-[20px] p-3 shadow-soft-sm transition-colors hover:bg-card-2"
               >
                 <span
                   aria-hidden
-                  className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl ${TONE_SURFACE[meta.tone]}`}
+                  className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-brand ${TONE_SURFACE[meta.tone]}`}
                 >
-                  {meta.icon}
+                  <Icon name={meta.icon} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="font-bold">{lesson.title}</span>

@@ -48,11 +48,11 @@ export function ProfileView() {
       </header>
 
       <section aria-label="Stats" className="grid grid-cols-2 gap-2">
-        <Tile value={`🔥 ${data.streak}`} label="day streak" />
+        <Tile value={`${data.streak}`} label="day streak" />
         <Tile value={`${completed.length}`} label="recordings analyzed" />
         <Tile value={best ? `${best}` : "—"} label="best score" />
         <Tile
-          value={`⚡ Lv ${level.level}`}
+          value={`Level ${level.level}`}
           label={`${data.xp} XP total`}
           bar={level.intoLevel / level.perLevel}
         />
@@ -74,13 +74,13 @@ export function ProfileView() {
 
 function Tile({ value, label, bar }: { value: string; label: string; bar?: number }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[22px] border border-line bg-card p-4">
+    <div className="surface flex flex-col gap-1 rounded-[22px] p-4 shadow-soft">
       <p className="font-display text-2xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs font-semibold text-muted">{label}</p>
       {bar !== undefined && (
         <span className="mt-1 h-1.5 overflow-hidden rounded-full bg-card-2" aria-hidden>
           <span
-            className="block h-full rounded-full bg-gradient-to-r from-peach to-butter"
+            className="block h-full rounded-full bg-ink"
             style={{ width: `${Math.round(bar * 100)}%` }}
           />
         </span>

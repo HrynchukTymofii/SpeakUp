@@ -201,8 +201,8 @@ function StepNav({
 
 /** Each section gets its own surface, so "example" and "try this" are recognizable at a glance. */
 const STEP_SURFACE: Record<string, string> = {
-  Example: "paper rounded-[28px] bg-butter p-5 text-on-pastel shadow-soft",
-  "Try this": "paper rounded-[28px] bg-sage p-5 text-on-pastel shadow-soft",
+  Example: "surface rounded-[28px] p-5 shadow-soft",
+  "Try this": "rounded-[28px] bg-lav p-5 text-on-pastel shadow-soft-sm",
 };
 
 function ReadStep({
@@ -264,7 +264,7 @@ function ExerciseStep({
       </div>
       <p className="font-display text-lg leading-snug font-semibold">{exercise.prompt}</p>
       {exercise.referenceText && (
-        <blockquote className="rounded-3xl bg-butter p-5 text-[17px] leading-relaxed font-medium text-on-pastel">
+        <blockquote className="rounded-3xl bg-card p-5 text-[17px] leading-relaxed font-medium text-ink shadow-soft-sm">
           {exercise.referenceText}
         </blockquote>
       )}
@@ -301,7 +301,7 @@ function DoneStep({
 
 function LockedLesson() {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-[28px] bg-butter p-6 text-on-pastel shadow-soft">
+    <div className="surface-glow flex flex-col items-start gap-3 rounded-[28px] p-6 shadow-soft">
       <Mascot mood="thinking" size={80} />
       <h1 className="font-display text-2xl leading-tight font-semibold">
         This lesson is part of SpeakUp Pro

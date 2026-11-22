@@ -1,11 +1,13 @@
-/** A pastel square on graph paper with an emoji: the icon of a course, mode or lesson. */
-export function IconTile({ icon, surface }: { icon: string; surface: string }) {
+import { Icon, type IconName } from "./icons";
+
+/** A soft lavender square with a line icon: the picture of a course, mode or lesson. */
+export function IconTile({ icon, surface }: { icon: IconName; surface: string }) {
   return (
     <span
       aria-hidden
-      className={`paper flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl ${surface}`}
+      className={`flex size-12 shrink-0 items-center justify-center rounded-2xl text-brand ${surface}`}
     >
-      {icon}
+      <Icon name={icon} className="size-6" />
     </span>
   );
 }

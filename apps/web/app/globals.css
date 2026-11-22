@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
 /*
- * Design tokens for the marketing site: the "Glow" theme (mobile design 11). A near-white page
- * with one soft lavender glow, white cards with a little depth, black for anything you press.
+ * Design tokens: the "Glow" theme (mobile design 11), shared by the site and the app. A near-white
+ * page with one soft lavender glow, white cards with a little depth, black for anything you press.
  * Components use these through Tailwind (bg-card, text-muted, border-line…), never hex.
- * The app (product) redefines them below.
  */
 :root {
   color-scheme: light;
@@ -22,15 +21,15 @@
   --muted: #6b6b77; /* 5:1 on the page */
   --dim: #9a9aa6;
 
-  /* accents: one lavender, plus the shared pastels for the odd chip */
+  /* accents: one lavender, plus soft pastels for meaning (sage = good, rose = fix, butter = note) */
   --peach: #e4ddff; /* the accent surface: lavender wash */
   --peach-2: #d6ccff;
   --orange: #a996ff;
-  --butter: #fee7a6;
-  --sage: #cdefd9;
-  --sky: #cfe3f7;
+  --butter: #fff1c7;
+  --sage: #dcf4e5;
+  --sky: #e2edfb;
   --lav: #f1edff;
-  --rose: #ffd6de;
+  --rose: #ffe2e7;
   --on-pastel: #0e0e12;
   --on-pastel-muted: #4a4a55; /* ≥ 6:1 on every pastel */
   --danger: #b4233f;
@@ -56,85 +55,21 @@
   /* accent for text, links, focus rings and small highlights */
   --brand: #6a4df0; /* 5.3:1 on the page */
   --glow: #e4ddff;
-  /* graph-paper lines and the dotted path background */
-  --grid: rgba(14, 14, 18, 0.06);
-  --dot: rgba(14, 14, 18, 0.12);
+  /* graph-paper lines and the dotted path background: off in Glow (no patterns) */
+  --grid: transparent;
+  --dot: transparent;
   /* the "ledge" under raised path nodes */
   --edge: #dcdce4;
 }
 
 /*
- * The app (everything under the (product) layout, which renders `.app-theme`) uses the SAT
- * Learner design: lavender, butter and black on a light lavender page, graph-paper texture on
- * pastel cards. Light by default, dark when the OS asks for it. The marketing site keeps the
- * tokens above.
+ * The app (everything under the (product) layout, which renders `.app-theme`) uses the same Glow
+ * tokens as the site (ADR 0010). `.app-theme` stays as a hook for app-only rules.
  */
-:root:has(.app-theme) {
-  color-scheme: light;
-
-  --page: #f4f1f9;
-  --bg: #f4f1f9;
-  --card: #ffffff;
-  --card-2: #efeaf7;
-  --line: #e5dfee;
-  --line-2: #d8d0e6;
-
-  --ink: #0b0a0f;
-  --muted: #6b6577; /* 4.7:1 on the page */
-  --dim: #9c95a8;
-
-  --peach: #c9aafb; /* the accent surface: lavender */
-  --peach-2: #b993f7;
-  --orange: #f6b766;
-  --butter: #fee7a6;
-  --sage: #cdefd9;
-  --sky: #cfe3f7;
-  --lav: #e4cdff;
-  --rose: #ffd6de;
-  --on-pastel: #0b0a0f;
-  --on-pastel-muted: #4a4553; /* ≥ 6:1 on every pastel */
-  --danger: #b4233f;
-  --brand: #7a4bdb; /* 4.9:1 on the page */
-
-  --grid: rgba(11, 10, 15, 0.07);
-  --dot: rgba(11, 10, 15, 0.13);
-  --edge: #d8d0e6;
-
-  --shadow: 0 18px 40px -26px rgba(60, 35, 110, 0.35);
-  --shadow-sm: 0 8px 20px -14px rgba(60, 35, 110, 0.3);
-  --shadow-peach: 0 12px 26px -12px rgba(122, 75, 219, 0.45);
-  --shadow-ink: 0 18px 40px -22px rgba(11, 10, 15, 0.6);
-  --glow: #e4cdff;
-}
-@media (prefers-color-scheme: dark) {
-  :root:has(.app-theme) {
-    color-scheme: dark;
-
-    --page: #0b0a0f;
-    --bg: #0b0a0f;
-    --card: #17151c;
-    --card-2: #221f29;
-    --line: #2b2733;
-    --line-2: #3a3544;
-
-    --ink: #f4f1f8;
-    --muted: #9c95a8;
-    --dim: #7e7889;
-    --danger: #f0707f;
-    --brand: #c9aafb;
-
-    --grid: rgba(11, 10, 15, 0.07);
-    --dot: rgba(255, 255, 255, 0.12);
-    --edge: #000000;
-
-    --shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.9);
-    --shadow-sm: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
-  }
-}
 
 @theme inline {
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
 
   --color-page: var(--page);
   --color-bg: var(--bg);
@@ -178,7 +113,7 @@
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
   :focus-visible {
     outline: 2px solid var(--brand);
@@ -195,21 +130,28 @@
   .btn {
     @apply inline-flex min-h-13 items-center justify-center gap-2 rounded-full px-6 text-base font-extrabold transition-[transform,opacity,background-color] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:active:scale-100;
   }
-  /* primary: cream pill on black (the kit's btn-ink, inverted for dark) */
+  /* primary: the black pill (same look as btn-ink, below) */
   .btn-primary {
     @apply bg-ink text-page hover:opacity-90;
   }
+  /* upgrade / checkout: the one lavender pill */
   .btn-peach {
-    @apply bg-peach text-on-pastel shadow-peach hover:bg-peach-2;
+    @apply bg-brand text-white shadow-peach hover:opacity-90;
   }
+  /* secondary: a white pill with a little depth */
   .btn-secondary {
-    @apply border-[1.5px] border-line-2 bg-card text-ink hover:bg-card-2;
+    @apply bg-card text-ink shadow-soft-sm hover:bg-card-2;
   }
   .btn-sm {
     @apply min-h-10 px-4 text-sm;
   }
   .card {
-    @apply rounded-[28px] border border-line bg-card p-5 shadow-soft;
+    @apply rounded-[28px] bg-card p-5 shadow-soft;
+    background-image: linear-gradient(
+      180deg,
+      var(--card),
+      color-mix(in srgb, var(--card-2) 35%, var(--card))
+    );
   }
   .eyebrow {
     @apply text-[11.5px] font-extrabold tracking-[0.12em] text-muted uppercase;
@@ -255,6 +197,10 @@
       color-mix(in srgb, var(--card-2) 35%, var(--card))
     );
   }
+  /* The "continue" card: white fading into the lavender glow (design 11's lesson card). */
+  .surface-glow {
+    background-image: linear-gradient(150deg, var(--card) 30%, var(--glow) 100%);
+  }
   /* The one dark card: a raised black tile with a light top edge. */
   .surface-ink {
     background-image: linear-gradient(160deg, #34333d 0%, #16161b 45%, #0b0b0e 100%);
@@ -262,7 +208,8 @@
     color: #ffffff;
   }
   /* Black pill buttons get the same gentle gradient and top highlight, so they look pressable. */
-  .btn-ink {
+  .btn-ink,
+  .btn-primary {
     background-image: linear-gradient(180deg, #2e2d36, #0e0e12 60%);
     color: #ffffff;
     box-shadow:
@@ -270,7 +217,8 @@
       0 2px 3px rgba(0, 0, 0, 0.2),
       0 16px 26px -14px rgba(14, 14, 18, 0.6);
   }
-  .btn-ink:hover {
+  .btn-ink:hover,
+  .btn-primary:hover {
     opacity: 0.92;
   }
   /* Pastel surfaces keep dark ink (kit rule). */

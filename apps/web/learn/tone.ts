@@ -3,14 +3,16 @@ import type { Tone } from "./catalog";
 /**
  * Tailwind classes per pastel tone. Written out in full (not built with string templates) so
  * Tailwind's scanner sees every class. Pastel surfaces always carry dark ink.
+ * Glow keeps colour to a minimum: every tile shares the lavender wash and the emoji tells
+ * courses apart. The tones stay in the catalog in case a screen needs them again.
  */
 export const TONE_SURFACE: Record<Tone, string> = {
-  peach: "bg-peach text-on-pastel",
-  butter: "bg-butter text-on-pastel",
-  sage: "bg-sage text-on-pastel",
-  sky: "bg-sky text-on-pastel",
+  peach: "bg-lav text-on-pastel",
+  butter: "bg-lav text-on-pastel",
+  sage: "bg-lav text-on-pastel",
+  sky: "bg-lav text-on-pastel",
   lav: "bg-lav text-on-pastel",
-  rose: "bg-rose text-on-pastel",
+  rose: "bg-lav text-on-pastel",
 };
 
 export const TONE_BORDER: Record<Tone, string> = {
