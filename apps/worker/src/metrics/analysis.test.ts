@@ -205,6 +205,40 @@ describe("voiceMetrics", () => {
     expect(v.trailingOff.list[0]).toEqual({ wordIndex: 4, dropDb: 10 });
   });
 
+  it("keeps a timeline: one point per pitched word, relative to the speaker's median", () => {
+    // w2 is a filler, w5 has no pitch, w7 is an octave error: none of them get a pitch point.
+    const audio = audioWith(ws, [], (i) => ({
+      db: i === 1 ? -14 : -20,
+      pitchHz: i === 5 ? null : i === 7 ? 600 : i === 1 ? 250 : 150,
+    }));
+    const v = voiceMetrics(ws, audio, new Set([2]), []);
+    expect(v.timeline?.pitch).toHaveLength(17);
+    expect(v.timeline?.pitch[0]).toEqual({ t: 0.15, v: 0 });
+    expect(v.timeline?.pitch[1]).toEqual({ t: 0.55, v: 8.8 }); // 250 Hz vs 150 Hz
+    expect(v.timeline?.loudness).toHaveLength(19);
+    expect(v.timeline?.loudness[1]).toEqual({ t: 0.55, v: 6 });
+  });
+
+  it("measures the volume range between the quiet and loud words", () => {
+    const audio = audioWith(ws, [], (i) => ({ db: i % 2 ? -14 : -24, pitchHz: 150 }));
+    expect(voiceMetrics(ws, audio, new Set(), []).loudnessRangeDb).toBe(10);
+  });
+
+  it("finds the most monotone stretch of an otherwise lively take", () => {
+    // Lively until w5, then w6–w19 on one note (2.4 s → 7.9 s).
+    const audio = audioWith(ws, [], (i) => ({
+      db: -20,
+      pitchHz: i < 6 ? (i % 2 ? 220 : 140) : 160,
+    }));
+    const v = voiceMetrics(ws, audio, new Set(), []);
+    expect(v.flattest).toEqual({ start: 2.4, end: 7.9, pitchVariationSt: 0 });
+  });
+
+  it("reports no monotone stretch when the voice keeps moving", () => {
+    const audio = audioWith(ws, [], (i) => ({ db: -20, pitchHz: i % 2 ? 220 : 140 }));
+    expect(voiceMetrics(ws, audio, new Set(), []).flattest).toBeNull();
+  });
+
   it("is not reliable with too few pitched words", () => {
     const audio = audioWith(ws, [], () => ({ db: -20, pitchHz: null }));
     expect(voiceMetrics(ws, audio, new Set(), []).reliable).toBe(false);

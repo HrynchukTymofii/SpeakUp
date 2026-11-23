@@ -58,7 +58,7 @@ export const FUNNEL_OPTIONS = {
     ["clarity", "Clarity"],
     ["accuracy", "Accuracy"],
     ["structure", "Structure"],
-    ["voice", "Vocal variety"],
+    ["voice", "Energy"],
     ["content", "What I say"],
     ["confidence", "Overall confidence"],
   ),

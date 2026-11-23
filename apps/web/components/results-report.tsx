@@ -10,6 +10,7 @@ import {
 import { Mascot } from "./mascot";
 import { SkillBars } from "./skill-bars";
 import { TranscriptView } from "./transcript-view";
+import { VoiceTimeline } from "./voice-timeline";
 
 const SEVERITY_STYLE: Record<string, string> = {
   low: "bg-sky text-on-pastel",
@@ -78,12 +79,6 @@ export function ResultsReport({
             <Small>{hesitations.detail}</Small>
           </Card>
         )}
-        {voice && (
-          <Card title="Voice">
-            <Big>{voice.label}</Big>
-            <Small>{voice.detail}</Small>
-          </Card>
-        )}
         {language && (
           <Card title="Wording">
             <Big>{language.hedges.count}</Big>
@@ -110,6 +105,15 @@ export function ResultsReport({
           <Card title="Unclear words">
             <Big>{metrics.lowConfidenceWords.length}</Big>
             <Small>words the recognizer wasn’t sure about</Small>
+          </Card>
+        )}
+        {voice && (
+          <Card title="Energy" className="sm:col-span-2">
+            <Big>{voice.label}</Big>
+            <Small>{voice.detail}</Small>
+            <div className="mt-3">
+              <VoiceTimeline metrics={metrics} />
+            </div>
           </Card>
         )}
       </section>
@@ -207,9 +211,19 @@ export function ResultsReport({
   );
 }
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
+function Card({
+  title,
+  className = "",
+  children,
+}: {
+  title: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-1 rounded-3xl border border-line bg-card p-5 shadow-soft-sm">
+    <div
+      className={`flex flex-col gap-1 rounded-3xl border border-line bg-card p-5 shadow-soft-sm ${className}`}
+    >
       <h3 className="font-sans text-sm font-bold text-muted">{title}</h3>
       {children}
     </div>

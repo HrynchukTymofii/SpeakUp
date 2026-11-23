@@ -78,10 +78,15 @@ claimed after sign-up.
   - pace in words per minute on a scale, with the 130–160 target band
   - pauses: hesitations, long ones over 1.5 s and, for read-aloud, the share of commas and full
     stops that got a pause
-  - voice: pitch and loudness variation, pace changes, sentences that trail off
+  - energy (`components/voice-timeline.tsx`): a verdict (monotone, some variety, lively), pitch
+    and volume charts over time with their ranges, and the most monotone stretch shaded and named
+    ("Most monotone at 0:12–0:19"). Both charts are relative to the speaker's own median, so a deep
+    voice or a quiet microphone isn't "worse". The funnel's results step shows the same card.
+    Hidden for noisy recordings and for analyses saved before the timeline existed.
   - filler words (count and per minute)
   - reading accuracy for read-aloud exercises (missed, changed, extra words), or unclear words otherwise
-  - a score per skill (pace, pauses, fillers, voice, content or accuracy)
+  - a score per skill (pace, pauses, filler words, energy, content or accuracy); "Energy" is the
+    `voice` skill: pitch and loudness variety, pace changes, and not fading out at sentence ends
   - what went well, up to six things to work on (each with evidence from the recording and a tip),
     and one next step
   - the transcript with filler words highlighted, long pauses marked in place and unclear words underlined

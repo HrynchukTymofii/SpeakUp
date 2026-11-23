@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { SkillBars } from "@/components/skill-bars";
-import { CATEGORY_LABEL, hesitationSummary } from "@/lib/report";
+import { VoiceTimeline } from "@/components/voice-timeline";
+import { CATEGORY_LABEL, hesitationSummary, voiceVerdict } from "@/lib/report";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
 import { useFunnelStore } from "../store";
@@ -143,6 +144,7 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
   const strength = feedback.strengths[0];
   const { issues } = feedback;
   const hesitations = hesitationSummary(metrics);
+  const voice = voiceVerdict(metrics);
   const paceVerdict =
     metrics.wpm < metrics.wpmTarget.min
       ? "a bit slow"
@@ -179,6 +181,16 @@ function FunnelReport({ result, onContinue }: { result: AttemptResult; onContinu
           hint={metrics.pauses.hesitationCount === undefined ? "over 1.5 s" : "mid-sentence"}
         />
       </div>
+
+      {voice && metrics.voice?.timeline && (
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="eyebrow">Energy</p>
+            <p className="font-display text-lg font-semibold">{voice.label}</p>
+          </div>
+          <VoiceTimeline metrics={metrics} />
+        </Card>
+      )}
 
       {strength && (
         <Card className="flex flex-col gap-1 border-0 bg-sage text-on-pastel">
