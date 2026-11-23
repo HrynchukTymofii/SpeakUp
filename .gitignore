@@ -35,3 +35,6 @@ cdk.out/
 
 # Playwright MCP tool output (browser logs and screenshots from agent sessions)
 .playwright-mcp/
+
+# Claude Code: agents and commands in .claude/ are shared; personal settings are not
+.claude/settings.local.json
