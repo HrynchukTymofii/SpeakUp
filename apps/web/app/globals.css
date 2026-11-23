@@ -60,6 +60,14 @@
   --dot: transparent;
   /* the "ledge" under raised path nodes */
   --edge: #dcdce4;
+  /*
+   * Good / so-so / bad marks in charts (the Energy bars). Checked with a colour-blind simulator:
+   * every pair stays apart (worst ΔE 8.6). chart-warn is 2.2:1 on card-2, so it is always shown
+   * with a text legend, never alone.
+   */
+  --chart-good: #1f8f6b;
+  --chart-warn: #d99a00;
+  --chart-bad: #e5484d;
 }
 
 /*
@@ -93,6 +101,9 @@
   --color-danger: var(--danger);
   --color-brand: var(--brand);
   --color-edge: var(--edge);
+  --color-chart-good: var(--chart-good);
+  --color-chart-warn: var(--chart-warn);
+  --color-chart-bad: var(--chart-bad);
 
   --shadow-soft: var(--shadow);
   --shadow-soft-sm: var(--shadow-sm);

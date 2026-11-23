@@ -1,39 +1,29 @@
-import type { Metrics, TimelinePoint } from "@speakup/shared";
+import type { Metrics } from "@speakup/shared";
 import { clock, flattestNote } from "@/lib/report";
+import {
+  PITCH_LEGEND,
+  pitchSlots,
+  type Row,
+  type Slot,
+  type Tone,
+  VOLUME_LEGEND,
+  volumeSlots,
+} from "@/lib/voice-chart";
 
-const W = 300;
-const H = 72;
-/** Keeps the line off the top and bottom edge. */
-const PAD_Y = 4;
-
-interface ChartSpec {
-  title: string;
-  unit: string;
-  /** Values beyond ±limit are drawn at the edge (one shouted word shouldn't flatten the rest). */
-  limit: number;
-  /** Beyond ±band a word counts as high / low: the shaded bands. */
-  band: number;
-  range: number | undefined;
-}
-
-const PITCH: Omit<ChartSpec, "range"> = {
-  title: "Pitch over time",
-  unit: "semitones",
-  limit: 8,
-  band: 2,
+const TONE_BG: Record<Tone, string> = {
+  good: "bg-chart-good",
+  warn: "bg-chart-warn",
+  bad: "bg-chart-bad",
+  neutral: "bg-dim",
 };
-const VOLUME: Omit<ChartSpec, "range"> = {
-  title: "Volume over time",
-  unit: "dB",
-  limit: 10,
-  band: 3,
-};
+const ROW_INDEX: Record<Row, number> = { high: 1, mid: 2, low: 3 };
 
 /**
- * Pitch and volume across the take, one point per word, relative to the speaker's own median.
- * A flat line is what "monotone" looks like; the most monotone stretch is shaded so the user
- * sees where, not only how much. Renders nothing without a reliable timeline (noisy
- * recordings, or analyses saved before the timeline existed).
+ * Pitch and volume across the take as colored bars, one per time slot: the row is the level
+ * (high / mid / low, relative to the speaker's own voice) and the color says good or bad (see
+ * lib/voice-chart.ts). Every color is named in a legend, so it never carries meaning alone.
+ * Renders nothing without a reliable timeline (noisy recordings, or analyses saved before the
+ * timeline existed).
  */
 export function VoiceTimeline({ metrics }: { metrics: Metrics }) {
   const v = metrics.voice;
@@ -42,109 +32,125 @@ export function VoiceTimeline({ metrics }: { metrics: Metrics }) {
   const end = Math.max(metrics.totalSec, last, 1);
   const note = flattestNote(metrics);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Chart
-        spec={{ ...PITCH, range: v.pitchRangeSt }}
-        points={v.timeline.pitch}
+        kind="pitch"
+        title="Pitch over time"
+        range={`range ${v.pitchRangeSt.toFixed(1)} semitones`}
+        slots={pitchSlots(v.timeline.pitch, end)}
+        legend={PITCH_LEGEND}
         end={end}
         flat={v.flattest ?? null}
-        summary={note}
+        note={note}
       />
-      {note && (
-        <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <span aria-hidden className="size-3 shrink-0 rounded-[4px] bg-butter" />
-          {note}
-        </p>
-      )}
       <Chart
-        spec={{ ...VOLUME, range: v.loudnessRangeDb }}
-        points={v.timeline.loudness}
+        kind="volume"
+        title="Volume over time"
+        range={v.loudnessRangeDb !== undefined ? `range ${v.loudnessRangeDb.toFixed(1)} dB` : null}
+        slots={volumeSlots(v.timeline.loudness, end)}
+        legend={VOLUME_LEGEND}
         end={end}
         flat={null}
-        summary={null}
+        note={null}
       />
     </div>
   );
 }
 
 function Chart({
-  spec,
-  points,
+  kind,
+  title,
+  range,
+  slots,
+  legend,
   end,
   flat,
-  summary,
+  note,
 }: {
-  spec: ChartSpec;
-  points: TimelinePoint[];
+  kind: "pitch" | "volume";
+  title: string;
+  range: string | null;
+  slots: (Slot | null)[];
+  legend: { tone: Tone; label: string }[];
   end: number;
   flat: { start: number; end: number } | null;
-  summary: string | null;
+  note: string | null;
 }) {
-  const x = (t: number) => (t / end) * W;
-  const half = H / 2 - PAD_Y;
-  const y = (v: number) =>
-    H / 2 - (Math.max(-spec.limit, Math.min(spec.limit, v)) / spec.limit) * half;
-  const bandY = y(spec.band);
-  const range = spec.range !== undefined ? `range ${spec.range.toFixed(1)} ${spec.unit}` : null;
-  const label = [spec.title, range, summary?.toLowerCase()].filter(Boolean).join(": ");
-  const slot = W / Math.max(points.length, 1);
+  const counts = legend.map(
+    ({ tone, label }) => `${slots.filter((s) => s?.tone === tone).length} ${label.toLowerCase()}`,
+  );
+  const label = `${title}: ${[range, counts.join(", "), note?.toLowerCase()].filter(Boolean).join("; ")}`;
+  const pct = (t: number) => `${(Math.min(end, Math.max(0, t)) / end) * 100}%`;
 
   return (
-    <figure className="flex flex-col gap-1.5">
+    <figure data-chart={kind} className="flex flex-col gap-1.5">
       <figcaption className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="font-bold text-ink">{spec.title}</span>
+        <span className="font-bold text-ink">{title}</span>
         {range && <span className="text-muted tabular-nums">{range}</span>}
       </figcaption>
-      <div className="grid grid-cols-[2rem_1fr] gap-2">
-        <div aria-hidden className="flex flex-col justify-between py-0.5 text-[11px] text-muted">
-          <span>High</span>
-          <span>Low</span>
+
+      <div className="grid grid-cols-[2.25rem_1fr] gap-2">
+        <div aria-hidden className="grid h-24 grid-rows-3 py-1 text-[11px] leading-none text-muted">
+          <span className="self-center">High</span>
+          <span className="self-center">Mid</span>
+          <span className="self-center">Low</span>
         </div>
-        <svg
-          role="img"
-          aria-label={label}
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="none"
-          className="h-20 w-full overflow-visible rounded-xl bg-card-2"
-        >
-          <rect x={0} y={0} width={W} height={bandY} className="fill-lav/45" />
-          <rect x={0} y={H - bandY} width={W} height={bandY} className="fill-lav/45" />
+        <div className="flex flex-col gap-1">
+          <div
+            role="img"
+            aria-label={label}
+            className="relative grid h-24 gap-[2px] rounded-xl bg-card-2 p-1"
+            style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(0, 1fr))` }}
+          >
+            {/* Row guides. */}
+            <span aria-hidden className="absolute inset-x-1 top-1/3 h-px bg-line" />
+            <span aria-hidden className="absolute inset-x-1 top-2/3 h-px bg-line" />
+            {slots.map((s, i) => (
+              <div key={i} className="relative grid grid-rows-3 gap-[2px]">
+                {s && (
+                  <span
+                    data-tone={s.tone}
+                    data-row={s.row}
+                    title={`${clock(s.start)}: ${s.label}`}
+                    className={`rounded-[3px] ${TONE_BG[s.tone]}`}
+                    style={{ gridRow: ROW_INDEX[s.row] }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
           {flat && (
-            <rect
-              data-flattest
-              x={x(flat.start)}
-              y={0}
-              width={Math.max(2, x(flat.end) - x(flat.start))}
-              height={H}
-              className="fill-butter"
-            />
+            <div aria-hidden className="relative mx-1 h-1.5">
+              <span
+                data-flattest
+                className="absolute inset-y-0 rounded-full bg-chart-bad"
+                style={{
+                  left: pct(flat.start),
+                  width: `calc(${pct(flat.end)} - ${pct(flat.start)})`,
+                }}
+              />
+            </div>
           )}
-          <polyline
-            points={points.map((p) => `${x(p.t)},${y(p.v)}`).join(" ")}
-            fill="none"
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            className="stroke-brand"
-          />
-          {/* Hover targets wider than the line: one slot per word, with its value. */}
-          {points.map((p, i) => (
-            <rect key={i} x={x(p.t) - slot / 2} y={0} width={slot} height={H} fill="transparent">
-              <title>{`${clock(p.t)} · ${levelText(p.v, spec.unit)}`}</title>
-            </rect>
-          ))}
-        </svg>
+          <div aria-hidden className="flex justify-between text-[11px] text-muted tabular-nums">
+            <span>0:00</span>
+            <span>{clock(end)}</span>
+          </div>
+        </div>
       </div>
-      <div aria-hidden className="ml-10 flex justify-between text-[11px] text-muted tabular-nums">
-        <span>0:00</span>
-        <span>{clock(end)}</span>
-      </div>
+
+      {note && (
+        <p className="ml-11 text-sm font-semibold text-ink">
+          {note} <span className="font-medium text-muted">(red line)</span>
+        </p>
+      )}
+      <ul aria-hidden className="ml-11 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        {legend.map(({ tone, label }) => (
+          <li key={tone} className="flex items-center gap-1.5">
+            <span className={`size-2.5 rounded-[3px] ${TONE_BG[tone]}`} />
+            {label}
+          </li>
+        ))}
+      </ul>
     </figure>
   );
-}
-
-function levelText(v: number, unit: string): string {
-  if (Math.abs(v) < 0.5) return "your usual level";
-  return `${Math.abs(v).toFixed(1)} ${unit} ${v > 0 ? "above" : "below"} your usual`;
 }

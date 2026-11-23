@@ -57,6 +57,7 @@ the `--` dropped (e.g. `--card-2` → `bg-card-2`, `text-card-2`, `border-card-2
 |           | `butter` / `sage` / `sky` / `rose` | app pastels                       | rarely used on the site                           |
 | On pastel | `on-pastel` / `on-pastel-muted`    | `#0e0e12` / `#4a4a55`             | text on any pastel                                |
 | Status    | `danger`                           | `#b4233f`                         | inline error text                                 |
+| Charts    | `chart-good` / `-warn` / `-bad`    | `#1f8f6b` / `#d99a00` / `#e5484d` | good / so-so / bad bars; always with a legend     |
 | Mascot    | `mascot-light` / `-mid` / `-deep`  | `#f4fcff` / `#aeddf7` / `#5ba6df` | mascot body gradient only                         |
 
 Shadows: `shadow-soft` (cards: the layered "depth" shadow with a light top edge),
