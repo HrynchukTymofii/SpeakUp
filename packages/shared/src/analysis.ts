@@ -82,6 +82,9 @@ export const PunctuationMetricsSchema = z.object({
 });
 export type PunctuationMetrics = z.infer<typeof PunctuationMetricsSchema>;
 
+export const TimelinePointSchema = z.object({ t: z.number(), v: z.number() });
+export type TimelinePoint = z.infer<typeof TimelinePointSchema>;
+
 /**
  * How the voice is used, measured on the audio (pitch + loudness per word). All values are
  * RELATIVE to the speaker's own voice, so microphone volume and voice depth don't matter.
@@ -106,6 +109,20 @@ export const VoiceMetricsSchema = z.object({
     sentences: z.number().int(),
     list: z.array(z.object({ wordIndex: z.number().int(), dropDb: z.number() })),
   }),
+  /** Loudness span between the 10th and 90th percentile word, in dB. */
+  loudnessRangeDb: z.number().optional(),
+  /**
+   * Pitch and loudness over time, for the charts: one point per word (t = word midpoint in
+   * seconds). Pitch in semitones and loudness in dB, both relative to the speaker's median.
+   */
+  timeline: z
+    .object({ pitch: z.array(TimelinePointSchema), loudness: z.array(TimelinePointSchema) })
+    .optional(),
+  /** The most monotone stretch of the take, or null when no stretch is that flat. */
+  flattest: z
+    .object({ start: z.number(), end: z.number(), pitchVariationSt: z.number() })
+    .nullable()
+    .optional(),
 });
 export type VoiceMetrics = z.infer<typeof VoiceMetricsSchema>;
 
@@ -119,6 +136,11 @@ export const VOICE_TARGETS = {
   paceVariationPct: { flat: 8, lively: 25 },
   /** A sentence "trails off" when its last words are this much quieter than the rest. */
   trailingDropDb: 6,
+  /** Pitch variation below this (semitones) sounds monotone: the verdict and the flat stretch. */
+  monotoneSt: 1.8,
+  /** A monotone stretch is judged over a window at least this long, with at least this many words. */
+  stretchMinSec: 4,
+  stretchMinWords: 6,
 } as const;
 
 /** Wording habits in free speech (counted from the transcript, no LLM). */
