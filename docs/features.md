@@ -78,11 +78,15 @@ claimed after sign-up.
   - pace in words per minute on a scale, with the 130–160 target band
   - pauses: hesitations, long ones over 1.5 s and, for read-aloud, the share of commas and full
     stops that got a pause
-  - energy (`components/voice-timeline.tsx`): a verdict (monotone, some variety, lively), pitch
-    and volume charts over time with their ranges, and the most monotone stretch shaded and named
-    ("Most monotone at 0:12–0:19"). Both charts are relative to the speaker's own median, so a deep
-    voice or a quiet microphone isn't "worse". The funnel's results step shows the same card.
-    Hidden for noisy recordings and for analyses saved before the timeline existed.
+  - energy (`components/voice-timeline.tsx`, slots in `lib/voice-chart.ts`): a verdict (monotone,
+    some variety, lively) and two bar charts over time, one bar per slot (1 s, at most 40 slots).
+    A bar's row is the level (high / mid / low against the speaker's own median, so a deep voice
+    or a quiet microphone isn't "worse") and its colour says good or bad. Pitch is coloured by
+    how much it moves (lively / some movement / flat), because a low or high voice isn't a
+    problem in itself; volume by its row (stressed / steady / quiet). Each chart has a legend.
+    The most monotone stretch is underlined in red and named ("Most monotone at 0:31–0:39").
+    The funnel's results step shows the same card. Hidden for noisy recordings and for analyses
+    saved before the timeline existed.
   - filler words (count and per minute)
   - reading accuracy for read-aloud exercises (missed, changed, extra words), or unclear words otherwise
   - a score per skill (pace, pauses, filler words, energy, content or accuracy); "Energy" is the
