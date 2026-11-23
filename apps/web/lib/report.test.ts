@@ -2,8 +2,11 @@ import type { Feedback, Metrics } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
 import {
   hesitationSummary,
+  clock,
+  flattestNote,
   orderedSubscores,
   punctuationSummary,
+  SKILL_LABEL,
   scoreSurface,
   voiceVerdict,
 } from "./report";
@@ -40,6 +43,29 @@ describe("report helpers", () => {
       label: "Lively",
       detail: "pitch moves ±3.4 semitones · 2 of 5 sentences fade out",
     });
+  });
+
+  it("calls the voice score Energy, and the monotone cut-off sits at 1.8 semitones", () => {
+    expect(SKILL_LABEL.voice).toBe("Energy");
+    expect(voiceVerdict(voice(1.79))?.label).toBe("Monotone");
+    expect(voiceVerdict(voice(1.8))?.label).toBe("Some variety");
+  });
+
+  it("formats seconds as a clock", () => {
+    expect([clock(0), clock(9.6), clock(72.2)]).toEqual(["0:00", "0:10", "1:12"]);
+  });
+
+  it("points at the flattest stretch, when there is one", () => {
+    const m = voice(2.2);
+    expect(flattestNote(m)).toBeNull();
+    const flat: Metrics = {
+      ...m,
+      voice: m.voice && { ...m.voice, flattest: { start: 12.3, end: 18.9, pitchVariationSt: 0.7 } },
+    };
+    expect(flattestNote(flat)).toBe("Most monotone at 0:12–0:19");
+    expect(
+      flattestNote({ ...flat, voice: flat.voice && { ...flat.voice, reliable: false } }),
+    ).toBeNull();
   });
 
   it("no voice verdict without a reliable voice analysis (old or noisy recordings)", () => {

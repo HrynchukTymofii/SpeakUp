@@ -26,7 +26,8 @@ export const SKILL_LABEL: Record<Skill, string> = {
   pace: "Pace",
   pauses: "Pauses",
   fillers: "Filler words",
-  voice: "Vocal variety",
+  // Pitch, loudness and pace variety plus not fading out: what listeners hear as energy.
+  voice: "Energy",
   content: "Content",
   accuracy: "Accuracy",
 };
@@ -51,11 +52,10 @@ export function scoreSurface(score: number): string {
 export function voiceVerdict(metrics: Metrics): { label: string; detail: string } | null {
   const v = metrics.voice;
   if (!v?.reliable) return null;
-  const t = VOICE_TARGETS.pitchVariationSt;
   const label =
-    v.pitchVariationSt < t.flat + 0.6
+    v.pitchVariationSt < VOICE_TARGETS.monotoneSt
       ? "Monotone"
-      : v.pitchVariationSt < t.lively
+      : v.pitchVariationSt < VOICE_TARGETS.pitchVariationSt.lively
         ? "Some variety"
         : "Lively";
   const trailing =
@@ -63,6 +63,19 @@ export function voiceVerdict(metrics: Metrics): { label: string; detail: string 
       ? ` · ${v.trailingOff.count} of ${v.trailingOff.sentences} sentences fade out`
       : "";
   return { label, detail: `pitch moves ±${v.pitchVariationSt.toFixed(1)} semitones${trailing}` };
+}
+
+/** Seconds as "m:ss" (0:07, 1:12), the way a player shows time. */
+export function clock(sec: number): string {
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** "Most monotone at 0:12–0:19", or null when no stretch was flat enough to point at. */
+export function flattestNote(metrics: Metrics): string | null {
+  const v = metrics.voice;
+  if (!v?.reliable || !v.flattest) return null;
+  return `Most monotone at ${clock(v.flattest.start)}–${clock(v.flattest.end)}`;
 }
 
 /** Read-aloud: "2 of 6 commas · 3 of 4 full stops", or null when not measured. */

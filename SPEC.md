@@ -298,6 +298,8 @@ Clerk token and validates responses with the shared schemas; TanStack Query hold
 - **Contests**, and comparing a "legend" recording side by side with the original speech.
 - **AI-generated topic banks** for the practice modes (static lists today).
 - **Server-side progress** for in-app lessons and the user's written story (kept on the device).
+- **Playback on the results screen**, with a button that jumps to the most monotone stretch
+  (the stretch is already measured and shaded on the pitch chart).
 - **A full history page** (the profile shows recent recordings; the API already pages through all).
 - **Analytics extras:** a cookie-consent banner for EU/UK visitors before Amplitude starts, and
   server-side revenue events from the Paddle webhook (renewals, refunds); see
