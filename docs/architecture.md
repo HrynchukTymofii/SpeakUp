@@ -147,6 +147,17 @@ Design points:
 - **Failures:** retryable errors (timeouts, 429/5xx) are retried by BullMQ 3× with exponential
   backoff; non-retryable ones (`NO_SPEECH`, invalid LLM output twice, 4xx) fail the attempt at once
   with an `errorCode` the UI turns into a message. Abandoned uploads expire after a day (S3 lifecycle).
+- **Postgres is the record, Redis is only work in flight.** Each worker runs a stuck-attempt
+  sweeper (`apps/worker/src/sweeper.ts`) at startup and every 5 minutes. It looks at attempts
+  that have been `queued`/`processing` without a change for 10 minutes and asks BullMQ about their
+  job: **missing** (Redis lost its data, or the API died between the status change and the
+  enqueue) → add it again; **still waiting/running/backing off** → leave it to BullMQ (including
+  its stalled-job recovery); **finished without a result** (BullMQ gave up on a job that stalled
+  twice, so the pipeline never saved a failure) → mark the attempt `failed` / `INTERNAL`, so the
+  user gets an error they can retry instead of an endless spinner. It's a timer in the worker
+  process, not a BullMQ schedule, because a schedule kept in Redis would be lost in exactly the
+  outage it has to repair. Many workers sweeping at once is safe: re-adding uses the attempt id as
+  job id (a duplicate add is ignored) and failing is a conditional update.
 
 ## Funnel flow: anonymous recording, claimed at sign-up
 

@@ -16,6 +16,13 @@ import { createFakeLlm, createFakeStt } from "./providers/fake.js";
 import { createCloudWatchSink, publishQueueDepth } from "./queue-metrics.js";
 import { createPrismaRepo } from "./repo.js";
 import { createS3AudioStorage } from "./storage.js";
+import {
+  createBullSweepQueue,
+  createPrismaStuckAttemptRepo,
+  startSweeper,
+  sweepStuckAttempts,
+  SWEEP_INTERVAL_MS,
+} from "./sweeper.js";
 
 /** Queue for scheduled housekeeping jobs (separate from analysis so they never wait behind it). */
 const MAINTENANCE_QUEUE = "maintenance";
@@ -181,10 +188,32 @@ function main(): void {
     metricsTimer = setInterval(publish, 30_000);
   }
 
+  // Repairs attempts left queued/processing with no job behind them, e.g. after Redis lost its
+  // data in an outage (sweeper.ts). Runs once now, then every few minutes on every worker.
+  const stuckRepo = createPrismaStuckAttemptRepo(db);
+  const sweepQueue = createBullSweepQueue(analysisQueue);
+  const stopSweeper = startSweeper({
+    intervalMs: SWEEP_INTERVAL_MS,
+    sweep: () =>
+      sweepStuckAttempts({
+        repo: stuckRepo,
+        queue: sweepQueue,
+        announce: async (attemptId) => {
+          await publisher.publish(ATTEMPT_EVENTS_CHANNEL, JSON.stringify({ attemptId }));
+        },
+        log: log.child({ job: "stuck-sweep" }),
+      }),
+    onError: (err) => {
+      log.error({ err: err.message }, "stuck-attempt sweep failed");
+      errorReporter.capture(err, { kind: "stuck-sweep" });
+    },
+  });
+
   // Graceful shutdown: let in-flight jobs finish instead of leaving them half-done.
   const shutdown = async (signal: string) => {
     log.info({ signal }, "shutting down worker");
     clearInterval(metricsTimer);
+    stopSweeper();
     await Promise.all([
       worker.close(),
       maintenanceWorker.close(),

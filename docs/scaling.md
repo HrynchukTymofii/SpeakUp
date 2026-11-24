@@ -163,7 +163,11 @@ What each one takes down today:
   its secrets), so autoscaling and deploys stop too.
 - **Redis** (one node). The queue, rate limits, per-user locks and the cleanup schedule. While
   it's down, nothing can be submitted or analyzed; with `noeviction`, a full Redis also refuses
-  new jobs. The `redis-memory` alarm warns before that.
+  new jobs. The `redis-memory` alarm warns before that. If the node comes back **empty**, the
+  jobs that were in it are gone, but not the work: Postgres still has those attempts as
+  `queued`/`processing`, and every worker's stuck-attempt sweeper (once at startup, then every
+  5 minutes) re-queues any that have been untouched for 10 minutes. Recovery takes up to about
+  10 minutes; nothing is lost.
 - **Postgres** (one AZ). Everything that reads or writes user data. RDS restores from backups
   (7 days), but a lost AZ means minutes to hours of downtime.
 

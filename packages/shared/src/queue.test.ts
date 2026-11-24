@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalyzeJobDataSchema, AttemptChangedEventSchema } from "./queue.js";
+import { AnalyzeJobDataSchema, AttemptChangedEventSchema, analyzeJobOptions } from "./queue.js";
 
 describe("AnalyzeJobDataSchema", () => {
   it("accepts a payload with an attemptId", () => {
@@ -32,5 +32,15 @@ describe("AttemptChangedEventSchema", () => {
   it("rejects anything else, so a stray Redis message can't wake waiting requests", () => {
     expect(() => AttemptChangedEventSchema.parse({ attemptId: "" })).toThrow();
     expect(() => AttemptChangedEventSchema.parse({ attemptId: "a", status: "done" })).toThrow();
+  });
+});
+
+describe("analyzeJobOptions", () => {
+  it("uses the attempt id as the job id, so re-adding the same attempt is a no-op", () => {
+    expect(analyzeJobOptions("att_1")).toMatchObject({
+      jobId: "att_1",
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5_000 },
+    });
   });
 });

@@ -133,6 +133,7 @@ model Attempt {
   analysis        Analysis?
 
   @@index([userId, createdAt]) // history list + daily quota count
+  @@index([status, updatedAt]) // worker's stuck-attempt sweeper
 }
 
 model Transcript {
