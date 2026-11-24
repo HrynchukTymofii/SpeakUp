@@ -9,10 +9,29 @@ export const ANALYZE_JOB_NAME = "analyze";
 
 /**
  * Retry policy for `analyze` jobs (SPEC §6.3): 3 tries, waiting 5 s, 10 s, … between them.
- * Set by the producer per job, so the worker doesn't need to know it.
+ * Set on each job when it's added (see analyzeJobOptions).
  */
 export const ANALYZE_JOB_ATTEMPTS = 3;
 export const ANALYZE_JOB_BACKOFF_MS = 5_000;
+
+/**
+ * BullMQ options for every `analyze` job, shared by the API (first enqueue) and the worker's
+ * stuck-attempt sweeper (re-enqueue), so a re-queued job retries exactly like the original.
+ * Plain data, so this package doesn't depend on BullMQ.
+ */
+export function analyzeJobOptions(attemptId: string) {
+  return {
+    // Deduplication: BullMQ ignores an add() whose jobId already exists. A double submit, an API
+    // retry or a sweeper re-queue of a job that is in fact still there all end up as ONE job.
+    jobId: attemptId,
+    attempts: ANALYZE_JOB_ATTEMPTS,
+    backoff: { type: "exponential" as const, delay: ANALYZE_JOB_BACKOFF_MS },
+    // Keep finished jobs for a day (debugging, and dedup keeps working meanwhile), then let
+    // Redis forget them. The DB is the long-term record, not Redis.
+    removeOnComplete: { age: 24 * 60 * 60 },
+    removeOnFail: { age: 7 * 24 * 60 * 60 },
+  };
+}
 
 /**
  * Job payload. Deliberately tiny: the attempt id (+ the API request id, so one recording can be
