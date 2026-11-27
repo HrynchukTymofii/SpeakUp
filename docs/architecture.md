@@ -162,6 +162,12 @@ Design points:
 ## Funnel flow: anonymous recording, claimed at sign-up
 
 The funnel (`/start/<step>`) lets a visitor record a baseline **before** creating an account.
+The step pages get the funnel they show from a `FunnelProvider` (`apps/web/funnel/funnel-context.tsx`):
+its slug, content revision (`Funnel.version`), steps and base path. `/start` passes the bundled
+default funnel `main` (`packages/shared/src/funnel-default.ts`) and never calls the API for it.
+On mount, before any step renders, the provider points the browser store at that funnel (a
+different funnel starts fresh), keeps first-touch attribution (`utm_*` and the referrer's host,
+never SpeakUp's own hosts) and tags every analytics event with `funnel_id` / `funnel_version`.
 
 ```mermaid
 sequenceDiagram
@@ -169,7 +175,7 @@ sequenceDiagram
   participant A as API
   participant W as Worker
 
-  B->>A: POST /v1/funnel/sessions
+  B->>A: POST /v1/funnel/sessions {funnel, attribution}
   A-->>B: guest token (only its sha256 is stored)
   B->>A: PATCH /v1/funnel/sessions/current (answers, step) — header Authorization: Guest + token
   B->>A: POST /v1/funnel/attempts {mimeType, turnstileToken}
