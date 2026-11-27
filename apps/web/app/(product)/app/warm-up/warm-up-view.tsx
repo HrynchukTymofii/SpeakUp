@@ -28,7 +28,10 @@ export function WarmUpView() {
       {done ? (
         <section className="card flex flex-col items-center gap-5 text-center">
           <Mascot mood="happy" size={96} />
-          <p className="font-display text-2xl font-semibold">You’re ready. Go get them.</p>
+          {/* The breathing card's live region unmounts here, so announce the end from this one. */}
+          <p role="status" className="font-display text-2xl font-semibold">
+            You’re ready. Go get them.
+          </p>
           <Link href="/app" className="btn btn-primary w-full">
             Done
           </Link>

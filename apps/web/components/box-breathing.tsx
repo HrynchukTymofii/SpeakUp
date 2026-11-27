@@ -74,7 +74,15 @@ export function BoxBreathing({ onDone }: { onDone: () => void }) {
         </button>
       )}
       {running && (
-        <button type="button" onClick={onDone} className="link text-sm font-bold">
+        <button
+          type="button"
+          onClick={() => {
+            // Stop the timer first so a parent that stays mounted doesn't get onDone again at 64 s.
+            setRunning(false);
+            onDoneRef.current();
+          }}
+          className="link text-sm font-bold"
+        >
           I’m calm — finish now
         </button>
       )}

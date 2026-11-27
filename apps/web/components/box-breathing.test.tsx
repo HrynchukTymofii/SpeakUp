@@ -1,25 +1,21 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BoxBreathing } from "./box-breathing";
 
 describe("BoxBreathing", () => {
   beforeEach(() => {
-    // shouldAdvanceTime: Testing Library's async wrapper awaits a real setTimeout(0) that it only
-    // flushes under Jest's fake timers, so without it every user.click hangs under Vitest.
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
   });
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("runs 4 rounds and calls onDone after 64 s", async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  it("runs 4 rounds and calls onDone after 64 s", () => {
     const onDone = vi.fn();
     render(<BoxBreathing onDone={onDone} />);
 
-    await user.click(screen.getByRole("button", { name: /Start/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Start/ }));
     expect(screen.getByText("Breathe in")).toBeInTheDocument();
     expect(screen.getByText("Round 1 of 4")).toBeInTheDocument();
 
@@ -37,14 +33,24 @@ describe("BoxBreathing", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("finish now calls onDone early", async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  it("finish now calls onDone early", () => {
     const onDone = vi.fn();
     render(<BoxBreathing onDone={onDone} />);
 
-    await user.click(screen.getByRole("button", { name: /Start/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Start/ }));
     act(() => vi.advanceTimersByTime(5000));
-    await user.click(screen.getByRole("button", { name: /finish now/ }));
+    fireEvent.click(screen.getByRole("button", { name: /finish now/ }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("finish now calls onDone only once", () => {
+    const onDone = vi.fn();
+    render(<BoxBreathing onDone={onDone} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Start/ }));
+    act(() => vi.advanceTimersByTime(5000));
+    fireEvent.click(screen.getByRole("button", { name: /finish now/ }));
+    act(() => vi.advanceTimersByTime(70_000));
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
