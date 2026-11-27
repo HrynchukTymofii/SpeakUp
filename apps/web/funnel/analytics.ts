@@ -35,6 +35,8 @@ type Value = string | number | boolean | string[] | null | undefined;
 type Props = Record<string, Value>;
 
 let initialized = false;
+/** Properties added to every event, e.g. which funnel (and revision) the visitor is in. */
+let eventContext: Props = {};
 /** The Clerk id we last identified as; `undefined` = not decided yet (Clerk still loading). */
 let currentUserId: string | null | undefined;
 
@@ -65,14 +67,24 @@ export function initAnalytics(apiKey: string | undefined): void {
 }
 
 /**
+ * Sets properties merged into every later `track()` call (explicit props win), or clears them with
+ * `null`. The funnel sets `{ funnel_id, funnel_version }` while it is open, so events from shared
+ * components (paywall, checkout) can be split by funnel without each caller passing it.
+ */
+export function setEventContext(props: Props | null): void {
+  eventContext = props ?? {};
+}
+
+/**
  * Records one event. `revenue` turns it into an Amplitude revenue event (LTV and revenue charts).
  * The amount is what the browser saw at checkout; Paddle's webhook remains the source of truth.
  */
 export function track(
   event: AnalyticsEvent,
-  props: Props = {},
+  eventProps: Props = {},
   revenue?: { amount: number; currency?: string },
 ): void {
+  const props = { ...eventContext, ...eventProps };
   devLog(event, props, revenue ?? "");
   if (!initialized) return;
   if (revenue) {
