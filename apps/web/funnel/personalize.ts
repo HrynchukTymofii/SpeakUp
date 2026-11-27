@@ -1,4 +1,13 @@
-import { FUNNEL_OPTIONS, type FunnelAnswers, type FunnelOption } from "@speakup/shared";
+import {
+  FUNNEL_OPTIONS,
+  FunnelAnswerKeySchema,
+  type FunnelAnswerKey,
+  type FunnelAnswers,
+  type FunnelOption,
+  type OptionsProviderName,
+  type PersonalizerName,
+} from "@speakup/shared";
+import type { FunnelContext } from "./types";
 
 /**
  * Personalized copy for the funnel (SPEC §15.3): small pure functions of the answers, so they're
@@ -155,3 +164,65 @@ export function buildPlan(answers: FunnelAnswers): {
     ],
   };
 }
+
+// ---------- Funnel definitions as data (SPEC §15.3) ----------
+
+/** The option list each answer key's values come from; `self-rating` is a bare number. */
+const OPTIONS_BY_KEY: Record<Exclude<FunnelAnswerKey, "self-rating">, readonly FunnelOption[]> = {
+  goal: FUNNEL_OPTIONS.goal,
+  situations: FUNNEL_OPTIONS.situations,
+  language: FUNNEL_OPTIONS.language,
+  symptoms: FUNNEL_OPTIONS.symptoms,
+  time: FUNNEL_OPTIONS.time,
+  deadline: FUNNEL_OPTIONS.deadline,
+  focus: FUNNEL_OPTIONS.focus,
+  "practice-now": FUNNEL_OPTIONS.yesNo,
+  reminders: FUNNEL_OPTIONS.yesNo,
+};
+
+/** The user-facing text of an answer, or undefined when it isn't answered. */
+function answerText(answers: FunnelAnswers, key: FunnelAnswerKey): string | undefined {
+  if (key === "self-rating") {
+    const rating = answers["self-rating"];
+    return rating === undefined ? undefined : String(rating);
+  }
+  const raw = answers[key];
+  const values: readonly string[] = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
+  if (values.length === 0) return undefined;
+  const options = OPTIONS_BY_KEY[key];
+  return values.map((v) => options.find((o) => o.value === v)?.label ?? v).join(", ");
+}
+
+// Same placeholder shape TemplateTextSchema accepts: {{answer:key}} or {{answer:key|fallback}}.
+const ANSWER_PLACEHOLDER = /\{\{answer:([a-z-]+)(?:\|([^{}|]*))?\}\}/g;
+
+/**
+ * Fills `{{answer:key}}` placeholders in definition copy (TemplateText) with the answer's label
+ * (multi answers joined with ", ", the self-rating as its number). Unanswered → the text after
+ * `|`, or "" without one. Unknown keys are left as written; the schema rejects them on save.
+ */
+export function renderText(text: string, answers: FunnelAnswers): string {
+  if (!text.includes("{{")) return text;
+  return text.replace(ANSWER_PLACEHOLDER, (match, key: string, fallback?: string) => {
+    const parsed = FunnelAnswerKeySchema.safeParse(key);
+    if (!parsed.success) return match;
+    return answerText(answers, parsed.data) ?? fallback ?? "";
+  });
+}
+
+/** Reflection copy a stored definition can name (`content: { personalizer }`). */
+export const PERSONALIZERS: Record<
+  PersonalizerName,
+  (ctx: FunnelContext) => { title: string; body: string }
+> = {
+  goalReflection: (ctx) => goalReflection(ctx.answers),
+  symptomReflection: (ctx) => symptomReflection(ctx.answers),
+};
+
+/** Option lists a stored definition can name (`options: { provider }`). */
+export const OPTIONS_PROVIDERS: Record<
+  OptionsProviderName,
+  (ctx: FunnelContext) => FunnelOption[]
+> = {
+  focusFromTopIssues: (ctx) => focusOptions(ctx.topIssues),
+};

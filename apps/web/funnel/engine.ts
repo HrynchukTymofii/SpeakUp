@@ -1,3 +1,4 @@
+import type { FunnelRule } from "@speakup/shared";
 import { PROGRESS_STEP_TYPES } from "./config";
 import type { FunnelContext, FunnelStep } from "./types";
 
@@ -14,6 +15,38 @@ export interface EngineState extends FunnelContext {
 /** The steps that apply to this visitor, in order. */
 export function visibleSteps(steps: FunnelStep[], ctx: FunnelContext): FunnelStep[] {
   return steps.filter((step) => step.showIf?.(ctx) ?? true);
+}
+
+/**
+ * Evaluates a declarative `showIf` rule (FunnelRuleSchema) against the answers. No rule → the
+ * step applies. An unanswered key equals nothing, so `notEquals` on it is true and `in` false.
+ */
+export function matchesRule(rule: FunnelRule | undefined, ctx: FunnelContext): boolean {
+  if (!rule) return true;
+  if ("all" in rule) return rule.all.every((r) => matchesRule(r, ctx));
+  if ("any" in rule) return rule.any.some((r) => matchesRule(r, ctx));
+  if ("not" in rule) return !matchesRule(rule.not, ctx);
+
+  const value = ctx.answers[rule.answer];
+  switch (rule.op) {
+    case "equals":
+      return value === rule.value;
+    case "notEquals":
+      return value !== rule.value;
+    case "in":
+      return rule.values.some((v) => v === value);
+    case "includes":
+      return Array.isArray(value) && (value as readonly string[]).includes(rule.value);
+    case "answered":
+      return isAnswered(value);
+    case "notAnswered":
+      return !isAnswered(value);
+  }
+}
+
+/** An emptied multi-choice list counts as unanswered, like `isStepDone` does. */
+function isAnswered(value: unknown): boolean {
+  return Array.isArray(value) ? value.length > 0 : value !== undefined;
 }
 
 /** Whether a step's requirement is met, so the visitor may move past it. */
