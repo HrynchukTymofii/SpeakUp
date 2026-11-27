@@ -77,10 +77,15 @@ function StoryChallenge({
             <li
               key={i}
               className={`flex aspect-square flex-col items-center justify-center rounded-2xl text-xs font-extrabold ${
-                done ? "bg-on-pastel text-brand" : "border-[1.5px] border-on-pastel/25"
+                done ? "bg-on-pastel text-page" : "border-[1.5px] border-on-pastel/25"
               }`}
             >
-              <span>{done ? "✓" : i + 1}</span>
+              {/* Light text on the ink tile: brand violet on ink is only 3.6:1. */}
+              {done ? (
+                <Icon name="check" className="size-4" strokeWidth={2.5} />
+              ) : (
+                <span>{i + 1}</span>
+              )}
               {done && scores[i] !== undefined && (
                 <span className="text-[10px] tabular-nums opacity-80">{scores[i]}</span>
               )}
@@ -109,19 +114,18 @@ function StoryChallenge({
           Seven days done! Now the real test: tell it in your next conversation.
         </p>
       ) : doneToday ? (
-        <p className="font-bold">
-          Day {daysDone} done ✓ — come back tomorrow for day {daysDone + 1}.
+        <p className="flex items-start gap-2 font-bold">
+          <Icon name="check" className="mt-0.5 size-5" strokeWidth={2.2} />
+          <span>
+            Day {daysDone} done — come back tomorrow for day {daysDone + 1}.
+          </span>
         </p>
       ) : recording ? (
         <div className="rounded-[22px] bg-card p-4 text-ink">
           <ExerciseRecorder exercise={exercise} next="/app/challenges" />
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setRecording(true)}
-          className="btn bg-on-pastel text-brand hover:opacity-90"
-        >
+        <button type="button" onClick={() => setRecording(true)} className="btn btn-primary">
           Record day {daysDone + 1}
         </button>
       )}

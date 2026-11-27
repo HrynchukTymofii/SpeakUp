@@ -79,7 +79,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
     return (
       <div className="flex flex-1 flex-col gap-6">
         <Mascot mood="happy" size={104} className="-ml-2" />
-        <StepHeading title="Your recording is in ✓" subtitle="We’re analyzing it now." />
+        <StepHeading title="Your recording is in" subtitle="We’re analyzing it now." />
         <ContinueButton onClick={() => onNext()} />
       </div>
     );

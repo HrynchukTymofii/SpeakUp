@@ -3,6 +3,7 @@
 import { AnalysisErrorCode, type AttemptResult } from "@speakup/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { SkillBars } from "@/components/skill-bars";
 import { VoiceTimeline } from "@/components/voice-timeline";
@@ -114,7 +115,7 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
               <li key={label} className="flex items-center gap-3">
                 <span
                   aria-hidden
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
                     done
                       ? "bg-sage text-on-pastel"
                       : active
@@ -122,7 +123,7 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
                         : "border-[1.5px] border-line-2"
                   }`}
                 >
-                  {done ? "✓" : ""}
+                  {done && <Icon name="check" className="size-3.5" strokeWidth={2.5} />}
                 </span>
                 <span className={active ? "font-bold text-ink" : done ? "text-ink" : "text-muted"}>
                   {label}
