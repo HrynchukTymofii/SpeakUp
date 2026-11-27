@@ -1,4 +1,4 @@
-import { type FunnelAttribution, FunnelAttributionSchema } from "@speakup/shared";
+import { CONTROL_CHARS, type FunnelAttribution, FunnelAttributionSchema } from "@speakup/shared";
 
 /** Same limit as FunnelAttributionSchema: longer values are cut, not rejected, so the session still gets created. */
 const MAX_LENGTH = 200;
@@ -28,7 +28,8 @@ export function readAttribution(
   const result: FunnelAttribution = {};
 
   for (const [key, param] of Object.entries(UTM_PARAMS) as [keyof typeof UTM_PARAMS, string][]) {
-    const value = params.get(param)?.trim().slice(0, MAX_LENGTH).trim();
+    // Control characters first (a `%00` is a NUL, which Postgres rejects), then trim and cut.
+    const value = params.get(param)?.replace(CONTROL_CHARS, "").trim().slice(0, MAX_LENGTH).trim();
     if (value) result[key] = value;
   }
 

@@ -40,6 +40,13 @@ describe("readAttribution", () => {
     expect(readAttribution("", "https://speakup.example/", OWN_HOSTS)).toBeNull();
   });
 
+  it("strips control characters and drops values left empty", () => {
+    // %00 would reach Postgres as a NUL byte, which it rejects in text columns.
+    expect(
+      readAttribution("?utm_source=%00x&utm_medium=%00%1F&utm_term=a%7F%0Ab", "", OWN_HOSTS),
+    ).toEqual({ utmSource: "x", utmTerm: "ab" });
+  });
+
   it("omits an invalid referrer", () => {
     expect(readAttribution("", "not a url", OWN_HOSTS)).toBeNull();
     expect(readAttribution("", "https://[::1]/", OWN_HOSTS)).toBeNull();

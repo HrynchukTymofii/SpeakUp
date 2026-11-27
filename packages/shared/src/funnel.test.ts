@@ -62,14 +62,26 @@ describe("CreateFunnelSessionBodySchema", () => {
     expect(CreateFunnelSessionBodySchema.safeParse({ attribution: { gclid: "abc" } }).success).toBe(
       false,
     );
+  });
+
+  it("drops invalid attribution fields instead of rejecting the body", () => {
+    // Attribution is visitor-controlled (the landing URL) and best-effort: a bad value must
+    // never stop the guest session from being created.
     expect(
-      CreateFunnelSessionBodySchema.safeParse({ attribution: { utmSource: "a".repeat(201) } })
-        .success,
-    ).toBe(false);
-    expect(
-      CreateFunnelSessionBodySchema.safeParse({ attribution: { utmSource: "a".repeat(200) } })
-        .success,
-    ).toBe(true);
+      CreateFunnelSessionBodySchema.parse({
+        funnel: { slug: "main", version: 1 },
+        attribution: {
+          utmSource: "a".repeat(201),
+          utmMedium: "\u0000cpc\u001F",
+          utmCampaign: "\u0000",
+          utmTerm: "a".repeat(200),
+          referrerHost: "https://www.google.com/search?q=x",
+        },
+      }),
+    ).toEqual({
+      funnel: { slug: "main", version: 1 },
+      attribution: { utmMedium: "cpc", utmTerm: "a".repeat(200) },
+    });
   });
 
   it("rejects a bad funnel slug or version", () => {
@@ -85,6 +97,13 @@ describe("CreateFunnelSessionBodySchema", () => {
 describe("FunnelAttributionSchema", () => {
   it("trims values", () => {
     expect(FunnelAttributionSchema.parse({ utmMedium: "  cpc " })).toEqual({ utmMedium: "cpc" });
+  });
+
+  it("strips control characters (Postgres rejects NUL in text)", () => {
+    expect(FunnelAttributionSchema.parse({ utmSource: "\u0000x\u007F " })).toEqual({
+      utmSource: "x",
+    });
+    expect(FunnelAttributionSchema.safeParse({ utmSource: "\u0000\t" }).success).toBe(false);
   });
 
   it("referrerHost rejects a full URL", () => {

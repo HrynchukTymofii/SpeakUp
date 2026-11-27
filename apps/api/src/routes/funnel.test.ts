@@ -123,15 +123,32 @@ describe("POST /v1/funnel/sessions", () => {
     }
   });
 
-  it("400 on unknown body keys or a full-URL referrer", async () => {
+  it("400 on unknown body keys", async () => {
     const { app, db } = await setup();
     const unknownKey = await createSession(app, { attribution: {}, campaign: "x" });
     expect(unknownKey.statusCode).toBe(400);
-    const fullUrl = await createSession(app, {
-      attribution: { referrerHost: "https://www.google.com/search?q=x" },
-    });
-    expect(fullUrl.statusCode).toBe(400);
     expect(db.funnelSessions).toHaveLength(0);
+  });
+
+  it("bad attribution never blocks the session: NUL stripped, invalid fields dropped", async () => {
+    // e.g. /start?utm_source=%00x — Postgres rejects NUL in text, and attribution is first-touch,
+    // so a rejected value would fail every retry and the visitor could never record.
+    const { app, db } = await setup();
+    const res = await createSession(app, {
+      attribution: {
+        utmSource: "\u0000x",
+        utmMedium: "\u0000",
+        utmCampaign: "a".repeat(201),
+        referrerHost: "https://www.google.com/search?q=x",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(db.funnelSessions[0]).toMatchObject({
+      utmSource: "x",
+      utmMedium: null,
+      utmCampaign: null,
+      referrerHost: null,
+    });
   });
 });
 

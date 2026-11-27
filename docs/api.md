@@ -270,9 +270,12 @@ the schema answers `500` (logged with its slug) instead of reaching visitors.
 `{ "funnel": { slug, version }, "attribution": { utmSource, utmMedium, utmCampaign, utmContent, utmTerm, referrerHost } }`,
 every part optional; no body at all is fine too (older web builds). `funnel.version` is the revision
 the guest was shown. The session links to the funnel only if the slug is a **live** funnel; an
-unknown or draft slug still gets a session, without the link. Attribution is first-touch, UTM values
-are at most 200 characters and `referrerHost` is a hostname only (a full URL is `400`), as are
-unknown keys. UTM values are stored but never logged.
+unknown or draft slug still gets a session, without the link. Attribution is first-touch and
+best-effort: control characters are stripped from UTM values, and a field that is still invalid
+(empty, over 200 characters, a `referrerHost` that is not a plain hostname) is dropped, never a
+`400` — it comes from the landing URL, and rejecting it would block that visitor's session on every
+retry. Unknown keys (in the body or in `attribution`) and a bad `funnel` are still `400`. UTM values
+are stored but never logged.
 
 `POST /v1/funnel/attempts` checks: session not yet claimed (`409`), Turnstile (`403 BOT_CHECK_FAILED`),
 one baseline per session (`409 WRONG_STATE`; a re-take before submit replaces the unsubmitted one),
