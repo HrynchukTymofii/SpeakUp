@@ -78,6 +78,10 @@ add a row here.
 
 ## The funnel today, step by step
 
+The paths below are the default funnel at `/start`. The same steps under `/f/<slug>/<step>` (ad
+links) fire the same events; tell funnels apart with the `funnel_id` / `funnel_version`
+properties, not the path.
+
 Build this as one **Funnel Analysis** chart in Amplitude (conversion within 1 day, "any order" off).
 Steps marked _optional_ are skipped by some visitors; leave them out of the chart or use a
 separate one.

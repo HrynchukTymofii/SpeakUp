@@ -37,7 +37,7 @@ pnpm install
 cp .env.example .env          # one .env at the repo root, used by every app
 pnpm infra:up                 # start Postgres + Redis + local S3 in Docker
 pnpm db:migrate               # apply migrations (creates tables)
-pnpm db:seed                  # load the courses, lessons and exercises
+pnpm db:seed                  # load the courses, lessons, exercises and the default funnel
 pnpm dev                      # web + api + worker (+ shared in watch mode)
 ```
 
@@ -90,11 +90,17 @@ locally (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpe
 Flow: record → `/results/<attemptId>` waits for the worker (long-polling) → worker runs Deepgram →
 decodes the audio (ffmpeg) → metrics + scores → Claude → the report appears.
 
-### Web funnel (`/start`)
+### Web funnel (`/start`, `/f/<slug>`)
 
 The landing page links to `/start`: questions → mini-lesson → an **anonymous** 45-second speaking
 check → sign-up → results → plan → paywall (SPEC §15). How it works is documented in
 [`docs/funnel-reference.md`](./docs/funnel-reference.md).
+
+- **Two entry points:** `/start` renders the default funnel bundled in the web app and never calls
+  the API. `/f/<slug>` (for ad links, e.g. `/f/main?utm_source=tiktok`) loads the live `Funnel`
+  row from `GET /v1/funnels/:slug` (seeded: `main`, via `pnpm db:seed`). An unknown or draft slug
+  is a 404; `/f/main` falls back to the bundled funnel when the API is down. Definitions are cached
+  for 60 s, so a changed row shows up within a minute.
 
 - **Bot check:** Cloudflare Turnstile. With the two `*TURNSTILE*` variables empty, dev uses
   Cloudflare's always-pass test keys. For real keys: Cloudflare dashboard → Turnstile → Add widget

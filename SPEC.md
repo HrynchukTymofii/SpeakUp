@@ -318,13 +318,13 @@ Clerk token and validates responses with the shared schemas; TanStack Query hold
 - **High availability, before the first paying users:** a NAT gateway per AZ first, then a Redis
   replica with automatic failover, then RDS Multi-AZ (about +$75/month together). Order and what
   each one protects: [`docs/scaling.md` §2.6](./docs/scaling.md#26-single-points-of-failure).
-- **Funnel builder** (issue #45). Funnel definitions can already be written as data and checked
-  by `FunnelDefinitionSchema` (`packages/shared/src/funnel-definition.ts`). Still to build:
-  - funnels stored in the DB and served at `/f/<slug>`, with the UTM parameters and the variant
-    saved on the funnel session;
+- **Funnel builder** (issue #45). Funnels are already data (`FunnelDefinitionSchema`), stored in
+  the `Funnel` table and served at `/f/<slug>`, with the funnel, revision and first-touch UTM /
+  referrer host saved on the funnel session. Still to build:
   - admin sign-in and a list of funnels;
-  - an admin editor with a live preview and publishing;
-  - A/B splits between funnel variants, with the variant sent to Amplitude as a property.
+  - an admin editor with a live preview and publishing (bumps `Funnel.version`);
+  - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
+    send the variant to Amplitude as a property.
 
 ## 13. Out of scope
 
@@ -369,6 +369,7 @@ One row per significant technical choice. The bigger ones also have a decision r
 | Lost jobs recovered by a sweeper in every worker: Postgres is the record, attempts `queued`/`processing` for 10 min with no BullMQ job are re-queued (in-process timer, every 5 min + at startup)             | The single Redis node can come back empty after an outage, and the API can die between "queued" and "add job"; either left the user on an endless spinner. Dedup by jobId and conditional updates make it safe on any number of workers, and it costs one indexed query | Redis with failover or MemoryDB makes data loss rarer but doesn't cover the API crash; a transactional outbox if enqueueing must be exactly-once at the moment of submit        |
 | Agent pipeline (`/pipeline`): planner → implementers in git worktrees → verifier → reviewer → PR, as Claude Code subagents in `.claude/`                                                                      | Splits multi-package features, runs independent parts in parallel, and checks every change against `CLAUDE.md` before a human sees it; checkers are read-only so they report instead of silently fixing; the owner still approves the plan and merges                   | A single session for small fixes; the Claude Agent SDK or a CI job if the pipeline should run without a local session                                                           |
 | Funnel definition = versioned JSON validated by `FunnelDefinitionSchema`; closed enums for personalizers and option providers, declarative `showIf` rules and `{{answer:key}}` templates instead of functions | Storable in Postgres and editable without a deploy; names from a closed list can't reference arbitrary code, and every value is checked against the answer options when saving                                                                                          | TS functions in the web config (previous) while only developers edit funnels; a full expression language if admins need logic the rules can't express                           |
+| Funnels as JSON rows (`Funnel.definition`), loaded by the server page for `/f/<slug>` (3 s timeout, cached 60 s), the bundled default as fallback for `main`; `/start` never calls the API                    | Funnels can change without a web deploy, while ad traffic must not break when the API is down or slow: `/start` and `/f/main` always render; the definition is validated on the server, so the browser only gets checked data                                           | Edge cache/CDN in front of `GET /v1/funnels/:slug` if the API becomes a bottleneck; drop the bundled fallback once the editor exists and `main` is edited only there            |
 
 ---
 
@@ -383,7 +384,7 @@ layout), not its content or branding. How that reference works and what SpeakUp 
 
 ### 15.2 Step sequence
 
-`/start/[step]`. Progress bar across the top for the pre-paywall part. Back button on every step except the loaders and the recording-in-progress state. Answers save on every step (local first, then `PATCH /v1/funnel/sessions/current`).
+`/start/[step]` renders the bundled default funnel `main`; `/f/<slug>/[step]` renders the live funnel with that slug from the API (ad links; `/f/main` falls back to the bundled copy when the API is unavailable, an unknown slug is a 404). The steps below are the default funnel. Progress bar across the top for the pre-paywall part. Back button on every step except the loaders and the recording-in-progress state. Answers save on every step (local first, then `PATCH /v1/funnel/sessions/current`).
 
 | #   | Step id        | Type                  | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --- | -------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

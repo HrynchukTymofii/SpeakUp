@@ -17,7 +17,8 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | ------------------------------- | ---- | ---------------- | --------------------------------------------------------------------------------------------- |
 | `/`                             | site | everyone         | Landing: value proposition, how it works, example feedback, lessons, entry to the funnel      |
 | `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`)                       |
-| `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                                                 |
+| `/start/<step>`                 | app  | everyone         | The onboarding funnel (below), the bundled default `main`                                     |
+| `/f/<slug>/<step>`              | app  | everyone         | The same funnel shell with a definition from the API (ad links; unknown slug → 404)           |
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |
 | `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                |
 | `/app`                          | app  | signed in        | Learn tab: warm-up card, LVL · streak · today, "Continue" (or speaking check), picks, courses |
@@ -31,13 +32,16 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/results/<attemptId>`          | app  | signed in, owner | Waits for the analysis, then the report; `?next=` adds "Continue" (next topic / lesson step)  |
 | `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                |
 
-## The onboarding funnel (`/start`)
+## The onboarding funnel (`/start`, `/f/<slug>`)
 
 Mobile-first flow for visitors from ads. One URL per step, so back/forward and analytics work; the
 state is kept in the browser so a reload resumes where the visitor left off. The funnel is data:
 [`packages/shared/src/funnel-default.ts`](../packages/shared/src/funnel-default.ts) exports
 `DEFAULT_FUNNEL_DEFINITION`, a JSON-safe list of steps checked by `FunnelDefinitionSchema`
 (`packages/shared`) — add, remove or reorder steps there. Conditions are declarative rules and text can insert earlier answers (`{{answer:goal}}`).
+`/start` always renders that bundled definition. `/f/<slug>` renders the live `Funnel` row with
+that slug from the database (seeded: `main`); `/f/main` falls back to the bundled copy when the API
+is unavailable. Both share the visitor's saved progress for `main`.
 
 1. **Questions:** goal, situations where speaking is hard, first language, nervous symptoms,
    self-rated confidence (1–5), time per day. Single-choice answers move on with one tap.
