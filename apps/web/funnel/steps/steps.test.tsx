@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { FUNNEL_OPTIONS } from "@speakup/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentType } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "../analytics";
 import { FUNNEL_STEPS } from "../config";
 import type { FunnelContext, FunnelStep } from "../types";
@@ -241,5 +241,44 @@ describe("{{answer:…}} placeholders in configured copy", () => {
       screen.getByRole("heading", { name: "Planning for Meetings & calls at work" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("listitem")).toHaveTextContent("Lessons for Meetings & calls at work");
+  });
+});
+
+describe("loader questions", () => {
+  // jsdom's rAF timestamps don't share performance.now()'s origin (browsers' do), which would
+  // send the loader's progress negative; drive frames from performance.now() instead.
+  beforeEach(() => {
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+      window.setTimeout(() => cb(performance.now()), 16),
+    );
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => window.clearTimeout(id));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("a question's title sees the answer given to an earlier question in the same loader", async () => {
+    renderDef({
+      id: "loader",
+      type: "loader_with_questions",
+      title: "Building your plan",
+      checklist: [],
+      durationMs: 200,
+      questions: [
+        { atPct: 1, answerKey: "practice-now", title: "Practice right after this?" },
+        {
+          atPct: 2,
+          answerKey: "reminders",
+          title: "You said {{answer:practice-now|nothing}}. Want reminders?",
+        },
+      ],
+    });
+    await userEvent.click(
+      within(await screen.findByRole("dialog", { name: "Practice right after this?" })).getByRole(
+        "button",
+        { name: "Yes" },
+      ),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "You said Yes. Want reminders?" }),
+    ).toBeInTheDocument();
   });
 });

@@ -65,6 +65,8 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
   }, [pending, answers, step, markCompleted, onNext]);
 
   const ticked = Math.floor((pct / 100) * step.checklist.length);
+  // Answers given in this loader aren't saved until it finishes, but a later question may quote one.
+  const questionTitle = pending && renderText(pending.title, { ...ctx.answers, ...answers });
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-7 py-8">
@@ -103,12 +105,10 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={renderText(pending.title, ctx.answers)}
+            aria-label={questionTitle}
             className="funnel-sheet w-full max-w-md rounded-t-[32px] border-t border-line bg-card p-6 pb-8 shadow-soft"
           >
-            <p className="mb-5 font-display text-xl leading-snug font-semibold">
-              {renderText(pending.title, ctx.answers)}
-            </p>
+            <p className="mb-5 font-display text-xl leading-snug font-semibold">{questionTitle}</p>
             <div className="grid grid-cols-2 gap-3">
               {(["yes", "no"] as const).map((value) => (
                 <button
