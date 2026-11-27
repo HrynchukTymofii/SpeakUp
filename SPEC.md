@@ -42,7 +42,8 @@ Working rules for changes (branches, tests, definition of done) are in [`CLAUDE.
    more questions → "building your plan" loader → plan summary → paywall.
 2. **The app** (Free or Pro), four tabs:
    - **Learn:** courses → lessons. A lesson is _why it matters → example → try this_ plus 2–3
-     recorded exercises.
+     recorded exercises. The Learn home also offers a free 1-minute breathing warm-up for right
+     before a pitch.
    - **Practice:** modes that hand out a new topic each time (one-minute topic, question storm,
      convince me, tongue twister).
    - **Challenges:** the 7-day story challenge and "speak like a legend".

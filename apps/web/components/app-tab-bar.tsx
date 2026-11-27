@@ -27,7 +27,11 @@ const TABS: Tab[] = [
     href: "/app",
     label: "Learn",
     icon: icon("M4 19V6a2 2 0 0 1 2-2h12v13H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h12"),
-    match: (p) => p === "/app" || p.startsWith("/app/lessons") || p.startsWith("/app/courses"),
+    match: (p) =>
+      p === "/app" ||
+      p.startsWith("/app/lessons") ||
+      p.startsWith("/app/courses") ||
+      p.startsWith("/app/warm-up"),
   },
   {
     href: "/app/practice",

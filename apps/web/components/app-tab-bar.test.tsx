@@ -29,4 +29,10 @@ describe("AppTabBar", () => {
     render(<AppTabBar />);
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("aria-current", "page");
   });
+
+  it("Learn is active on /app/warm-up", () => {
+    pathname.current = "/app/warm-up";
+    render(<AppTabBar />);
+    expect(screen.getByRole("link", { name: "Learn" })).toHaveAttribute("aria-current", "page");
+  });
 });

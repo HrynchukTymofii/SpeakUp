@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { BoxBreathing } from "@/components/box-breathing";
 import { Mascot } from "@/components/mascot";
 import { CONFIDENCE_COURSE, type LocalLesson } from "@/learn/catalog";
 import { useLocalDone } from "@/learn/local-progress";
@@ -29,7 +30,7 @@ export function LocalLessonView({ lesson }: { lesson: LocalLesson }) {
       {finished ? (
         <Finished />
       ) : lesson.kind === "breathing" ? (
-        <SquareBreathing onDone={finish} />
+        <BoxBreathing onDone={finish} />
       ) : lesson.kind === "yes-button" ? (
         <YesButton onDone={finish} />
       ) : (
@@ -48,94 +49,6 @@ function Finished() {
       <Link href="/app" className="btn w-full bg-on-pastel text-sage hover:opacity-90">
         Back to Learn
       </Link>
-    </div>
-  );
-}
-
-// --- Square breathing ------------------------------------------------------------------------
-
-const PHASES = ["Breathe in", "Hold", "Breathe out", "Hold"] as const;
-const PHASE_SECONDS = 4;
-const ROUNDS = 4;
-
-/**
- * Box breathing: in, hold, out, hold — 4 seconds each, 4 rounds (about a minute). A dot travels
- * around a square, one side per phase; with reduced motion only the text and countdown change.
- */
-function SquareBreathing({ onDone }: { onDone: () => void }) {
-  const [running, setRunning] = useState(false);
-  const [tick, setTick] = useState(0); // seconds since start
-
-  const total = PHASES.length * PHASE_SECONDS * ROUNDS;
-  // Latest onDone without restarting the timer when the parent re-renders.
-  const onDoneRef = useRef(onDone);
-  useEffect(() => {
-    onDoneRef.current = onDone;
-  }, [onDone]);
-
-  useEffect(() => {
-    if (!running) return;
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 1;
-      setTick(elapsed);
-      if (elapsed >= total) {
-        clearInterval(timer);
-        setRunning(false);
-        onDoneRef.current();
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [running, total]);
-
-  const phaseIndex = Math.floor(tick / PHASE_SECONDS) % PHASES.length;
-  const round = Math.min(Math.floor(tick / (PHASE_SECONDS * PHASES.length)) + 1, ROUNDS);
-  const left = PHASE_SECONDS - (tick % PHASE_SECONDS);
-
-  return (
-    <div className="card flex flex-col items-center gap-5 text-center">
-      <p className="text-sm text-muted">
-        Slows your heart rate and steadies your voice. Breathe low, into your belly.
-      </p>
-      <div className="relative size-56" aria-hidden>
-        <div className="absolute inset-4 rounded-[28px] border-4 border-sky" />
-        {running && (
-          <span
-            className="breath-dot absolute size-6 rounded-full bg-peach shadow-peach"
-            style={{ animationDuration: `${PHASE_SECONDS * PHASES.length}s` }}
-          />
-        )}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-5xl font-semibold tabular-nums">
-            {running ? left : "4·4·4·4"}
-          </span>
-        </div>
-      </div>
-      <p aria-live="polite" className="font-display text-2xl font-semibold">
-        {running ? PHASES[phaseIndex] : "Ready when you are"}
-      </p>
-      {running && (
-        <p className="text-sm font-semibold text-muted">
-          Round {round} of {ROUNDS}
-        </p>
-      )}
-      {!running && (
-        <button
-          type="button"
-          onClick={() => {
-            setTick(0);
-            setRunning(true);
-          }}
-          className="btn btn-primary w-full"
-        >
-          Start (about 1 minute)
-        </button>
-      )}
-      {running && (
-        <button type="button" onClick={onDone} className="link text-sm font-bold">
-          I’m calm — finish now
-        </button>
-      )}
     </div>
   );
 }

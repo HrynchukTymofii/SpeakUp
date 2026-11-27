@@ -9,10 +9,12 @@ import { DAILY_GOAL, lessonState, nextUp } from "@/learn/progress";
 import { TONE_SURFACE } from "@/learn/tone";
 import { useLearnData, type LearnData } from "@/learn/use-learn-data";
 import { BaselineCard } from "./baseline-card";
+import { WarmUpCard } from "./warm-up-card";
 
 /**
- * Learn tab, in the Glow look: a greeting, three stat cards (today's goal is the one black
- * card), one "continue" card, lessons picked from what we heard, and the courses as cards.
+ * Learn tab, in the Glow look: a greeting, a pre-pitch warm-up shortcut, three stat cards (today's
+ * goal is the one black card), one "continue" card, lessons picked from what we heard, and the
+ * courses as cards.
  */
 export function LearnView() {
   const { data, error } = useLearnData();
@@ -34,6 +36,7 @@ export function LearnView() {
         </h1>
         <Mascot mood={data.today >= DAILY_GOAL ? "happy" : "idle"} size={56} />
       </header>
+      <WarmUpCard />
       <StatusBar data={data} />
       {data.hasAnalysis ? <ContinueCard data={data} /> : <BaselineCard />}
       {data.suggestions.length > 0 && <Suggestions suggestions={data.suggestions} />}
