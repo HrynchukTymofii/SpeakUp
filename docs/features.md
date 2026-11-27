@@ -20,7 +20,8 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/start/<step>`                 | app  | everyone         | The onboarding funnel (below)                                                                 |
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |
 | `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                |
-| `/app`                          | app  | signed in        | Learn tab: LVL · streak · today, "Continue" card (or the speaking check), picks, course cards |
+| `/app`                          | app  | signed in        | Learn tab: warm-up card, LVL · streak · today, "Continue" (or speaking check), picks, courses |
+| `/app/warm-up`                  | app  | signed in        | Pitch warm-up: 1 minute of box breathing, then back home; records nothing                     |
 | `/app/courses/<slug>`           | app  | signed in        | One course: its lessons as a winding path                                                     |
 | `/app/lessons/<slug>`           | app  | signed in        | Lesson: step-by-step (why → example → try this → exercises → done); in-app confidence lessons |
 | `/app/practice`                 | app  | signed in        | Practice: one card per mode                                                                   |
@@ -123,6 +124,12 @@ A floating black tab bar (`components/app-tab-bar.tsx`, icons) switches between 
 Profile**; every `/app` page leaves room for it. Data for all tabs comes from one hook,
 `learn/use-learn-data.ts` (`GET /v1/me`, `/v1/courses`, `/v1/attempts`), so the tabs share one cache.
 
+**Pitch warm-up.** Right under the Learn greeting, a "Pitch coming up? — Calm down in 1 minute"
+card (`app/(product)/app/warm-up-card.tsx`) opens `/app/warm-up`: box breathing (4 rounds of
+in-hold-out-hold, 4 s each, 64 s in all), then the mascot, "You're ready. Go get them." and
+**Done** back to `/app`. **Skip** returns home at any point. It is free on every plan and records
+nothing: no streak, XP, daily goal or lesson completion. The tab bar keeps Learn active there.
+
 ## Practice modes (`/app/practice`)
 
 The Practice tab is a grid of mode cards (`app/(product)/app/practice/mode-grid.tsx`): one-minute
@@ -176,6 +183,7 @@ device, never generated).
 can't measure them (finishing one is remembered on the device):
 
 - _Square breathing_: 4 rounds of in-hold-out-hold, 4 s each, a dot travelling around a square.
+  The same component (`components/box-breathing.tsx`) runs the pitch warm-up at `/app/warm-up`.
 - _The "Yes!" button_: press, say a power phrase out loud, three times.
 - _Look as confident as you are_: posture, eye contact, gestures, energy dial (tips; the mobile
   app will coach these with the camera).
