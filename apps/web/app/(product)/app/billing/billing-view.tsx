@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { UpgradeButton } from "@/components/upgrade-button";
 import { useApi } from "@/lib/use-api";
 
@@ -22,11 +23,7 @@ export function BillingView() {
     onSuccess: ({ url }) => window.location.assign(url),
   });
 
-  const back = (
-    <Link href="/app" className="link w-fit text-sm font-bold">
-      ← Back to dashboard
-    </Link>
-  );
+  const back = <BackLink href="/app">Back to dashboard</BackLink>;
   if (me.isPending) return <p className="text-muted">Loading…</p>;
   if (me.isError) {
     return (

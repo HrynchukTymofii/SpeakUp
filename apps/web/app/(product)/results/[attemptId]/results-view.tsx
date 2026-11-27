@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { BackLink } from "@/components/back-link";
 import { Mascot } from "@/components/mascot";
 import { track } from "@/funnel/analytics";
 import { ResultsReport } from "@/components/results-report";
@@ -96,11 +97,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
     });
   }, [outcome, query.data, attemptId]);
 
-  const backLink = (
-    <Link href={next ?? "/app"} className="link w-fit text-sm font-bold">
-      ← Back
-    </Link>
-  );
+  const backLink = <BackLink href={next ?? "/app"}>Back</BackLink>;
   const continueButton = next && (
     <Link href={next} className="btn btn-primary w-full">
       {continueLabel(next)}
