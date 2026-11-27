@@ -28,8 +28,9 @@ const API_PORT = 4000;
 
 /**
  * Postgres connections per process. Every task holds its own pool, so the sum at maximum scale
- * must stay under the DB's max_connections (~80 on db.t4g.micro): 4 API × 8 + 10 workers × 3
- * = 62. A worker job uses the DB in short, sequential steps, so 3 connections serve its 4 jobs.
+ * must stay under the DB's max_connections. Production (cdk.json): 4 API × 8 + 25 workers × 3
+ * = 107 of ~190 on db.t4g.small. The defaults (10 workers, micro) give 62 of ~80. A worker job
+ * uses the DB in short, sequential steps, so 3 connections serve its 4 jobs.
  */
 const API_DB_POOL = 8;
 const WORKER_DB_POOL = 3;

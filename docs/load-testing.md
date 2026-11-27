@@ -118,7 +118,8 @@ A separate, throwaway CloudFormation stack built from the same CDK code with
 
 - Same topology and sizes as production: ALB, API on Fargate (0.5 vCPU / 1 GB, autoscaling
   1–4 on CPU), workers with concurrency 4 that autoscale on queue depth from 1 up to
-  `speakup:workerMaxTasks` (default 10), RDS `db.t4g.micro`, ElastiCache `cache.t4g.micro`.
+  `speakup:workerMaxTasks` (25 from `cdk.json`, 10 without it), RDS `db.t4g.small` (`micro`
+  without `speakup:dbInstanceSize`), ElastiCache `cache.t4g.micro`.
   For 1,000 users, deploy with `-c speakup:workerMaxTasks=30 -c speakup:dbInstanceSize=small`.
   30 workers plus 4 API tasks need 17 Fargate vCPUs, and the account quota is 30.
 - **Run k6 from inside AWS for big runs.** Past a few hundred users, a laptop on a home
