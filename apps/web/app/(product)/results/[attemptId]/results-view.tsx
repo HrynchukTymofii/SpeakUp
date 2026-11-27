@@ -164,7 +164,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
               <li key={label} className="flex items-center gap-3 text-sm">
                 <span
                   aria-hidden
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
                     done
                       ? "bg-sage text-on-pastel"
                       : active
@@ -172,7 +172,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
                         : "border-[1.5px] border-line-2"
                   }`}
                 >
-                  {done ? "✓" : ""}
+                  {done && <Icon name="check" className="size-3.5" strokeWidth={2.5} />}
                 </span>
                 <span className={active ? "font-bold text-ink" : "text-muted"}>{label}</span>
               </li>

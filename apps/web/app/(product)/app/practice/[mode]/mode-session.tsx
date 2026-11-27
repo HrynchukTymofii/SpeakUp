@@ -69,9 +69,10 @@ export function ModeSession({ mode }: { mode: PracticeMode }) {
             <button
               type="button"
               onClick={() => setSkip(next.data.topic)}
-              className="mx-auto rounded-full bg-white/70 px-4 py-2 text-sm font-bold text-on-pastel hover:bg-white"
+              className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-sm font-bold text-on-pastel hover:bg-white"
             >
-              ↻ Another one
+              <Icon name="refresh" className="size-4" />
+              Another one
             </button>
           </section>
           <ExerciseRecorder

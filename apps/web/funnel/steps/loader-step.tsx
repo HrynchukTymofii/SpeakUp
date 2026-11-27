@@ -2,6 +2,7 @@
 
 import type { FunnelAnswers } from "@speakup/shared";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { track } from "../analytics";
 import { renderText } from "../personalize";
@@ -87,11 +88,11 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
           <li key={item} className="flex items-center gap-3">
             <span
               aria-hidden
-              className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold transition-colors ${
+              className={`flex size-6 shrink-0 items-center justify-center rounded-full transition-colors ${
                 i < ticked ? "bg-sage text-on-pastel" : "border-[1.5px] border-line-2"
               }`}
             >
-              {i < ticked ? "✓" : ""}
+              {i < ticked && <Icon name="check" className="size-3.5" strokeWidth={2.5} />}
             </span>
             <span className={i < ticked ? "font-semibold text-ink" : "text-muted"}>
               {renderText(item, ctx.answers)}

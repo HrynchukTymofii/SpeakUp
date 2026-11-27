@@ -182,9 +182,9 @@ describe("configured content", () => {
       screen.getByRole("heading", { name: "How we’ll measure your speaking" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "✓Pace and pauses — how fast you speak, and where you stop or hesitate",
-      "✓Your voice — whether pitch and volume move, or stay flat",
-      "✓Filler words and wording — “um”, “like”, “I think”, repeated phrases",
+      "Pace and pauses — how fast you speak, and where you stop or hesitate",
+      "Your voice — whether pitch and volume move, or stay flat",
+      "Filler words and wording — “um”, “like”, “I think”, repeated phrases",
     ]);
     expect(screen.getByRole("button", { name: "Continue in 10s" })).toBeDisabled();
     lesson.unmount();

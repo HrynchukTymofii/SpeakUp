@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 /**
  * Owner's rule (2026-11-22): no emoji anywhere in the web UI — use the line icons in
  * components/icons.tsx (or an image) instead. This scans the UI source so one can't slip back in.
- * Text symbols such as ✓ and × are fine; they are typography, not emoji.
+ * Text symbols such as × and arrows are not emoji, so they pass here. ✓ and ↻ are not emoji
+ * either, but they are banned as stand-in icons by `no-glyph-icons.test.ts`.
  */
 const ROOT = join(__dirname, "..");
 const DIRS = ["app", "components", "funnel", "learn", "lib"];

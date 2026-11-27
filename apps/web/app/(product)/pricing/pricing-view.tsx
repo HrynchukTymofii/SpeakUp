@@ -5,6 +5,7 @@ import { Mascot } from "@/components/mascot";
 import { UpgradeButton } from "@/components/upgrade-button";
 import { PRO_FEATURES } from "@/funnel/plans";
 import { CheckoutTerms } from "@/components/checkout-terms";
+import { Icon } from "@/components/icons";
 
 const FREE_FEATURES = ["The speaking check", "Lesson 1", "3 speaking analyses a day"];
 
@@ -56,9 +57,9 @@ function Features({ items }: { items: string[] }) {
         <li key={item} className="flex gap-3">
           <span
             aria-hidden
-            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-sage text-[11px] font-extrabold text-on-pastel"
+            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-sage text-on-pastel"
           >
-            ✓
+            <Icon name="check" className="size-3.5" strokeWidth={2.5} />
           </span>
           {item}
         </li>

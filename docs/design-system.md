@@ -24,9 +24,11 @@ for app-only rules; it no longer changes any token.
 2. **Neutral canvas, few accents.** Surfaces are near-white; personality comes from one
    lavender glow, a single black card per screen and the blue mascot. The soft pastels (sage,
    rose, butter, sky) only carry meaning: good, fix, highlight, info.
-3. **No emoji.** Use the line icons in `components/icons.tsx` (or an image). A test
-   (`lib/no-emoji.test.ts`) fails if an emoji appears in the UI source; text symbols like ✓
-   and × are fine.
+3. **No emoji, no glyph icons.** Use the line icons in `components/icons.tsx` (or an image). A
+   test (`lib/no-emoji.test.ts`) fails if an emoji appears in the UI source. Text glyphs used as
+   icons count too: a check or refresh mark is `<Icon name="check" />` / `<Icon name="refresh" />`,
+   never ✓ or ↻, and `lib/no-glyph-icons.test.ts` fails if either glyph appears in the UI source
+   (copy included). × and arrows inside copy remain allowed typography.
 4. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
    (and `text-on-pastel-muted` for secondary text) — never cream text on a pastel.
 5. **Big and soft.** Large Manrope headlines, pill buttons, generously rounded cards (20–28 px),
