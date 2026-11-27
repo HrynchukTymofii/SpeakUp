@@ -258,13 +258,21 @@ the schema answers `500` (logged with its slug) instead of reaching visitors.
 
 | Method | Path                             | Auth  | Description                                                                                                        |
 | ------ | -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
-| POST   | `/v1/funnel/sessions`            | —     | Start a session → `201 { "token": "…" }` (returned once; only its hash is stored)                                  |
+| POST   | `/v1/funnel/sessions`            | —     | Start a session; optional body (see below) → `201 { "token": "…" }` (returned once; only its hash is stored)       |
 | PATCH  | `/v1/funnel/sessions/current`    | guest | Save answers (merged) and the current step → `204`                                                                 |
 | GET    | `/v1/funnel/exercise`            | guest | The speaking check for the session's goal (`check-<goal>`, else `check-general`; max 45 s)                         |
 | POST   | `/v1/funnel/attempts`            | guest | Create the baseline attempt; body `{ mimeType, turnstileToken }`                                                   |
 | POST   | `/v1/funnel/attempts/:id/submit` | guest | Same as the signed-in submit                                                                                       |
 | GET    | `/v1/funnel/attempts/:id`        | guest | Progress only: `{ "attempt": { id, status, stage } }` — never the result                                           |
 | POST   | `/v1/funnel/claim`               | user  | Body `{ "guestToken": "…" }`; attaches the session and its attempt to the account → `{ "attemptId": "…" \| null }` |
+
+`POST /v1/funnel/sessions` takes an optional body (`CreateFunnelSessionBodySchema`):
+`{ "funnel": { slug, version }, "attribution": { utmSource, utmMedium, utmCampaign, utmContent, utmTerm, referrerHost } }`,
+every part optional; no body at all is fine too (older web builds). `funnel.version` is the revision
+the guest was shown. The session links to the funnel only if the slug is a **live** funnel; an
+unknown or draft slug still gets a session, without the link. Attribution is first-touch, UTM values
+are at most 200 characters and `referrerHost` is a hostname only (a full URL is `400`), as are
+unknown keys. UTM values are stored but never logged.
 
 `POST /v1/funnel/attempts` checks: session not yet claimed (`409`), Turnstile (`403 BOT_CHECK_FAILED`),
 one baseline per session (`409 WRONG_STATE`; a re-take before submit replaces the unsubmitted one),

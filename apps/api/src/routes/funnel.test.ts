@@ -65,6 +65,74 @@ describe("POST /v1/funnel/sessions", () => {
     expect(session?.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(session?.ipHash).not.toContain("127.0.0.1");
   });
+
+  const createSession = (app: Awaited<ReturnType<typeof setup>>["app"], payload: object) =>
+    app.inject({ method: "POST", url: "/v1/funnel/sessions", payload });
+
+  it("stores the live funnel's id, the version shown and first-touch UTM + referrer host", async () => {
+    const { app, db } = await setup();
+    db.funnels.push({ id: "fn_main", slug: "main", status: "live", version: 3, definition: {} });
+    const res = await createSession(app, {
+      funnel: { slug: "main", version: 2 },
+      attribution: {
+        utmSource: "tiktok",
+        utmMedium: "paid",
+        utmCampaign: "launch",
+        utmContent: "video-a",
+        utmTerm: "speaking",
+        referrerHost: "www.tiktok.com",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(db.funnelSessions[0]).toMatchObject({
+      funnelId: "fn_main",
+      funnelVersion: 2, // what the guest was shown, not the current row's version
+      utmSource: "tiktok",
+      utmMedium: "paid",
+      utmCampaign: "launch",
+      utmContent: "video-a",
+      utmTerm: "speaking",
+      referrerHost: "www.tiktok.com",
+    });
+  });
+
+  it("still creates a session with no body (older web builds)", async () => {
+    const { app, db } = await setup();
+    const res = await app.inject({ method: "POST", url: "/v1/funnel/sessions" });
+    expect(res.statusCode).toBe(201);
+    expect(db.funnelSessions[0]).toMatchObject({
+      funnelId: null,
+      funnelVersion: null,
+      utmSource: null,
+      referrerHost: null,
+    });
+  });
+
+  it("unknown or draft slug → session without funnelId", async () => {
+    const { app, db } = await setup();
+    db.funnels.push({ id: "fn_x", slug: "spring", status: "draft", version: 1, definition: {} });
+    for (const slug of ["spring", "nope"]) {
+      const res = await createSession(app, {
+        funnel: { slug, version: 1 },
+        attribution: { utmSource: "google" },
+      });
+      expect(res.statusCode).toBe(201);
+    }
+    for (const session of db.funnelSessions) {
+      expect(session).toMatchObject({ funnelId: null, funnelVersion: null, utmSource: "google" });
+    }
+  });
+
+  it("400 on unknown body keys or a full-URL referrer", async () => {
+    const { app, db } = await setup();
+    const unknownKey = await createSession(app, { attribution: {}, campaign: "x" });
+    expect(unknownKey.statusCode).toBe(400);
+    const fullUrl = await createSession(app, {
+      attribution: { referrerHost: "https://www.google.com/search?q=x" },
+    });
+    expect(fullUrl.statusCode).toBe(400);
+    expect(db.funnelSessions).toHaveLength(0);
+  });
 });
 
 describe("PATCH /v1/funnel/sessions/current", () => {
