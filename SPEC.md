@@ -215,8 +215,8 @@ How the pipeline is built: [`docs/architecture.md`](./docs/architecture.md#analy
 The full reference is [`docs/api.md`](./docs/api.md). The rules every endpoint follows:
 
 - REST under `/v1`. Every route needs `Authorization: Bearer <Clerk token>` except `/health*`,
-  the public billing plans, webhooks (signature instead) and the funnel routes (guest token
-  instead). The first authenticated request creates our `User` row (lazy provisioning).
+  the public billing plans, published funnel definitions (`GET /v1/funnels/:slug`, no auth),
+  webhooks (signature instead) and the funnel routes (guest token instead). The first authenticated request creates our `User` row (lazy provisioning).
 - **One error shape:** `{ "error": { "code", "message", "requestId" } }`. Statuses: 400
   validation, 401 unauthenticated, 402 paywall, 403 forbidden, 404 (also for someone else's
   resource), 409 wrong state, 429 rate-limited or over quota, 500.

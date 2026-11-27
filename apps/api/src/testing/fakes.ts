@@ -281,7 +281,14 @@ export class FakeDb {
     },
   };
 
-  /** Array form of a Prisma transaction: the fake ops have already run; just await them. */
+  /** Funnel rows in the shape the public route selects (definition is raw JSON, unvalidated). */
+  funnels: { slug: string; status: "draft" | "live"; version: number; definition: unknown }[] = [];
+
+  funnel = {
+    findUnique: async ({ where }: { where: { slug: string } }) =>
+      this.funnels.find((f) => f.slug === where.slug) ?? null,
+  };
+
   /**
    * Both Prisma transaction forms: an array of (already running) fake ops, or an interactive
    * callback that gets the client. The fake can't roll back — tests don't rely on rollback.

@@ -243,6 +243,17 @@ On `failed`, `attempt.errorCode` is `NO_SPEECH`, `STT_FAILED`, `LLM_INVALID_OUTP
 `readAloud` is `null` for free-speech exercises. `issues` has at most 4 entries; `category` is one of
 `pace`, `pauses`, `fillers`, `clarity`, `accuracy`, `structure`.
 
+## Funnels (public)
+
+| Method | Path                | Auth | Description                                                                                       |
+| ------ | ------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/funnels/:slug` | —    | A live funnel: `{ "funnel": { slug, version, definition } }`, `Cache-Control: public, max-age=60` |
+
+`version` is the content revision (bumped on publish); `definition` follows `FunnelDefinitionSchema`
+(`packages/shared/src/funnel-definition.ts`). A draft or unknown slug answers `404 NOT_FOUND` with
+`Cache-Control: no-store`; a slug that isn't URL-safe answers `400`. A stored definition that fails
+the schema answers `500` (logged with its slug) instead of reaching visitors.
+
 ## Funnel (anonymous)
 
 | Method | Path                             | Auth  | Description                                                                                                        |
