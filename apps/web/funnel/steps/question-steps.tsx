@@ -5,6 +5,7 @@ import { Mascot } from "@/components/mascot";
 import { publicEnv } from "@/lib/env";
 import { track } from "../analytics";
 import { LessonVideo } from "../lesson-video";
+import { OPTIONS_PROVIDERS, PERSONALIZERS, renderText } from "../personalize";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, OptionButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
@@ -21,11 +22,16 @@ function vibrate() {
 
 /** One answer; tapping it saves and moves on immediately (no Continue needed). */
 export function SingleChoiceStep({ step, ctx, onNext }: StepProps<"single_choice">) {
-  const options = typeof step.options === "function" ? step.options(ctx) : step.options;
+  const options = Array.isArray(step.options)
+    ? step.options
+    : OPTIONS_PROVIDERS[step.options.provider](ctx);
   const current = ctx.answers[step.answerKey];
   return (
     <div className="flex flex-col gap-6">
-      <StepHeading title={step.title} subtitle={step.subtitle} />
+      <StepHeading
+        title={renderText(step.title, ctx.answers)}
+        subtitle={step.subtitle && renderText(step.subtitle, ctx.answers)}
+      />
       <div className="flex flex-col gap-3">
         {options.map((option, i) => (
           <OptionButton
@@ -51,7 +57,10 @@ export function MultiChoiceStep({ step, ctx, onNext }: StepProps<"multi_choice">
     setPicked((p) => (p.includes(value) ? p.filter((v) => v !== value) : [...p, value]));
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <StepHeading title={step.title} subtitle={step.subtitle} />
+      <StepHeading
+        title={renderText(step.title, ctx.answers)}
+        subtitle={step.subtitle && renderText(step.subtitle, ctx.answers)}
+      />
       <div className="flex flex-col gap-3">
         {step.options.map((option, i) => (
           <OptionButton
@@ -81,9 +90,10 @@ export function MultiChoiceStep({ step, ctx, onNext }: StepProps<"multi_choice">
 /** 1–5 rating with a native range input (keyboard + screen-reader friendly). */
 export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
   const [value, setValue] = useState(ctx.answers[step.answerKey] ?? 3);
+  const title = renderText(step.title, ctx.answers);
   return (
     <div className="flex flex-1 flex-col gap-8">
-      <StepHeading title={step.title} />
+      <StepHeading title={title} />
       <Card className="flex flex-col gap-4 py-7">
         <p
           className="text-center font-display text-7xl leading-none font-semibold text-brand tabular-nums"
@@ -98,13 +108,13 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
           step={1}
           value={value}
           onChange={(e) => setValue(Number(e.target.value))}
-          aria-label={step.title}
+          aria-label={title}
           aria-valuetext={`${value} out of 5`}
           className="h-2 w-full cursor-pointer accent-peach"
         />
         <div className="flex justify-between text-sm font-semibold text-muted">
-          <span>{step.lowLabel}</span>
-          <span>{step.highLabel}</span>
+          <span>{renderText(step.lowLabel, ctx.answers)}</span>
+          <span>{renderText(step.highLabel, ctx.answers)}</span>
         </div>
       </Card>
       <ContinueButton
@@ -120,7 +130,14 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
 /** A calm screen between questions that reacts to an earlier answer. */
 export function ReflectionStep({ step, ctx, onNext }: StepProps<"reflection">) {
   const markCompleted = useFunnelStore((s) => s.markCompleted);
-  const { title, body } = step.content(ctx);
+  const { content } = step;
+  const { title, body } =
+    "personalizer" in content
+      ? PERSONALIZERS[content.personalizer](ctx)
+      : {
+          title: renderText(content.title, ctx.answers),
+          body: renderText(content.body, ctx.answers),
+        };
   return (
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex flex-1 flex-col justify-center gap-4 py-8">
@@ -141,7 +158,7 @@ export function ReflectionStep({ step, ctx, onNext }: StepProps<"reflection">) {
 }
 
 /** Mini-lesson: Continue unlocks after `unlockAfterSec` or when the video ends. */
-export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
+export function VideoLessonStep({ step, ctx, onNext }: StepProps<"video_lesson">) {
   const markCompleted = useFunnelStore((s) => s.markCompleted);
   const alreadyDone = useFunnelStore((s) => s.completed.includes(step.id));
   const [unlocked, setUnlocked] = useState(alreadyDone);
@@ -164,7 +181,7 @@ export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <StepHeading title={step.title} />
+      <StepHeading title={renderText(step.title, ctx.answers)} />
       {videoUrl ? (
         <LessonVideo src={videoUrl} onEnded={() => setUnlocked(true)} />
       ) : (
@@ -177,7 +194,7 @@ export function VideoLessonStep({ step, onNext }: StepProps<"video_lesson">) {
         {step.takeaways.map((t) => (
           <li key={t} className="flex gap-3 text-ink/90">
             <Tick />
-            {t}
+            {renderText(t, ctx.answers)}
           </li>
         ))}
       </ul>
