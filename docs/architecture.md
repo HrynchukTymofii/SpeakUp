@@ -232,6 +232,7 @@ erDiagram
   User ||--o{ Subscription : has
   User ||--o{ FunnelSession : "claims"
   FunnelSession ||--o{ Attempt : "anonymous baseline"
+  Funnel ||--o{ FunnelSession : "is shown in"
   Course ||--o{ Lesson : contains
   Lesson ||--o{ Exercise : contains
   Exercise ||--o{ Attempt : "is practiced in"
@@ -244,6 +245,12 @@ erDiagram
 - `Exercise.lessonId = null` marks the baseline exercise (used by the funnel and the dashboard).
 - `Analysis` stores metrics and feedback as JSON validated by the shared Zod schemas, plus the model,
   prompt version, latency and estimated cost of each analysis.
+- `Funnel` holds one web funnel per `slug` (`draft` or `live`). `definition` is JSON validated by
+  `FunnelDefinitionSchema` (`packages/shared`); `Funnel.version` is the content revision, separate
+  from the definition's own schema-format `version`. A `FunnelSession` optionally records the funnel
+  and revision it was started on, first-touch UTM values and the referrer **host** only; its
+  `variant` column is reserved for A/B tests and nothing writes it yet. All of these columns are
+  nullable, so sessions from before funnels lived in the DB stay valid.
 - `WebhookEvent` exists only for webhook idempotency.
 - Full schema: [`packages/db/prisma/schema.prisma`](../packages/db/prisma/schema.prisma).
 
