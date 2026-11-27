@@ -153,11 +153,14 @@ describe("self-rating slider", () => {
     // `h-2` made the whole input 8 px tall.
     expect(slider).toHaveClass("range");
     expect(slider).not.toHaveClass("h-2");
+    // WebKit paints the filled part of the track from --range-fill: (value - 1) / 4 of the width.
+    expect(slider.style.getPropertyValue("--range-fill")).toBe("50%");
 
     // user-event can't step a native range with arrow keys in jsdom (no slider default action),
     // so set the value the way the browser reports it after a key press or drag.
     fireEvent.change(slider, { target: { value: "5" } });
     expect(slider).toHaveAttribute("aria-valuetext", "5 out of 5");
+    expect(slider.style.getPropertyValue("--range-fill")).toBe("100%");
 
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(onNext).toHaveBeenCalledWith({ "self-rating": 5 });

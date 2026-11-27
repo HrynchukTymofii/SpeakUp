@@ -99,25 +99,25 @@ tracking.
 Plain CSS classes in the `@layer components` block of `globals.css`. Tailwind utilities on the
 same element override them (utilities come later in the cascade).
 
-| Class           | What it is                                                                                                 |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| `btn`           | base pill button (height ≥ 52 px, extra-bold, press-scale, disabled state). Always combine with a variant: |
-| `btn-primary`   | black pill with a gentle gradient — the main call to action (same look as `btn-ink`)                       |
-| `btn-peach`     | the lavender (`brand`) pill — upgrade/checkout only                                                        |
-| `btn-secondary` | white pill with a little depth                                                                             |
-| `btn-sm`        | smaller size modifier                                                                                      |
-| `card`          | rounded 28 px white card with a slight gradient and the depth shadow (no border)                           |
-| `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                     |
-| `pill`          | small rounded badge; add a `bg-*` and text color                                                           |
-| `link`          | muted text link that brightens on hover                                                                    |
-| `paper`         | graph-paper texture; draws nothing in Glow (`--grid` is transparent)                                       |
-| `dots`          | dotted canvas (behind the lesson path)                                                                     |
-| `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                           |
-| `surface`       | Glow: white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth                   |
-| `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                         |
-| `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                  |
-| `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                            |
-| `range`         | styled native slider: 44 px touch target, 8 px `brand`-filled track (`--range-fill`), 28 px thumb          |
+| Class           | What it is                                                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `btn`           | base pill button (height ≥ 52 px, extra-bold, press-scale, disabled state). Always combine with a variant:                                                |
+| `btn-primary`   | black pill with a gentle gradient — the main call to action (same look as `btn-ink`)                                                                      |
+| `btn-peach`     | the lavender (`brand`) pill — upgrade/checkout only                                                                                                       |
+| `btn-secondary` | white pill with a little depth                                                                                                                            |
+| `btn-sm`        | smaller size modifier                                                                                                                                     |
+| `card`          | rounded 28 px white card with a slight gradient and the depth shadow (no border)                                                                          |
+| `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                                                                    |
+| `pill`          | small rounded badge; add a `bg-*` and text color                                                                                                          |
+| `link`          | muted text link that brightens on hover                                                                                                                   |
+| `paper`         | graph-paper texture; draws nothing in Glow (`--grid` is transparent)                                                                                      |
+| `dots`          | dotted canvas (behind the lesson path)                                                                                                                    |
+| `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                                                                          |
+| `surface`       | Glow: white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth                                                                  |
+| `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                                                                        |
+| `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                                                                 |
+| `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                                                                           |
+| `range`         | styled native slider: 44 px touch target, 8 px track (`brand` fill via `--range-fill`, `line-2` unfilled), 28 px thumb; native slider under forced colors |
 
 Landing building blocks: `app/(marketing)/landing-visuals.tsx` (the hero phone with its floating
 cards, the step pictures, the lesson art, the feedback icons).
