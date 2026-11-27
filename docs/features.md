@@ -35,9 +35,9 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 
 Mobile-first flow for visitors from ads. One URL per step, so back/forward and analytics work; the
 state is kept in the browser so a reload resumes where the visitor left off. The funnel is data:
-[`apps/web/funnel/config.ts`](../apps/web/funnel/config.ts) exports `FUNNEL_DEFINITION`, a JSON-safe
-list of steps checked by `FunnelDefinitionSchema` (`packages/shared`) — add, remove or reorder steps
-there. Conditions are declarative rules and text can insert earlier answers (`{{answer:goal}}`).
+[`packages/shared/src/funnel-default.ts`](../packages/shared/src/funnel-default.ts) exports
+`DEFAULT_FUNNEL_DEFINITION`, a JSON-safe list of steps checked by `FunnelDefinitionSchema`
+(`packages/shared`) — add, remove or reorder steps there. Conditions are declarative rules and text can insert earlier answers (`{{answer:goal}}`).
 
 1. **Questions:** goal, situations where speaking is hard, first language, nervous symptoms,
    self-rated confidence (1–5), time per day. Single-choice answers move on with one tap.

@@ -189,6 +189,14 @@ function ruleValues(rule: FunnelRule): { key: FunnelAnswerKey; value: unknown }[
   return [];
 }
 
+/** Every answer key a rule reads, including `answered` / `notAnswered` checks. */
+function ruleKeys(rule: FunnelRule): FunnelAnswerKey[] {
+  if ("all" in rule) return rule.all.flatMap(ruleKeys);
+  if ("any" in rule) return rule.any.flatMap(ruleKeys);
+  if ("not" in rule) return ruleKeys(rule.not);
+  return [rule.answer];
+}
+
 /**
  * A declarative condition on the answers (used as `showIf`). Values must be ones the answer can
  * actually hold, so a rule can't silently never match because of a typo.
@@ -324,6 +332,21 @@ export const FunnelDefinitionSchema = z
         ctx.addIssue({ code: "custom", path: ["steps", i, "id"], message: "Duplicate step id" });
       }
       ids.add(step.id);
+
+      // Checked before this step's own keys are added: an answer that isn't asked yet (later,
+      // by this step, or by this loader's questions) is always unanswered here, so the rule
+      // could never mean what it says.
+      if (step.showIf) {
+        for (const key of new Set(ruleKeys(step.showIf))) {
+          if (!collected.has(key)) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["steps", i, "showIf"],
+              message: `"${key}" isn't asked before this step`,
+            });
+          }
+        }
+      }
 
       if ("answerKey" in step) collect(step.answerKey, ["steps", i, "answerKey"]);
       if (step.type === "loader_with_questions") {

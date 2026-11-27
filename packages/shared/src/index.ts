@@ -11,5 +11,6 @@ export * from "./api/attempts.js";
 export * from "./api/billing.js";
 export * from "./funnel.js";
 export * from "./funnel-definition.js";
+export * from "./funnel-default.js";
 export * from "./logging.js";
 export * from "./error-reporting.js";
