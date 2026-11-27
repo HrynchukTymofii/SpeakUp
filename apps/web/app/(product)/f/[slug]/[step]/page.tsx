@@ -1,16 +1,11 @@
 import { FunnelStepClient } from "../../../start/funnel-client";
-import { FunnelFromApi } from "../funnel-from-api";
 
-// One URL per step (SPEC §11), so back/forward and analytics work.
+// One URL per step (SPEC §11), so back/forward and analytics work. The funnel comes from the layout.
 export default async function FunnelBySlugStepPage({
   params,
 }: {
   params: Promise<{ slug: string; step: string }>;
 }) {
-  const { slug, step } = await params;
-  return (
-    <FunnelFromApi slug={slug}>
-      <FunnelStepClient stepId={step} />
-    </FunnelFromApi>
-  );
+  const { step } = await params;
+  return <FunnelStepClient stepId={step} />;
 }

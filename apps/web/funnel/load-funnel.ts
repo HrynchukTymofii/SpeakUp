@@ -9,7 +9,7 @@ import {
 import { publicEnv } from "@/lib/env";
 
 /**
- * Server-only: loads the funnel `/f/<slug>` renders, in the RSC page. The definition is validated
+ * Server-only: loads the funnel `/f/<slug>` renders, in its RSC layout. The definition is validated
  * here (FunnelDefinitionSchema via FunnelResponseSchema) so the browser gets only checked data.
  */
 
