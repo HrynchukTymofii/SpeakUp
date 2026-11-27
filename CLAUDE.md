@@ -28,13 +28,22 @@ A task is done only when all of these are true:
 
 ## Git
 
-- Never work directly on `main`. One branch per task: `feat/…`, `fix/…`, `chore/…`, `docs/…`,
-  `test/…`. Parallel agent sessions each use their own branch (or `git worktree`) so they never
-  interleave commits.
+Every task, however small, goes in this order:
+
+1. **Ticket first.** Open a GitHub issue (`gh issue create`) with what changes and why, before any
+   code. The issue is the task's log: post the plan, check results and decisions on it as comments.
+2. **Branch.** Never work directly on `main`. One branch per task: `feat/…`, `fix/…`, `chore/…`,
+   `docs/…`, `test/…`. Parallel agent sessions each use their own branch (or `git worktree`) so
+   they never interleave commits.
+3. **Draft PR after the first commit.** Push and open a draft PR whose body says
+   `Closes #<issue>`, so CI and the Vercel preview run on every push.
+4. **Commit and push** each logical step to that PR.
+5. **Ready for review** once all checks pass (`gh pr ready`); CI must be green. **Merge only when
+   the owner says so.** `main` must always be deployable (pushes to `main` can deploy the web app
+   via Vercel).
+
 - Commit messages: Conventional Commits, `type(scope): summary` (scopes: `web`, `api`, `worker`,
   `db`, `shared`, `infra`, `docs`…). The body explains **why**.
-- Push the branch and open a pull request; CI must be green. **Merge only when the owner says so.**
-  `main` must always be deployable (pushes to `main` can deploy the web app via Vercel).
 - Never commit secrets (`.env*` except `.env.example`) or tool output (`.playwright-mcp/`, screenshots).
 - Never force-push, rewrite published history, or skip hooks.
 

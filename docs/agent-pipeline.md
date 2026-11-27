@@ -1,17 +1,20 @@
 # Agent pipeline
 
-`/ship <task>` runs one task through a team of Claude Code agents: plan, build, verify, review,
-open a PR. The owner approves the plan and merges the PR; everything between is automated.
+`/ship <task>` runs one task through a team of Claude Code agents: ticket, plan, build, verify,
+review, PR. The owner approves the plan and merges the PR; everything between is automated.
 
 ```
 /ship "<task>"
+   │
+   ▼
+GitHub issue (the ticket) ── the task's log: plan, verify and review results go here as comments
    │
    ▼
 planner ──► owner approves plan
    │
    ▼
 implementer(s) ── parallel when subtasks don't share files, each in its own git worktree
-   │
+   │            first commit → draft PR ("Closes #<issue>"); every commit is pushed to it
    ▼
 verifier ◄──► implementer   (fix loop, max 3 rounds)
    │
@@ -19,8 +22,12 @@ verifier ◄──► implementer   (fix loop, max 3 rounds)
 reviewer ◄──► implementer   (fix loop, max 2 rounds)
    │
    ▼
-push + PR against main ──► owner reviews and merges
+PR marked ready ──► owner reviews and merges (merging closes the issue)
 ```
+
+Why a ticket first: it records what was asked and why before any code exists, and keeps every
+decision in one place even when agents do the work. Why a draft PR early: CI and the Vercel
+preview run on each push, so problems show up while the task is still in progress.
 
 ## The pieces
 
@@ -39,7 +46,7 @@ The planner, verifier and reviewer can't edit files on purpose: a checker that c
 
 - Everything in [`CLAUDE.md`](../CLAUDE.md): definition of done, Conventional Commits, docs in the
   same commit.
-- One task = one branch = one PR, based on `main`. The task branch lives in its own
+- One task = one issue = one branch = one PR, based on `main`. The task branch lives in its own
   `git worktree`, because other sessions share the main checkout.
 - Parallel implementers get their own worktrees and subtask branches, which are merged into the
   task branch. The planner groups subtasks so parallel ones never touch the same file.
