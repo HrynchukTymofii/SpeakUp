@@ -9,6 +9,7 @@ export * from "./api/me.js";
 export * from "./api/courses.js";
 export * from "./api/attempts.js";
 export * from "./api/billing.js";
+export * from "./api/funnels.js";
 export * from "./funnel.js";
 export * from "./funnel-definition.js";
 export * from "./funnel-default.js";

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AudioMimeTypeSchema } from "./api/attempts.js";
+import { SlugSchema } from "./api/courses.js";
 
 /**
  * Web funnel contracts (SPEC §15). Answer options live here — not only in the web config — so the
@@ -101,6 +102,47 @@ export type FunnelAnswers = z.infer<typeof FunnelAnswersSchema>;
 
 /** Max length of an anonymous baseline recording (SPEC §9). */
 export const FUNNEL_MAX_RECORDING_SEC = 45;
+
+/**
+ * A funnel's URL id (`/f/<slug>`). Same shape as lesson slugs, but shorter. It lives here, not in
+ * api/funnels.ts, because that module imports the definition schema, which imports this file.
+ */
+export const FunnelSlugSchema = SlugSchema.min(1).max(64);
+export type FunnelSlug = z.infer<typeof FunnelSlugSchema>;
+
+const attributionValue = z.string().trim().min(1).max(200);
+
+/**
+ * First-touch attribution sent when a guest session is created. Only the referrer's HOST is
+ * kept: a full referrer URL can carry search terms or other personal data in its path/query.
+ */
+export const FunnelAttributionSchema = z.strictObject({
+  utmSource: attributionValue.optional(),
+  utmMedium: attributionValue.optional(),
+  utmCampaign: attributionValue.optional(),
+  utmContent: attributionValue.optional(),
+  utmTerm: attributionValue.optional(),
+  referrerHost: z
+    .string()
+    .trim()
+    .max(200)
+    .regex(
+      /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i,
+      "referrerHost must be a hostname, not a URL",
+    )
+    .optional(),
+});
+export type FunnelAttribution = z.infer<typeof FunnelAttributionSchema>;
+
+/**
+ * POST /v1/funnel/sessions body. Everything is optional — older web builds send no body at all.
+ * `funnel.version` is the content revision the guest was shown (`Funnel.version`).
+ */
+export const CreateFunnelSessionBodySchema = z.strictObject({
+  funnel: z.strictObject({ slug: FunnelSlugSchema, version: z.number().int().min(1) }).optional(),
+  attribution: FunnelAttributionSchema.optional(),
+});
+export type CreateFunnelSessionBody = z.infer<typeof CreateFunnelSessionBodySchema>;
 
 /** POST /v1/funnel/sessions → the guest token, shown ONCE (the server keeps only its hash). */
 export const CreateFunnelSessionResponseSchema = z.object({ token: z.string() });
