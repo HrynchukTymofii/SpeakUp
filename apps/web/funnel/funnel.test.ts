@@ -27,6 +27,30 @@ describe("funnel config", () => {
     expect(ids[0]).toBe("goal");
     expect(ids.at(-1)).toBe("paywall");
   });
+
+  it("step ids are exactly the current funnel, in order", () => {
+    // Ids are URLs (/start/<id>) and analytics step names: moving the definition must keep them.
+    expect(FUNNEL_STEPS.map((s) => s.id)).toEqual([
+      "goal",
+      "situations",
+      "reflection-1",
+      "language",
+      "symptoms",
+      "reflection-2",
+      "self-rating",
+      "time",
+      "mini-lesson",
+      "mic",
+      "exercise",
+      "auth",
+      "results",
+      "deadline",
+      "focus",
+      "plan-loader",
+      "plan",
+      "paywall",
+    ]);
+  });
 });
 
 describe("furthestAllowedIndex (guards)", () => {
