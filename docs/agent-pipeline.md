@@ -1,10 +1,10 @@
 # Agent pipeline
 
-`/ship <task>` runs one task through a team of Claude Code agents: ticket, plan, build, verify,
-review, PR. The owner approves the plan and merges the PR; everything between is automated.
+`/pipeline <task>` runs one task through a team of Claude Code agents: ticket, plan, build,
+verify, review, PR. The owner approves the plan and merges the PR; everything between is automated.
 
 ```
-/ship "<task>"
+/pipeline "<task>"
    │
    ▼
 GitHub issue (the ticket) ── the task's log: plan, verify and review results go here as comments
@@ -33,7 +33,7 @@ preview run on each push, so problems show up while the task is still in progres
 
 | File                            | Role                                                                            | Tools                |
 | ------------------------------- | ------------------------------------------------------------------------------- | -------------------- |
-| `.claude/commands/ship.md`      | The orchestrator: runs the steps above in the main session                      | all                  |
+| `.claude/commands/pipeline.md`  | The orchestrator: runs the steps above in the main session                      | all                  |
 | `.claude/agents/planner.md`     | Splits the task into subtasks with files, the test to write first, acceptance   | read-only            |
 | `.claude/agents/implementer.md` | Does one subtask, test first, and commits it                                    | all                  |
 | `.claude/agents/verifier.md`    | Runs format, lint, typecheck, tests and the build; reports exact failures       | Bash + read, no edit |
@@ -54,9 +54,12 @@ The planner, verifier and reviewer can't edit files on purpose: a checker that c
 
 ## When to use it
 
-Use `/ship` for features that span several packages (e.g. a shared contract + API route + web
+Use `/pipeline` for features that span several packages (e.g. a shared contract + API route + web
 screen). For a small fix in one file, a normal session is faster and cheaper: every agent starts
 without the conversation's context and reads the code again.
+
+It isn't called `/ship` because Claude Code has a built-in `/ship` (commit, push and watch a PR)
+that takes precedence over a project command of the same name.
 
 ## Changing it
 

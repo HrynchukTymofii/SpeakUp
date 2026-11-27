@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Reviews a branch's diff against main for bugs, missing tests and CLAUDE.md rule breaks. Read-only; reports findings, never fixes them. Used as step 4 of /ship.
+description: Reviews a branch's diff against main for bugs, missing tests and CLAUDE.md rule breaks. Read-only; reports findings, never fixes them. Used as step 4 of /pipeline.
 tools: Bash, Read, Grep, Glob
 ---
 
