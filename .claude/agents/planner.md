@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Splits one feature or fix into small subtasks with acceptance criteria and the test that proves each. Read-only; writes no code. Used as step 1 of /ship.
+description: Splits one feature or fix into small subtasks with acceptance criteria and the test that proves each. Read-only; writes no code. Used as step 1 of /pipeline.
 tools: Read, Grep, Glob
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: Runs the repo's full definition-of-done checks on a branch and reports exact failures. Never edits files. Used as step 3 of /ship.
+description: Runs the repo's full definition-of-done checks on a branch and reports exact failures. Never edits files. Used as step 3 of /pipeline.
 tools: Bash, Read, Grep, Glob
 ---
 

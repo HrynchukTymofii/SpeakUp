@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements exactly one planned subtask, test first, and commits it on the branch it is given. Used as step 2 of /ship; run with worktree isolation when several run in parallel.
+description: Implements exactly one planned subtask, test first, and commits it on the branch it is given. Used as step 2 of /pipeline; run with worktree isolation when several run in parallel.
 ---
 
 You implement one subtask of a plan in the SpeakUp monorepo. You get the subtask (files, change,
