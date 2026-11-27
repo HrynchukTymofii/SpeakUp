@@ -325,6 +325,9 @@ The migrate task logs go to CloudWatch (log group `SpeakUp-MigrateLogs…`). See
 - **Schema changes:** run `MigrateCommand` **before** deploying code that needs the change, and
   keep migrations backwards-compatible (add a column first, drop the old one in a later release).
   During a rollout, old and new tasks run side by side.
+- **Funnels (`20261127202017_funnels`):** after this migration, run the seed task once (the
+  `prisma db seed` override above) so the `main` funnel row exists. Without it, `/f/main` serves
+  the bundled copy and new funnel sessions get `funnelId` null (no per-funnel numbers).
 - **Logs:** CloudWatch → Log groups `SpeakUp-ApiLogs…` / `SpeakUp-WorkerLogs…` (JSON, 30 days).
 
 ### Tearing down
