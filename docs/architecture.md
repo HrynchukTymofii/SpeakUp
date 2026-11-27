@@ -170,8 +170,9 @@ default funnel `main` (`packages/shared/src/funnel-default.ts`) and never calls 
 `/f/<slug>` loads the live definition once per visit in the server layout
 (`app/(product)/f/[slug]/layout.tsx` → `apps/web/funnel/load-funnel.ts`: `GET /v1/funnels/:slug`,
 3 s timeout, cached 60 s, validated by `FunnelResponseSchema`), so moving between steps neither
-refetches it nor remounts the provider. An unknown or draft slug is a 404, any other API failure
-the error page.
+refetches it nor remounts the provider. An unknown or draft slug is a 404; any other API failure
+shows `app/(product)/f/error.tsx` (a mascot and "Try again", which refetches from the server). That
+boundary sits one level up because a segment's own error.tsx can't catch its layout's errors.
 `main` never errors: it falls back to the bundled definition so ad traffic keeps working when the
 API is down.
 On mount, before any step renders, the provider points the browser store at that funnel (a
