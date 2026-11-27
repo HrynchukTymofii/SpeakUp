@@ -174,3 +174,72 @@ describe("configured content", () => {
     ]);
   });
 });
+
+/** Renders a hand-built step (not from FUNNEL_STEPS), so templates can be tested in isolation. */
+function renderDef(step: FunnelStep, ctx: Partial<FunnelContext> = {}) {
+  const Component = STEP_COMPONENTS[step.type] as ComponentType<StepProps<FunnelStep["type"]>>;
+  const onNext = vi.fn();
+  const view = render(
+    <Component step={step as never} ctx={{ answers: {}, topIssues: [], ...ctx }} onNext={onNext} />,
+  );
+  return { ...view, onNext };
+}
+
+describe("{{answer:…}} placeholders in configured copy", () => {
+  const timeStep: FunnelStep = {
+    id: "time",
+    type: "single_choice",
+    answerKey: "time",
+    title: "Practice for {{answer:goal|your goal}}?",
+    options: [{ value: "5", label: "5 minutes" }],
+  };
+
+  it("single choice title shows the goal's label, or the fallback without a goal", () => {
+    const withGoal = renderDef(timeStep, { answers: { goal: "job-interviews" } });
+    expect(
+      screen.getByRole("heading", { name: "Practice for Job interviews?" }),
+    ).toBeInTheDocument();
+    withGoal.unmount();
+
+    renderDef(timeStep);
+    expect(screen.getByRole("heading", { name: "Practice for your goal?" })).toBeInTheDocument();
+  });
+
+  it("reflection with inline content fills the title and the body", () => {
+    renderDef(
+      {
+        id: "reflect",
+        type: "reflection",
+        content: {
+          title: "Ready for {{answer:goal|anything}}",
+          body: "You rated yourself {{answer:self-rating|unrated}}.",
+        },
+      },
+      { answers: { goal: "pitching", "self-rating": 3 } },
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: "Ready for Pitching (investors, clients, demo day)",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("You rated yourself 3.")).toBeInTheDocument();
+  });
+
+  it("loader fills its title and checklist items", () => {
+    renderDef(
+      {
+        id: "loader",
+        type: "loader_with_questions",
+        title: "Planning for {{answer:goal|you}}",
+        checklist: ["Lessons for {{answer:goal|your goal}}"],
+        durationMs: 60_000,
+        questions: [],
+      },
+      { answers: { goal: "meetings" } },
+    );
+    expect(
+      screen.getByRole("heading", { name: "Planning for Meetings & calls at work" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("listitem")).toHaveTextContent("Lessons for Meetings & calls at work");
+  });
+});
