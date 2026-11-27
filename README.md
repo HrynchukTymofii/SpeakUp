@@ -103,8 +103,10 @@ check → sign-up → results → plan → paywall (SPEC §15). How it works is 
   per day (Redis).
 - **Cleanup:** the worker deletes unclaimed funnel sessions, their attempts and audio after 7 days
   (daily at 03:00 UTC).
-- To restart the funnel in a browser: DevTools → Application → Local Storage → delete
-  `speakup-funnel`.
+- `speakup-funnel` (localStorage) holds one funnel at a time: opening a different funnel starts
+  fresh (new answers and guest session); the same funnel at a newer revision keeps progress. It
+  also keeps the first-touch UTM parameters and referrer host. To restart the funnel in a browser:
+  DevTools → Application → Local Storage → delete `speakup-funnel`.
 
 ### Payments (Paddle sandbox)
 

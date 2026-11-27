@@ -5,6 +5,7 @@ import {
   ExerciseResponseSchema,
   FunnelAttemptStatusResponseSchema,
   type CreateAttemptResponse,
+  type CreateFunnelSessionBody,
   type CreateFunnelAttemptBody,
   type FunnelAttemptStatusResponse,
   type UpdateFunnelSessionBody,
@@ -39,8 +40,15 @@ async function guestRequest<S extends z.ZodType | null>(
 }
 
 export const funnelApi = {
-  createSession: () =>
-    guestRequest("/v1/funnel/sessions", CreateFunnelSessionResponseSchema, { method: "POST" }),
+  /**
+   * The body (funnel shown + first-touch attribution) is optional: without it the request is
+   * sent with no body at all, exactly like before funnels lived in the database.
+   */
+  createSession: (body?: CreateFunnelSessionBody) =>
+    guestRequest("/v1/funnel/sessions", CreateFunnelSessionResponseSchema, {
+      method: "POST",
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }),
 
   updateSession: (token: string, body: UpdateFunnelSessionBody) =>
     guestRequest("/v1/funnel/sessions/current", null, {
