@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { publicEnv } from "@/lib/env";
 import { track } from "../analytics";
@@ -110,7 +110,9 @@ export function SliderStep({ step, ctx, onNext }: StepProps<"slider">) {
           onChange={(e) => setValue(Number(e.target.value))}
           aria-label={title}
           aria-valuetext={`${value} out of 5`}
-          className="h-2 w-full cursor-pointer accent-peach"
+          className="range"
+          // WebKit has no ::-moz-range-progress, so `.range` paints the filled part from this.
+          style={{ "--range-fill": `${((value - 1) / 4) * 100}%` } as CSSProperties}
         />
         <div className="flex justify-between text-sm font-semibold text-muted">
           <span>{renderText(step.lowLabel, ctx.answers)}</span>
