@@ -232,6 +232,57 @@
   .btn-primary:hover {
     opacity: 0.92;
   }
+  /*
+   * Styled native slider (funnel self-rating). The input box is 44 px tall so the whole row is a
+   * touch target; the visible track stays 8 px. WebKit fills the track from --range-fill (set
+   * inline from the value); Firefox uses ::-moz-range-progress. No transitions: the thumb must
+   * follow the finger.
+   */
+  .range {
+    appearance: none;
+    width: 100%;
+    min-height: 44px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      90deg,
+      var(--brand) var(--range-fill, 50%),
+      var(--card-2) var(--range-fill, 50%)
+    );
+  }
+  .range::-moz-range-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--card-2);
+  }
+  .range::-moz-range-progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--brand);
+  }
+  .range::-webkit-slider-thumb {
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    margin-top: -10px; /* (8px track - 28px thumb) / 2: centre the thumb on the track */
+    border: 3px solid var(--card);
+    border-radius: 9999px;
+    background: var(--brand);
+    box-shadow: var(--shadow-sm);
+  }
+  .range::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--card);
+    border-radius: 9999px;
+    background: var(--brand);
+    box-shadow: var(--shadow-sm);
+  }
   /* Pastel surfaces keep dark ink (kit rule). */
   .pastel {
     @apply text-on-pastel;

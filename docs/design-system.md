@@ -115,6 +115,7 @@ same element override them (utilities come later in the cascade).
 | `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                         |
 | `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                  |
 | `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                            |
+| `range`         | styled native slider: 44 px touch target, 8 px `brand`-filled track (`--range-fill`), 28 px thumb          |
 
 Landing building blocks: `app/(marketing)/landing-visuals.tsx` (the hero phone with its floating
 cards, the step pictures, the lesson art, the feedback icons).
@@ -196,7 +197,7 @@ Clerk gotchas (Clerk 7):
   Re-check the ratios when changing a token.
 - Focus: global `:focus-visible` outline in `peach-2`; never remove outlines without a replacement.
 - Motion: every animation (funnel slides, mascot, pulses) stops under reduced motion.
-- Touch targets: buttons and options are ≥ 44 px tall.
+- Touch targets: buttons, options and sliders are ≥ 44 px tall (sliders use `range`).
 - Icons/mascot are `aria-hidden` unless they carry information.
 
 ---

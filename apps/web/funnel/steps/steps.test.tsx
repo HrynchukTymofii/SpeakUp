@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { FUNNEL_OPTIONS } from "@speakup/shared";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -135,6 +135,32 @@ describe("multi choice steps", () => {
       step: "situations",
       value: ["meetings", "small-talk"],
     });
+  });
+});
+
+describe("self-rating slider", () => {
+  it("self-rating slider keeps its keyboard/aria contract and uses the 44 px range style", async () => {
+    const { onNext } = renderStep("self-rating");
+    const slider = screen.getByRole("slider", {
+      name: "How would you rate your speaking confidence today?",
+    });
+    expect(slider).toHaveAttribute("type", "range");
+    expect(slider).toHaveAttribute("min", "1");
+    expect(slider).toHaveAttribute("max", "5");
+    expect(slider).toHaveAttribute("step", "1");
+    expect(slider).toHaveAttribute("aria-valuetext", "3 out of 5");
+    // `.range` (globals.css) gives the 44 px touch target and the large thumb; the old
+    // `h-2` made the whole input 8 px tall.
+    expect(slider).toHaveClass("range");
+    expect(slider).not.toHaveClass("h-2");
+
+    // user-event can't step a native range with arrow keys in jsdom (no slider default action),
+    // so set the value the way the browser reports it after a key press or drag.
+    fireEvent.change(slider, { target: { value: "5" } });
+    expect(slider).toHaveAttribute("aria-valuetext", "5 out of 5");
+
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(onNext).toHaveBeenCalledWith({ "self-rating": 5 });
   });
 });
 
