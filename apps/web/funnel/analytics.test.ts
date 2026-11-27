@@ -100,3 +100,45 @@ describe("analytics with an API key", () => {
     ]);
   });
 });
+
+describe("event context", () => {
+  it("adds the event context (funnel_id) to tracked events until it is cleared", async () => {
+    const a = await load();
+    a.initAnalytics("key");
+    a.setEventContext({ funnel_id: "main", funnel_version: 3 });
+    a.track("funnel_answer", { step: "goal" });
+    a.track("checkout_completed", { placement: "funnel" }, { amount: 9.99, currency: "USD" });
+    a.setEventContext(null);
+    a.track("funnel_answer", { step: "time" });
+    expect(amplitude.track).toHaveBeenNthCalledWith(
+      1,
+      "funnel_answer",
+      { funnel_id: "main", funnel_version: 3, step: "goal" },
+      undefined,
+    );
+    expect(amplitude.track).toHaveBeenNthCalledWith(
+      2,
+      "checkout_completed",
+      { funnel_id: "main", funnel_version: 3, placement: "funnel", currency: "USD" },
+      expect.objectContaining({ revenue: 9.99 }),
+    );
+    expect(amplitude.track).toHaveBeenNthCalledWith(
+      3,
+      "funnel_answer",
+      { step: "time" },
+      undefined,
+    );
+  });
+
+  it("explicit props override the context", async () => {
+    const a = await load();
+    a.initAnalytics("key");
+    a.setEventContext({ funnel_id: "main", funnel_version: 3 });
+    a.track("funnel_step_viewed", { funnel_id: "other", step: "goal" });
+    expect(amplitude.track).toHaveBeenCalledWith(
+      "funnel_step_viewed",
+      { funnel_id: "other", funnel_version: 3, step: "goal" },
+      undefined,
+    );
+  });
+});
