@@ -14,8 +14,8 @@ export interface HostConfig {
 export type HostDecision =
   { kind: "next"; noindex: boolean } | { kind: "redirect"; url: string; status: 307 | 308 };
 
-/** Routes that belong to the product. Prefix match on whole path segments. */
-const APP_ROUTES = ["/start", "/sign-in", "/sign-up", "/app", "/results", "/pricing"];
+/** Routes that belong to the product (`/f/<slug>`: ad funnels). Prefix match on whole segments. */
+const APP_ROUTES = ["/start", "/f", "/sign-in", "/sign-up", "/app", "/results", "/pricing"];
 /** Routes that belong to the marketing site ("/" is handled separately). */
 const SITE_ROUTES = ["/privacy", "/terms", "/refund"];
 
