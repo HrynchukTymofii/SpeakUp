@@ -85,10 +85,19 @@ export type TemplateText = z.infer<typeof TemplateTextSchema>;
 
 // ---------- Options ----------
 
-/** One answer option. `value` is checked against the step's answer key by the definition. */
+/**
+ * One answer option. `value` is checked against the step's answer key by the definition. The
+ * label is shown as plain text (not a template), so `{{` / `}}` would appear on screen as typed.
+ */
 export const FunnelOptionSchema = z.strictObject({
   value: z.string().min(1).max(64),
-  label: z.string().min(1).max(200),
+  label: z
+    .string()
+    .min(1)
+    .max(200)
+    .refine((label) => !label.includes("{{") && !label.includes("}}"), {
+      message: "Option labels are plain text: {{ and }} aren't allowed",
+    }),
 });
 
 // ---------- Rules ----------

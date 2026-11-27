@@ -170,6 +170,21 @@ describe("FunnelDefinitionSchema", () => {
     ).toBe(false);
   });
 
+  it("rejects placeholders and braces in option labels, which are shown as plain text", () => {
+    const labelled = (label: string) =>
+      withStep({
+        id: "goal",
+        type: "single_choice",
+        answerKey: "goal",
+        title: "t",
+        options: [{ value: "pitching", label }],
+      });
+    expect(ok(labelled("Pitching (investors)"))).toBe(true);
+    expect(ok(labelled("Pitching {{answer:goal}}"))).toBe(false);
+    expect(ok(labelled("Pitching {{"))).toBe(false);
+    expect(ok(labelled("Pitching }}"))).toBe(false);
+  });
+
   it("rejects the focusFromTopIssues provider on a key other than focus", () => {
     expect(
       ok(
