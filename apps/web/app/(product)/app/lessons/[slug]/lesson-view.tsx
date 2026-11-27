@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import Markdown from "react-markdown";
+import { BackLink } from "@/components/back-link";
 import { ExerciseRecorder } from "@/components/exercise-recorder";
 import { Mascot } from "@/components/mascot";
 import { track } from "@/funnel/analytics";
@@ -15,11 +16,7 @@ import { useApi } from "@/lib/use-api";
 import { LocalLessonView } from "./local-lessons";
 import { StoryWriter } from "./story-writer";
 
-const backLink = (
-  <Link href="/app" className="link w-fit text-sm font-bold">
-    ← Back to Learn
-  </Link>
-);
+const backLink = <BackLink href="/app">Back to Learn</BackLink>;
 
 export function LessonView({ slug, startStep = 0 }: { slug: string; startStep?: number }) {
   const local = findLocalLesson(slug);

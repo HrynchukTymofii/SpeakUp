@@ -122,7 +122,8 @@ cards, the step pictures, the lesson art, the feedback icons).
 
 App building blocks: `Icon` (line icons, `components/icons.tsx`), `IconTile` (a lavender square
 with an icon) and `PlayCircle` (the black play button in white "Continue" pills) in
-`components/icon-tile.tsx`; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
+`components/icon-tile.tsx`; `BackLink` (`components/back-link.tsx`), the "back" text link at the
+top of a screen with the `arrowLeft` icon and a 44 px tap area; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
 with labels, the active tab in ink with a dot); the Learn stat cards (today's goal is the black
 card, then streak and level) in `app/(product)/app/learn-view.tsx`; the lesson path with its START
 bubble and mascot in `app/(product)/app/course-path.tsx`.
@@ -198,6 +199,9 @@ Clerk gotchas (Clerk 7):
 - Focus: global `:focus-visible` outline in `peach-2`; never remove outlines without a replacement.
 - Motion: every animation (funnel slides, mascot, pulses) stops under reduced motion.
 - Touch targets: buttons, options and sliders are ≥ 44 px tall (sliders use `range`).
+  Standalone text links get a ≥ 44 px tap area too, without changing the layout: `min-h-11` plus
+  a negative vertical margin that gives the extra height back (`BackLink`'s pattern; keep ≥ 12 px
+  of gap around it so the tap area doesn't cover a neighbour).
 - Icons/mascot are `aria-hidden` unless they carry information.
 
 ---
