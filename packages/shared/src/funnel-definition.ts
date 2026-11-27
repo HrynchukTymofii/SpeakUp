@@ -104,6 +104,8 @@ export const FunnelOptionSchema = z.strictObject({
 
 /** Rules nest at most this deep (a bare comparison is depth 1), to keep them readable. */
 export const FUNNEL_RULE_MAX_DEPTH = 5;
+/** At most this many comparisons and combinators in one rule, for the same reason. */
+export const FUNNEL_RULE_MAX_NODES = 100;
 
 export type FunnelRule =
   | { answer: ScalarAnswerKey; op: "equals" | "notEquals"; value: string | number }
@@ -141,11 +143,40 @@ const FunnelRuleNodeSchema: z.ZodType<FunnelRule> = z.lazy(() =>
   ]),
 );
 
-function ruleDepth(rule: FunnelRule): number {
-  if ("all" in rule) return 1 + Math.max(...rule.all.map(ruleDepth));
-  if ("any" in rule) return 1 + Math.max(...rule.any.map(ruleDepth));
-  if ("not" in rule) return 1 + ruleDepth(rule.not);
-  return 1;
+/**
+ * Size check on the raw input, before the recursive schema sees it. Iterative and stops at the
+ * first limit it crosses, so an admin-saved rule nested thousands deep or thousands wide is
+ * rejected cheaply instead of overflowing the stack in the recursive parse.
+ */
+function checkRuleSize(input: unknown, ctx: z.RefinementCtx): void {
+  const stack: { node: unknown; depth: number }[] = [{ node: input, depth: 1 }];
+  let nodes = 0;
+  for (let item = stack.pop(); item; item = stack.pop()) {
+    const { node, depth } = item;
+    if (depth > FUNNEL_RULE_MAX_DEPTH) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Rules can nest at most ${FUNNEL_RULE_MAX_DEPTH} levels`,
+      });
+      return;
+    }
+    nodes += 1;
+    if (typeof node !== "object" || node === null) continue;
+    // Taking one past the cap is enough to fail it, without copying a huge list.
+    const list = (key: string) => {
+      const value: unknown = (node as Record<string, unknown>)[key];
+      return Array.isArray(value) ? (value.slice(0, FUNNEL_RULE_MAX_NODES + 1) as unknown[]) : [];
+    };
+    const children = [...list("all"), ...list("any"), ...("not" in node ? [node.not] : [])];
+    if (nodes + stack.length + children.length > FUNNEL_RULE_MAX_NODES) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Rules can have at most ${FUNNEL_RULE_MAX_NODES} parts`,
+      });
+      return;
+    }
+    for (const child of children) stack.push({ node: child, depth: depth + 1 });
+  }
 }
 
 /** Every value a rule compares against, with the key it is compared under. */
@@ -162,21 +193,17 @@ function ruleValues(rule: FunnelRule): { key: FunnelAnswerKey; value: unknown }[
  * A declarative condition on the answers (used as `showIf`). Values must be ones the answer can
  * actually hold, so a rule can't silently never match because of a typo.
  */
-export const FunnelRuleSchema: z.ZodType<FunnelRule> = FunnelRuleNodeSchema.superRefine(
-  (rule, ctx) => {
-    if (ruleDepth(rule) > FUNNEL_RULE_MAX_DEPTH) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Rules can nest at most ${FUNNEL_RULE_MAX_DEPTH} levels`,
-      });
-    }
+export const FunnelRuleSchema: z.ZodType<FunnelRule, unknown> = z
+  .unknown()
+  .superRefine(checkRuleSize) // a failed size check stops the pipe before the recursive parse
+  .pipe(FunnelRuleNodeSchema)
+  .superRefine((rule, ctx) => {
     for (const { key, value } of ruleValues(rule)) {
       if (!isAllowedAnswerValue(key, value)) {
         ctx.addIssue({ code: "custom", message: `"${String(value)}" is not a ${key} answer` });
       }
     }
-  },
-);
+  });
 
 // ---------- Steps ----------
 
@@ -227,8 +254,8 @@ const VideoLessonStepSchema = z.strictObject({
   type: z.literal("video_lesson"),
   title: TemplateTextSchema,
   takeaways: TextListSchema,
-  /** Continue unlocks after this many seconds, or when the video ends. */
-  unlockAfterSec: z.number().int().positive(),
+  /** Continue unlocks after this many seconds (at most 10 min), or when the video ends. */
+  unlockAfterSec: z.number().int().positive().max(600),
 });
 
 const LoaderStepSchema = z.strictObject({
@@ -236,7 +263,8 @@ const LoaderStepSchema = z.strictObject({
   type: z.literal("loader_with_questions"),
   title: TemplateTextSchema,
   checklist: TextListSchema,
-  durationMs: z.number().int().positive(),
+  /** Pacing only; a minute is already far longer than any loader should feel. */
+  durationMs: z.number().int().positive().max(60_000),
   /** Pauses at `atPct` and asks a yes/no question. */
   questions: z
     .array(

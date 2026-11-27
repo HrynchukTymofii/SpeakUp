@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  FUNNEL_RULE_MAX_NODES,
   FunnelDefinitionSchema,
   FunnelRuleSchema,
   TemplateTextSchema,
@@ -242,6 +243,24 @@ describe("FunnelDefinitionSchema", () => {
       ),
     ).toBe(false);
   });
+
+  it("caps the loader at 60 s and the lesson unlock at 10 min", () => {
+    const loader = (durationMs: number) =>
+      withStep({
+        id: "l",
+        type: "loader_with_questions",
+        title: "t",
+        checklist: [],
+        durationMs,
+        questions: [],
+      });
+    const lesson = (unlockAfterSec: number) =>
+      withStep({ id: "v", type: "video_lesson", title: "t", takeaways: [], unlockAfterSec });
+    expect(ok(loader(60_000))).toBe(true);
+    expect(ok(loader(60_001))).toBe(false);
+    expect(ok(lesson(600))).toBe(true);
+    expect(ok(lesson(601))).toBe(false);
+  });
 });
 
 describe("FunnelRuleSchema", () => {
@@ -283,6 +302,28 @@ describe("FunnelRuleSchema", () => {
     expect(rule(nest(5))).toBe(true);
     expect(rule(nest(6))).toBe(false);
     expect(rule({ all: [leaf, { any: [{ not: { all: [{ not: leaf }] } }] }] })).toBe(false);
+  });
+
+  it("rejects a very deep rule without throwing", () => {
+    let deep: unknown = { answer: "goal", op: "answered" };
+    for (let i = 0; i < 10_000; i++) deep = { not: deep };
+    const result = FunnelRuleSchema.safeParse(deep);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Rules can nest at most 5 levels");
+  });
+
+  it(`rejects a rule with more than ${FUNNEL_RULE_MAX_NODES} nodes`, () => {
+    const leaf = { answer: "goal", op: "answered" };
+    // 1 + 20 + 400 nodes, 3 levels deep: within every list and depth limit, but too big.
+    const wide = { all: Array.from({ length: 20 }, () => ({ any: Array(20).fill(leaf) })) };
+    const result = FunnelRuleSchema.safeParse(wide);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe(
+      `Rules can have at most ${FUNNEL_RULE_MAX_NODES} parts`,
+    );
+    // Exactly the cap is fine: 1 + 9 × (1 + 10) = 100 nodes.
+    const fits = { all: Array.from({ length: 9 }, () => ({ any: Array(10).fill(leaf) })) };
+    expect(rule(fits)).toBe(true);
   });
 });
 
