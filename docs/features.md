@@ -34,12 +34,15 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 ## The onboarding funnel (`/start`)
 
 Mobile-first flow for visitors from ads. One URL per step, so back/forward and analytics work; the
-state is kept in the browser so a reload resumes where the visitor left off. Steps are configured in
-[`apps/web/funnel/config.ts`](../apps/web/funnel/config.ts) — add, remove or reorder them there.
+state is kept in the browser so a reload resumes where the visitor left off. The funnel is data:
+[`apps/web/funnel/config.ts`](../apps/web/funnel/config.ts) exports `FUNNEL_DEFINITION`, a JSON-safe
+list of steps checked by `FunnelDefinitionSchema` (`packages/shared`) — add, remove or reorder steps
+there. Conditions are declarative rules and text can insert earlier answers (`{{answer:goal}}`).
 
 1. **Questions:** goal, situations where speaking is hard, first language, nervous symptoms,
    self-rated confidence (1–5), time per day. Single-choice answers move on with one tap.
-2. **Reflections:** two short screens that respond to earlier answers (`personalize.ts`).
+2. **Reflections:** two short screens that respond to earlier answers. The config names a
+   personalizer (`goalReflection`, `symptomReflection`); the wording lives in `personalize.ts`.
 3. **Mini-lesson:** a short video on what we measure. It starts by itself, with sound when the
    browser allows it, otherwise muted with a "Tap for sound" button. "Continue" unlocks after 10 s
    or at the end.

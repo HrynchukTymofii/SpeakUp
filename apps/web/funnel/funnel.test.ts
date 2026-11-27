@@ -1,5 +1,6 @@
+import { FunnelDefinitionSchema } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
-import { FUNNEL_STEPS } from "./config";
+import { FUNNEL_DEFINITION, FUNNEL_STEPS } from "./config";
 import {
   furthestAllowedIndex,
   matchesRule,
@@ -17,7 +18,7 @@ import {
   renderText,
   symptomReflection,
 } from "./personalize";
-import type { FunnelContext } from "./types";
+import type { FunnelContext, FunnelStep } from "./types";
 
 const empty: EngineState = {
   answers: {},
@@ -65,6 +66,17 @@ describe("funnel config", () => {
       "plan",
       "paywall",
     ]);
+  });
+
+  it("FUNNEL_DEFINITION parses with FunnelDefinitionSchema", () => {
+    const parsed = FunnelDefinitionSchema.safeParse(FUNNEL_DEFINITION);
+    expect(parsed.error?.issues ?? []).toEqual([]);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("FUNNEL_DEFINITION survives a JSON round trip unchanged", () => {
+    // Stored definitions are JSON: a function or undefined-only field would be lost here.
+    expect(JSON.parse(JSON.stringify(FUNNEL_DEFINITION))).toEqual(FUNNEL_DEFINITION);
   });
 });
 
@@ -121,6 +133,26 @@ describe("progressOf", () => {
 describe("visibleSteps", () => {
   it("keeps steps without a condition", () => {
     expect(visibleSteps(FUNNEL_STEPS, empty)).toHaveLength(FUNNEL_STEPS.length);
+  });
+
+  it("visibleSteps hides a step whose showIf rule doesn't match", () => {
+    const steps: FunnelStep[] = [
+      { id: "always", type: "plan_summary" },
+      {
+        id: "pitchers",
+        type: "paywall",
+        showIf: { answer: "goal", op: "equals", value: "pitching" },
+      },
+      {
+        id: "others",
+        type: "results",
+        showIf: { not: { answer: "goal", op: "equals", value: "pitching" } },
+      },
+    ];
+    const ids = (goal: "pitching" | "meetings") =>
+      visibleSteps(steps, { ...empty, answers: { goal } }).map((s) => s.id);
+    expect(ids("pitching")).toEqual(["always", "pitchers"]);
+    expect(ids("meetings")).toEqual(["always", "others"]);
   });
 });
 

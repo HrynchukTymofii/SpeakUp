@@ -84,6 +84,10 @@ Files studied: `funnels/types.ts`, `funnels/struggle.ts` (the config), `funnels/
   Turnstile bot check, a per-IP daily limit, and a **claim** call after sign-up that moves the
   attempt to the new account. Results are shown only after the claim.
 - Guards are per step ("can't open results without a claimed attempt"), not just for `?step=`.
+- **Conditions and wording are declarative data, not functions:** `showIf` is a rule object,
+  text is a template (`{{answer:key|fallback}}`), and dynamic copy or options are named
+  personalizers / option providers. So the whole definition is JSON, checked by
+  `FunnelDefinitionSchema`, and could be stored and edited without a deploy.
 - Analytics go to Amplitude instead of PostHog; events and the funnel chart are in
   [`analytics.md`](./analytics.md).
 - All copy is about speaking; social-proof numbers are `TODO(founder)` placeholders.

@@ -4,6 +4,7 @@ import type { FunnelAnswers } from "@speakup/shared";
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { track } from "../analytics";
+import { renderText } from "../personalize";
 import { useFunnelStore } from "../store";
 import type { StepProps } from "./props";
 
@@ -69,7 +70,7 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
     <div className="flex flex-1 flex-col items-center justify-center gap-7 py-8">
       <Mascot mood={pct >= 100 ? "happy" : "thinking"} size={120} />
       <h1 className="text-center font-display text-[28px] leading-tight font-semibold text-balance">
-        {step.title}
+        {renderText(step.title, ctx.answers)}
       </h1>
       <div className="w-full">
         <p className="mb-3 text-center font-display text-5xl font-semibold text-brand tabular-nums">
@@ -90,7 +91,9 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
             >
               {i < ticked ? "✓" : ""}
             </span>
-            <span className={i < ticked ? "font-semibold text-ink" : "text-muted"}>{item}</span>
+            <span className={i < ticked ? "font-semibold text-ink" : "text-muted"}>
+              {renderText(item, ctx.answers)}
+            </span>
           </li>
         ))}
       </ul>
@@ -100,10 +103,12 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={pending.title}
+            aria-label={renderText(pending.title, ctx.answers)}
             className="funnel-sheet w-full max-w-md rounded-t-[32px] border-t border-line bg-card p-6 pb-8 shadow-soft"
           >
-            <p className="mb-5 font-display text-xl leading-snug font-semibold">{pending.title}</p>
+            <p className="mb-5 font-display text-xl leading-snug font-semibold">
+              {renderText(pending.title, ctx.answers)}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {(["yes", "no"] as const).map((value) => (
                 <button

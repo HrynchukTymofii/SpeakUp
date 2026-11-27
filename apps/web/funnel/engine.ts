@@ -14,7 +14,7 @@ export interface EngineState extends FunnelContext {
 
 /** The steps that apply to this visitor, in order. */
 export function visibleSteps(steps: FunnelStep[], ctx: FunnelContext): FunnelStep[] {
-  return steps.filter((step) => step.showIf?.(ctx) ?? true);
+  return steps.filter((step) => matchesRule(step.showIf, ctx));
 }
 
 /**

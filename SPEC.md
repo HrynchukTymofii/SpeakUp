@@ -406,12 +406,12 @@ layout), not its content or branding. How that reference works and what SpeakUp 
 
 ### 15.3 Funnel engine (implementation)
 
-- **Config-driven.** `apps/web/funnel/config.ts` exports an ordered array of steps `{ id, type, ...typeSpecificProps, showIf?(answers) }`. Pages render by `type` via a component map. Adding/reordering steps = editing config only.
+- **Config-driven, as data.** `apps/web/funnel/config.ts` exports `FUNNEL_DEFINITION = { version, steps }`: an ordered list of steps `{ id, type, ...typeSpecificProps, showIf? }` that is plain JSON (no functions), validated by `FunnelDefinitionSchema` in `packages/shared` (in a unit test, not at runtime). `showIf` is a declarative rule on the answers (`equals`, `notEquals`, `in`, `includes`, `answered`, `notAnswered`, combined with `all` / `any` / `not`). Configured text may contain `{{answer:key|fallback}}`, filled with the answer's label. Dynamic parts are referenced by name: reflection personalizers (`content: { personalizer }`) and option providers (`options: { provider }`), implemented in `funnel/personalize.ts`. Pages render by `type` via a component map. Adding/reordering steps = editing that data only.
 - **Step types:** `single_choice`, `multi_choice`, `slider`, `reflection`, `video_lesson`, `mic_permission`, `recording`, `auth_gate`, `results`, `loader_with_questions`, `plan_summary`, `paywall`.
 - **State:** Zustand store persisted to `localStorage` (answers, current step, guest token, attemptId). Reload resumes where the user left off. Guest token never goes into URLs or logs.
 - **Server sync:** create the funnel session on step 1; PATCH answers on each step (debounced, failures don't block the UI).
 - **Guards:** you can't open a step whose prerequisites aren't met (e.g. `/start/results` without a claimed attempt redirects to the right step). Already-signed-in users who open `/start` skip `auth`.
-- **Personalization text** (reflections, plan) comes from small pure functions in `funnel/personalize.ts`, unit-tested.
+- **Personalization text** comes from `funnel/personalize.ts`, unit-tested: the named personalizers (`PERSONALIZERS`: reflection copy from the goal / first symptom), option providers (`OPTIONS_PROVIDERS`: the `focus` options from the result's top issues), `renderText` for `{{answer:…}}` templates, and the plan builder.
 - **Copy rule:** no invented statistics or testimonials. Where the reference funnel uses social-proof numbers, put clearly marked `TODO(founder)` placeholders.
 - **Transitions:** same style as the reference funnel (e.g. slide/fade between steps), respect `prefers-reduced-motion`.
 - **Analytics:** `track(event, props)` sends to Amplitude (`apps/web/funnel/analytics.ts`); without `NEXT_PUBLIC_AMPLITUDE_API_KEY` it only logs in dev. Event catalog and the funnel chart: [`docs/analytics.md`](./docs/analytics.md).
