@@ -115,7 +115,9 @@ the model must keep:
   not only in code).
 - **Content is seeded**, not edited in an admin UI: `packages/db/src/seed-data.ts`, applied by an
   idempotent `pnpm db:seed`. Lesson videos are plain URLs (configurable); CloudFront + HLS is listed
-  in §12.
+  in §12. The seed also creates the default web funnel `main` (from
+  `packages/shared/src/funnel-default.ts`) — create-only: a re-seed never overwrites an existing
+  funnel row.
 - **Schema changes stay backward compatible** with the running version (expand → migrate →
   contract), because old and new tasks run side by side during a deploy.
 
