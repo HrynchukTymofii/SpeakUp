@@ -148,30 +148,7 @@ export function FunnelShell({ stepId }: { stepId: string }) {
   return (
     <div className="flex flex-1 flex-col gap-5">
       {showProgress && (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={!canGoBack}
-            aria-label="Back"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-lg text-ink transition-colors hover:bg-card-2 disabled:invisible"
-          >
-            ←
-          </button>
-          <div
-            className="h-2 flex-1 overflow-hidden rounded-full bg-card-2"
-            role="progressbar"
-            aria-label="Progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progressOf(steps, step) * 100)}
-          >
-            <div
-              className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
-              style={{ width: `${progressOf(steps, step) * 100}%` }}
-            />
-          </div>
-        </div>
+        <FunnelProgressBar value={progressOf(steps, step)} canGoBack={canGoBack} onBack={goBack} />
       )}
       {/* key: a new step re-mounts → the CSS slide/fade animation plays again. */}
       <div key={step.id} className={`flex flex-1 flex-col ${direction}`}>
@@ -213,4 +190,43 @@ export function FunnelResume() {
     if (target) router.replace(`${basePath}/${target.id}`);
   }, [router, allSteps, basePath]);
   return <div className="flex-1" aria-busy />;
+}
+
+/** Back button and progress bar above a step. Also drawn by the funnel editor's preview. */
+export function FunnelProgressBar({
+  value,
+  canGoBack,
+  onBack,
+}: {
+  /** 0..1 */
+  value: number;
+  canGoBack: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={!canGoBack}
+        aria-label="Back"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-lg text-ink transition-colors hover:bg-card-2 disabled:invisible"
+      >
+        ←
+      </button>
+      <div
+        className="h-2 flex-1 overflow-hidden rounded-full bg-card-2"
+        role="progressbar"
+        aria-label="Progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(value * 100)}
+      >
+        <div
+          className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
+          style={{ width: `${value * 100}%` }}
+        />
+      </div>
+    </div>
+  );
 }

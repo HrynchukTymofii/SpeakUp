@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { FUNNEL_OPTIONS } from "@speakup/shared";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "../analytics";
 import { FUNNEL_STEPS } from "../config";
+import { useFunnelStore } from "../store";
 import type { FunnelContext, FunnelStep } from "../types";
 import type { StepProps } from "./props";
 import { STEP_COMPONENTS } from "./index";
@@ -309,6 +310,20 @@ describe("loader questions", () => {
     expect(
       await screen.findByRole("dialog", { name: "You said Yes. Want reminders?" }),
     ).toBeInTheDocument();
+  });
+
+  it("outside the editor preview, finishes once: marks the step done and moves on", async () => {
+    useFunnelStore.setState({ completed: [] });
+    const { onNext } = renderDef({
+      id: "loader",
+      type: "loader_with_questions",
+      title: "Building your plan",
+      checklist: [],
+      durationMs: 100,
+      questions: [],
+    });
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(useFunnelStore.getState().completed).toContain("loader");
   });
 
   it("keeps the question sheet's buttons above the home indicator", async () => {

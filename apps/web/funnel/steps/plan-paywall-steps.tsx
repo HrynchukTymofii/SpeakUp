@@ -9,6 +9,8 @@ import { useMe } from "@/lib/use-me";
 import { track } from "../analytics";
 import { PRO_FEATURES } from "../plans";
 import { buildPlan } from "../personalize";
+import { useIsFunnelPreview } from "../preview";
+import { PREVIEW_SCORE } from "../preview-samples";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, StepHeading, Tick } from "../ui";
 import type { StepProps } from "./props";
@@ -19,7 +21,9 @@ const WEEK_COLORS = ["bg-ink text-page", "bg-lav text-on-pastel"];
 
 /** "Your 4-week plan" (SPEC §15.2 step 17): derived from goal, focus and time; no promised outcomes. */
 export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
-  const { baselineScore, markCompleted } = useFunnelStore();
+  const store = useFunnelStore();
+  const { markCompleted } = store;
+  const baselineScore = useIsFunnelPreview() ? PREVIEW_SCORE : store.baselineScore;
   const plan = buildPlan(ctx.answers);
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -75,10 +79,14 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
 export function PaywallStep({ ctx }: StepProps<"paywall">) {
   const router = useRouter();
   const plan = buildPlan(ctx.answers);
+  const me = useMe();
+  const preview = useIsFunnelPreview();
   // Someone who already has Pro gets the dashboard link from UpgradeButton, not a "free plan" exit.
-  const alreadyPro = useMe().data?.entitlements.plan === "pro";
-
-  useEffect(() => track("paywall_viewed", { placement: "funnel" }), []);
+  // The editor's preview shows the visitor's paywall, whatever the admin's own plan.
+  const alreadyPro = !preview && me.data?.entitlements.plan === "pro";
+  useEffect(() => {
+    if (!preview) track("paywall_viewed", { placement: "funnel" });
+  }, [preview]);
 
   return (
     <div className="flex flex-1 flex-col gap-5 pb-6">

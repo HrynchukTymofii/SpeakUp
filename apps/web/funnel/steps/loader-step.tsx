@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { track } from "../analytics";
 import { renderText } from "../personalize";
+import { useIsFunnelPreview } from "../preview";
 import { useFunnelStore } from "../store";
 import type { StepProps } from "./props";
 
@@ -25,6 +26,7 @@ const curve = (t: number) => {
  */
 export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questions">) {
   const markCompleted = useFunnelStore((s) => s.markCompleted);
+  const preview = useIsFunnelPreview();
   const [pct, setPct] = useState(0);
   const [answers, setAnswers] = useState<FunnelAnswers>(() => {
     // Questions answered on an earlier visit aren't asked again.
@@ -57,13 +59,30 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
         raf = requestAnimationFrame(tick);
       } else if (!finished.current) {
         finished.current = true;
+        if (preview) {
+          // Start over, so the whole animation can be watched again.
+          setTimeout(() => {
+            elapsed.current = 0;
+            finished.current = false;
+            setPct(0);
+            setAnswers({});
+          }, 1500);
+          return;
+        }
         markCompleted(step.id);
         setTimeout(() => onNext(answers), 400);
       }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [pending, answers, step, markCompleted, onNext]);
+  }, [pending, answers, step, markCompleted, onNext, preview]);
+
+  // The preview can't be tapped: show each question for a moment, then answer it locally.
+  useEffect(() => {
+    if (!preview || !pending) return;
+    const timer = setTimeout(() => setAnswers((a) => ({ ...a, [pending.answerKey]: "yes" })), 2000);
+    return () => clearTimeout(timer);
+  }, [preview, pending]);
 
   const ticked = Math.floor((pct / 100) * step.checklist.length);
   // Answers given in this loader aren't saved until it finishes, but a later question may quote one.

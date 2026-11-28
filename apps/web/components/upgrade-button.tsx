@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { InstallCard } from "@/components/pwa/install-card";
 import { track } from "@/funnel/analytics";
+import { useIsFunnelPreview } from "@/funnel/preview";
 import { ApiClientError } from "@/lib/api";
 import { getPaddle, onPaddleEvent, paddleConfigured } from "@/lib/paddle";
 import { useApi } from "@/lib/use-api";
@@ -49,7 +50,10 @@ export function UpgradeButton({
     phaseRef.current = phase;
   }, [phase]);
   const [message, setMessage] = useState<string | null>(null);
-  const alreadyPro = useMe().data?.entitlements.plan === "pro";
+  const account = useMe();
+  // The funnel editor previews the visitor's paywall, not the (maybe Pro) admin's own status.
+  const preview = useIsFunnelPreview();
+  const alreadyPro = !preview && account.data?.entitlements.plan === "pro";
 
   // While activating, poll the entitlements.
   const me = useQuery({

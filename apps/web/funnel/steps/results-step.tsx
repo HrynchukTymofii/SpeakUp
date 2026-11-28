@@ -10,6 +10,8 @@ import { VoiceTimeline } from "@/components/voice-timeline";
 import { CATEGORY_LABEL, hesitationSummary, voiceVerdict } from "@/lib/report";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
+import { useIsFunnelPreview } from "../preview";
+import { PREVIEW_RESULT } from "../preview-samples";
 import { useFunnelStore } from "../store";
 import { Card, ContinueButton, StepHeading } from "../ui";
 import type { StepProps } from "./props";
@@ -45,30 +47,46 @@ function useCountUp(to: number, durationMs = 1200): number {
  * report: animated score, skill bars, 3 metric cards, one strength, then EVERY issue the analysis
  * found (most important first) — the point of the check is to show what to work on.
  */
+/** How long the preview shows "Analyzing your speaking…" before the sample report. */
+const PREVIEW_ANALYZING_MS = 2500;
+
 export function ResultsStep({ step, onNext }: StepProps<"results">) {
   const api = useApi();
   const { attemptId, markCompleted, setResultSummary } = useFunnelStore();
   const viewed = useRef(false);
+  const preview = useIsFunnelPreview();
+  const [previewReady, setPreviewReady] = useState(false);
+  useEffect(() => {
+    if (!preview) return;
+    const timer = setTimeout(() => setPreviewReady(true), PREVIEW_ANALYZING_MS);
+    return () => clearTimeout(timer);
+  }, [preview]);
 
   const query = useQuery({
     queryKey: ["attempt", attemptId],
     queryFn: () => api.getAttempt(attemptId ?? ""),
-    enabled: attemptId !== null,
+    enabled: !preview && attemptId !== null,
     refetchInterval: (q) => {
       const stage = q.state.data?.stage;
       return stage === "completed" || stage === "failed" ? false : 1_500;
     },
   });
 
-  const data = query.data;
-  const result = data?.stage === "completed" ? data.result : null;
+  const data = preview ? undefined : query.data;
+  const result = preview
+    ? previewReady
+      ? PREVIEW_RESULT
+      : null
+    : data?.stage === "completed"
+      ? data.result
+      : null;
 
   useEffect(() => {
-    if (result && !viewed.current) {
+    if (result && !viewed.current && !preview) {
       viewed.current = true;
       track("funnel_results_viewed", { score: result.overallScore });
     }
-  }, [result]);
+  }, [result, preview]);
 
   const finish = () => {
     setResultSummary({
@@ -99,7 +117,7 @@ export function ResultsStep({ step, onNext }: StepProps<"results">) {
 
   if (!result) {
     // "analyzing" = transcript done; metrics are instant, so the LLM feedback is what remains.
-    const stageIndex = data?.stage === "analyzing" ? 2 : 0;
+    const stageIndex = preview ? 1 : data?.stage === "analyzing" ? 2 : 0;
     return (
       <div className="flex flex-1 flex-col gap-6">
         <Mascot mood="thinking" size={112} className="-ml-2" />

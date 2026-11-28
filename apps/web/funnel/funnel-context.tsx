@@ -5,6 +5,7 @@ import { createContext, useContext, useLayoutEffect, type ReactNode } from "reac
 import { publicEnv } from "@/lib/env";
 import { setEventContext } from "./analytics";
 import { readAttribution } from "./attribution";
+import { FunnelPreviewContext } from "./preview";
 import { useFunnelStore } from "./store";
 import type { FunnelStep } from "./types";
 
@@ -68,6 +69,28 @@ export function FunnelProvider({
   return (
     <FunnelContext.Provider value={value}>
       {entered ? children : <div className="flex-1" aria-busy />}
+    </FunnelContext.Provider>
+  );
+}
+
+/**
+ * The funnel editor's preview: the same context the steps read, without FunnelProvider's side
+ * effects (entering the visitor store, attribution, analytics context). Also turns on
+ * FunnelPreviewContext, so steps use sample data and act on nothing.
+ */
+export function FunnelPreviewScope({
+  slug,
+  steps,
+  children,
+}: {
+  slug: string;
+  steps: FunnelStep[];
+  children: ReactNode;
+}) {
+  const value = { slug, version: 0, steps, basePath: `/f/${slug}` };
+  return (
+    <FunnelContext.Provider value={value}>
+      <FunnelPreviewContext.Provider value>{children}</FunnelPreviewContext.Provider>
     </FunnelContext.Provider>
   );
 }
