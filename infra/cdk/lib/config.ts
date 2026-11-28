@@ -22,6 +22,11 @@ export interface SpeakUpConfig {
    */
   sentryDsn?: string;
   /**
+   * Clerk user ids allowed into the funnel admin (`ADMIN_CLERK_USER_IDS` on the API). Not
+   * secret: an id alone grants nothing without that user's Clerk session. Empty = no admins.
+   */
+  adminClerkUserIds: string[];
+  /**
    * `-c speakup:loadTest=true`: a separate, throwaway `SpeakUp-LoadTest` stack for load tests
    * (docs/load-testing.md). Simulated Deepgram/Claude, its own generated secrets, load-test
    * auth on, nothing retained on delete. Never set it for the production stack.
@@ -77,12 +82,26 @@ export function readConfig(node: Node, repoRoot: string): SpeakUpConfig {
     appSecretName: get("appSecretName") || "speakup/app",
     anthropicModel: get("anthropicModel") || "claude-sonnet-5-5",
     sentryDsn: readSentryDsn(get("sentryDsn")),
+    adminClerkUserIds: readAdminClerkUserIds(get("adminClerkUserIds")),
     loadTest: get("loadTest") === "true",
     workerMaxTasks: readWorkerMaxTasks(get("workerMaxTasks")),
     dbInstanceSize: readDbInstanceSize(get("dbInstanceSize")),
     alarmEmail: readAlarmEmail(get("alarmEmail")),
     monthlyBudgetUsd: readMonthlyBudget(get("monthlyBudgetUsd")),
   };
+}
+
+function readAdminClerkUserIds(value: string): string[] {
+  const ids = value
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  for (const id of ids) {
+    if (!/^user_[A-Za-z0-9]+$/.test(id)) {
+      throw new Error(`speakup:adminClerkUserIds: "${id}" is not a Clerk user id (user_…)`);
+    }
+  }
+  return ids;
 }
 
 function readSentryDsn(value: string): string | undefined {

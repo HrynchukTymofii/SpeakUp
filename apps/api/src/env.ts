@@ -75,6 +75,20 @@ export const EnvSchema = z
     ),
     IP_HASH_SECRET: z.preprocess(emptyAsUndefined, z.string().min(16).default(DEV_IP_HASH_SECRET)),
 
+    // Funnel admin: Clerk user ids allowed to use /v1/admin/*, comma-separated. Unset = nobody.
+    // Only Clerk ids are accepted, so a pasted email fails at boot instead of silently locking
+    // the owner out.
+    ADMIN_CLERK_USER_IDS: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.string().regex(/^user_[A-Za-z0-9]+$/, "must be a Clerk user id (user_…)"))),
+
     // Load testing only (docs/load-testing.md): also accept HMAC-signed tokens for
     // `loadtest_*` users, so k6 can sign in thousands of users without Clerk.
     LOAD_TEST_AUTH_SECRET: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),

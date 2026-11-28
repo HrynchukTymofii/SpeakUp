@@ -63,6 +63,18 @@ describe("parseEnv", () => {
     );
   });
 
+  it("ADMIN_CLERK_USER_IDS: unset or empty = no admins; a list of Clerk user ids otherwise", () => {
+    expect(parseEnv(valid).ADMIN_CLERK_USER_IDS).toEqual([]);
+    expect(parseEnv({ ...valid, ADMIN_CLERK_USER_IDS: "" }).ADMIN_CLERK_USER_IDS).toEqual([]);
+    expect(
+      parseEnv({ ...valid, ADMIN_CLERK_USER_IDS: " user_2abc , user_2def," }).ADMIN_CLERK_USER_IDS,
+    ).toEqual(["user_2abc", "user_2def"]);
+    // An email or a typo would silently lock everyone out: fail at boot instead.
+    expect(() => parseEnv({ ...valid, ADMIN_CLERK_USER_IDS: "owner@example.com" })).toThrow(
+      /ADMIN_CLERK_USER_IDS/,
+    );
+  });
+
   it("requires S3_BUCKET", () => {
     expect(() => parseEnv({ ...valid, S3_BUCKET: "" })).toThrow(/S3_BUCKET/);
   });

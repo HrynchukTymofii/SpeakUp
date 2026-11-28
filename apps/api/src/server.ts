@@ -12,6 +12,7 @@ import {
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
 import type { Env } from "./env.js";
+import { requireAdmin } from "./plugins/admin.js";
 import { requireAuth } from "./plugins/auth.js";
 import { AppError, setupErrorHandling } from "./plugins/error-handler.js";
 import type { ErrorReporter } from "./services/error-reporter.js";
@@ -23,6 +24,7 @@ import type { AttemptEvents } from "./services/attempt-events.js";
 import { billingPublicRoutes, billingRoutes } from "./routes/billing.js";
 import { funnelClaimRoutes, funnelGuestRoutes } from "./routes/funnel.js";
 import { funnelPublicRoutes } from "./routes/funnels.js";
+import { adminFunnelRoutes } from "./routes/admin-funnels.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import type { AnalysisQueue } from "./services/analysis-queue.js";
 import type { AuthProvider } from "./services/auth-provider.js";
@@ -163,6 +165,12 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
       });
       await authed.register(funnelClaimRoutes, { db: deps.db });
       await authed.register(billingRoutes, { db: deps.db, payments: deps.payments, limits });
+
+      // Admin-only routes: a nested scope, so the admin check runs after the auth hook above.
+      await authed.register(async (admin) => {
+        requireAdmin(admin, env.ADMIN_CLERK_USER_IDS);
+        await admin.register(adminFunnelRoutes, { db: deps.db });
+      });
     },
     { prefix: "/v1" },
   );

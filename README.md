@@ -179,6 +179,7 @@ that need more explanation than their comment in `.env.example`.
 | `LOAD_TEST_AUTH_SECRET`, `LOAD_TEST_STACK`                                            | api                | Load testing only. Lets k6 sign in as `loadtest_*` users with HMAC tokens instead of Clerk. Refused in production unless `LOAD_TEST_STACK=true`. See [`docs/load-testing.md`](./docs/load-testing.md).                      |
 | `SENTRY_DSN`                                                                          | api, worker        | Sentry DSN for error reports (production: `speakup:sentryDsn` in `cdk.json`). Empty = off. See [`docs/runbook.md`](./docs/runbook.md#errors-in-sentry).                                                                     |
 | `NEXT_PUBLIC_SENTRY_DSN`                                                              | web, Vercel        | Sentry DSN for browser and Next server errors. Production only; empty in Preview and dev = off.                                                                                                                             |
+| `ADMIN_CLERK_USER_IDS`                                                                | api                | Clerk user ids allowed into the funnel admin (`/admin/funnels`), comma-separated (production: `speakup:adminClerkUserIds` in `cdk.json`). Empty = nobody. Adding an admin = change it and redeploy the API.                 |
 | `DB_POOL_MAX`                                                                         | api, worker        | Postgres connections per process (default 10). Sized in CDK so all tasks at max scale fit the database.                                                                                                                     |
 | `QUEUE_METRICS_NAMESPACE`                                                             | worker             | CloudWatch namespace for the queue depth that drives worker autoscaling. Empty locally (nothing published).                                                                                                                 |
 | `ANALYSIS_PROVIDERS`, `FAKE_STT_MEDIAN_MS`, `FAKE_LLM_MEDIAN_MS`, `FAKE_FAILURE_RATE` | worker             | Load testing only. `fake` replaces Deepgram and Claude with simulated providers (realistic delays, optional failure rate, no network calls, no keys). See [`docs/load-testing.md`](./docs/load-testing.md). Default `real`. |
@@ -270,6 +271,9 @@ you never handle it.
    - `speakup:sentryDsn` (optional): the Sentry DSN the API and worker report errors to
      ([`docs/runbook.md`](./docs/runbook.md#errors-in-sentry)). Empty = error tracking off.
      Never set on the load-test stack.
+   - `speakup:adminClerkUserIds` (optional): Clerk user ids allowed into the funnel admin
+     (`/admin/funnels`), comma-separated. Not a secret: an id grants nothing without that
+     user's Clerk session. Empty = no admins.
    - `speakup:alarmEmail`: who gets an email when an alarm fires or recovers
      ([`docs/runbook.md`](./docs/runbook.md#alarms)). After the deploy, AWS sends a
      confirmation email; nothing arrives until you click its link. Without it, synth warns and

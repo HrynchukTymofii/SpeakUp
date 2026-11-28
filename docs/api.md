@@ -13,6 +13,7 @@ describes them, but the schemas are the source of truth.
 | Scheme           | Header                                                             | Used by                           |
 | ---------------- | ------------------------------------------------------------------ | --------------------------------- |
 | Clerk session    | `Authorization: Bearer <Clerk session token>`                      | everything marked **user**        |
+| Admin            | a Clerk session whose user id is in `ADMIN_CLERK_USER_IDS`         | everything marked **admin**       |
 | Guest token      | `Authorization: Guest <token from POST /v1/funnel/sessions>`       | funnel endpoints marked **guest** |
 | Paddle signature | `Paddle-Signature` header, checked against `PADDLE_WEBHOOK_SECRET` | the webhook                       |
 
@@ -253,6 +254,23 @@ On `failed`, `attempt.errorCode` is `NO_SPEECH`, `STT_FAILED`, `LLM_INVALID_OUTP
 (`packages/shared/src/funnel-definition.ts`). A draft or unknown slug answers `404 NOT_FOUND` with
 `Cache-Control: no-store`; a slug that isn't URL-safe answers `400`. A stored definition that fails
 the schema answers `500` (logged with its slug) instead of reaching visitors.
+
+## Funnel admin
+
+Admins only: a Clerk session whose user id is in `ADMIN_CLERK_USER_IDS`. Anyone else signed in
+gets `403 FORBIDDEN` (checked before the body is read); signed out, `401`. Responses are
+`Cache-Control: no-store`.
+
+| Method | Path                                | Auth  | Description                                                                                               |
+| ------ | ----------------------------------- | ----- | --------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/admin/funnels`                 | admin | Every funnel, drafts included: `{ "funnels": [{ slug, name, status, version, updatedAt, sessions30d }] }` |
+| PATCH  | `/v1/admin/funnels/:slug/status`    | admin | Body `{ "status": "live" \| "draft" }` → `{ "funnel": … }`                                                |
+| POST   | `/v1/admin/funnels/:slug/duplicate` | admin | Body `{ slug, name }` → `201 { "funnel": … }`: a draft copy of the definition at version 1                |
+
+`sessions30d` is `{ started, signedUp }`: funnel sessions started in the last 30 days, and how many
+of those were claimed by a sign-up. Changing the status doesn't bump `version`.
+`409 WRONG_STATE` when: taking `main` offline (it's the default funnel), taking live a funnel whose
+stored definition fails the schema, duplicating from such a funnel, or a new slug that's already used.
 
 ## Funnel (anonymous)
 

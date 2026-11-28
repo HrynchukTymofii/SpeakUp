@@ -389,6 +389,13 @@ describe("error tracking (Sentry)", () => {
     expect(env(t, "worker").SENTRY_DSN).toBe(dsn);
   }, 60_000);
 
+  it("passes speakup:adminClerkUserIds to the API only, and sets nothing when empty", () => {
+    const t = synth({ "speakup:adminClerkUserIds": "user_2abc, user_2def" }).template;
+    expect(env(t, "api").ADMIN_CLERK_USER_IDS).toBe("user_2abc,user_2def");
+    expect(env(t, "worker").ADMIN_CLERK_USER_IDS).toBeUndefined();
+    expect(env(synth().template, "api").ADMIN_CLERK_USER_IDS).toBeUndefined();
+  }, 60_000);
+
   it("never reports from the load-test stack (it fails jobs on purpose)", () => {
     const t = synth({
       "speakup:loadTest": "true",
@@ -640,6 +647,16 @@ describe("config", () => {
       context: { "speakup:webOrigins": "https://a.test", "speakup:sentryDsn": "not-a-dsn" },
     });
     expect(() => readConfig(app.node, repoRoot)).toThrow(/sentryDsn/);
+  });
+
+  it("rejects admin ids that aren't Clerk user ids", () => {
+    const app = new cdk.App({
+      context: {
+        "speakup:webOrigins": "https://a.test",
+        "speakup:adminClerkUserIds": "owner@example.com",
+      },
+    });
+    expect(() => readConfig(app.node, repoRoot)).toThrow(/adminClerkUserIds/);
   });
 
   it("rejects a monthly budget that isn't a positive whole number of dollars", () => {

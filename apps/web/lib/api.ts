@@ -1,4 +1,6 @@
 import {
+  AdminFunnelResponseSchema,
+  AdminFunnelsResponseSchema,
   ApiErrorSchema,
   AttemptDetailResponseSchema,
   AttemptResponseSchema,
@@ -14,6 +16,10 @@ import {
   PortalResponseSchema,
   NextTopicResponseSchema,
   PracticeExercisesResponseSchema,
+  type AdminFunnelResponse,
+  type AdminFunnelsResponse,
+  type DuplicateFunnelBody,
+  type FunnelStatus,
   type AttemptDetailResponse,
   type AttemptResponse,
   type AttemptsListResponse,
@@ -139,6 +145,24 @@ export function createApiClient(getToken: GetToken) {
       request(
         `/v1/attempts/${encodeURIComponent(id)}${waitSeconds > 0 ? `?wait=${waitSeconds}` : ""}`,
         AttemptDetailResponseSchema,
+      ),
+
+    // Funnel admin (admins only: everyone else gets 403 FORBIDDEN).
+    getAdminFunnels: (): Promise<AdminFunnelsResponse> =>
+      request("/v1/admin/funnels", AdminFunnelsResponseSchema),
+    setFunnelStatus: (slug: string, status: FunnelStatus): Promise<AdminFunnelResponse> =>
+      request(`/v1/admin/funnels/${encodeURIComponent(slug)}/status`, AdminFunnelResponseSchema, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    duplicateFunnel: (slug: string, body: DuplicateFunnelBody): Promise<AdminFunnelResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/duplicate`,
+        AdminFunnelResponseSchema,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
       ),
   };
 }

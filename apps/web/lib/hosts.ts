@@ -19,7 +19,7 @@ export type HostDecision =
  * `/install` and `/offline` are pages of the installable app, so they must live on the app origin
  * the manifest and service worker belong to. The PWA's static assets (`/sw.js`,
  * `/speakup.webmanifest`, `/icons/*`) never reach `routeForHost`: the proxy matcher skips static
- * file extensions, so both hosts serve them as they are.
+ * file extensions, so both hosts serve them as they are. `/admin` (funnel admin) is product-only too.
  */
 const APP_ROUTES = [
   "/start",
@@ -31,6 +31,7 @@ const APP_ROUTES = [
   "/pricing",
   "/install",
   "/offline",
+  "/admin",
 ];
 /** Routes that belong to the marketing site ("/" is handled separately). */
 const SITE_ROUTES = ["/privacy", "/terms", "/refund"];
