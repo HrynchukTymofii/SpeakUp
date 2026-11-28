@@ -2,16 +2,17 @@
 
 import type { FunnelStepDef } from "@speakup/shared";
 import { useLayoutEffect, useRef, useState, type ComponentType } from "react";
-import { SiteHeader } from "@/components/site-header";
 import { NO_BACK_STEP_TYPES, PROGRESS_STEP_TYPES } from "@/funnel/config";
 import { progressOf } from "@/funnel/engine";
 import { FunnelPreviewScope } from "@/funnel/funnel-context";
 import { FunnelProgressBar } from "@/funnel/funnel-shell";
 import { STEP_COMPONENTS } from "@/funnel/steps";
 import type { StepProps } from "@/funnel/steps/props";
+import { DEVICES } from "./device-frame";
+import { VisitorHeader } from "./visitor-header";
 
 /** The phone the preview draws, in CSS pixels: iPhone 12–16's viewport, the most common size. */
-export const PHONE = { width: 390, height: 844 } as const;
+export const PHONE = DEVICES.phone;
 /** Bezel around the screen, in the same unscaled pixels. */
 const BEZEL = 12;
 const FRAME_WIDTH = PHONE.width + 2 * BEZEL;
@@ -78,11 +79,7 @@ export function ScreenPreview({
             className="flex h-full w-full flex-col overflow-x-hidden overflow-y-auto rounded-[40px] bg-page text-ink [scrollbar-width:none] [transform:translateZ(0)]"
           >
             <div inert className="flex min-h-full flex-col" data-testid="live-preview">
-              <SiteHeader homeHref="/">
-                {/* What a signed-out visitor sees in the real header (app/(product)/layout.tsx). */}
-                <span className="btn btn-sm px-3 text-ink">Sign in</span>
-                <span className="btn btn-primary btn-sm">Sign up</span>
-              </SiteHeader>
+              <VisitorHeader />
               <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5">
                 <FunnelPreviewScope slug={slug} steps={steps}>
                   <div key={step.id} className="flex flex-1 flex-col gap-5">
