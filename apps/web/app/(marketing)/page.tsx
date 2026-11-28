@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { appHref } from "@/lib/links";
+import { installHref } from "@/lib/pwa/install-href";
 import { ArrowIcon, FeedbackIcon, HeroPhone, LessonArt, StepVisual } from "./landing-visuals";
 
 // The three steps restate the value proposition — no new claims or numbers.
@@ -76,6 +78,14 @@ export default function HomePage() {
             >
               {CHECK}
               <ArrowIcon />
+            </a>
+            {/* The app is installable only on the app host, so the offer lives there. */}
+            <a
+              href={appHref(installHref("landing"))}
+              className="btn btn-secondary min-h-14 w-full px-5 text-[15px] sm:w-auto sm:px-7 sm:text-base"
+            >
+              <Icon name="download" className="size-5" />
+              Download the app
             </a>
             <a href={appHref("/app")} className="link py-1 text-sm font-semibold">
               Already have an account? Go to your dashboard
