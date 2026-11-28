@@ -65,16 +65,18 @@ Why each was chosen, and when we'd switch: `SPEC.md` §14 and [`adr/`](./adr/REA
 
 The web app is one Next.js project on Vercel with two domains attached:
 
-| Host                       | Serves                                                                 | Route group                |
-| -------------------------- | ---------------------------------------------------------------------- | -------------------------- |
-| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                               | `apps/web/app/(marketing)` |
-| `app.speakup.fibipals.com` | `/start`, `/f`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing` | `apps/web/app/(product)`   |
+| Host                       | Serves                                                                                         | Route group                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                                                       | `apps/web/app/(marketing)`                           |
+| `app.speakup.fibipals.com` | `/start`, `/f`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing`, `/install`, `/offline` | `apps/web/app/(product)` (`/offline`: `app/offline`) |
 
 - `proxy.ts` asks `routeForHost` (`apps/web/lib/hosts.ts`) on every request. A product route on
   the site host gets a **308** to the app host (path and query kept, so old links such as
   `speakup.fibipals.com/start?…` keep working and ad links to `/f/<slug>?utm_…` keep their UTM
   tags); a legal page on the app host gets a 308 back.
   `/` on the app host is a **307** to `/app` (which sends signed-out visitors to sign-in).
+  Static files (including `/sw.js`, `/speakup.webmanifest` and `/icons/*`) skip the proxy, so
+  both hosts serve them unchanged.
 - Every response on the app host carries `X-Robots-Tag: noindex`: only the marketing site is meant
   for search results.
 - Links that cross hosts use `appHref()` / `siteHref()` (`apps/web/lib/links.ts`).
@@ -86,6 +88,42 @@ The web app is one Next.js project on Vercel with two domains attached:
 - Both origins are in `speakup:webOrigins` (`infra/cdk/cdk.json`), which feeds the API's CORS,
   Clerk's `authorizedParties` and the recordings bucket's CORS. The product only calls the API
   from the app host; the site origin stays listed so sessions open during the switch keep working.
+
+### Installable web app (PWA)
+
+The app host can be installed to the home screen; the marketing host cannot.
+
+- **Manifest only on the app host.** `/speakup.webmanifest` is a route handler
+  (`apps/web/app/speakup.webmanifest/route.ts`, built from `apps/web/lib/pwa/manifest.ts`), linked
+  only by the `(product)` layout. It is not `app/manifest.ts`, because Next links that from every
+  page, landing included. The manifest has `id: "/"`, `scope: "/"`, `start_url: "/app"`
+  (`PWA_START_URL`), `display: "standalone"`, the `--page` colour as theme and background, and the
+  icons in `public/icons` (generated from the Mascot). The product layout also adds the Apple
+  touch icon, the `apple-mobile-web-app-*` / `mobile-web-app-capable` tags and
+  `viewport-fit=cover`; marketing pages get none of these.
+- **Service worker** (`apps/web/public/sw.js`, hand-written, scope `/`). It is registered by
+  `<PwaSetup />` in the product layout, and only in production builds (`NODE_ENV=production`, a
+  secure context, `serviceWorker` support), so `pnpm dev` never runs it. It caches only the
+  offline screen: `/offline` plus the CSS and font files that page references, in the cache
+  `speakup-offline-v1`.
+  - Navigations always go to the network and are never stored; when the network fails, the
+    worker shows the cached `/offline` page.
+  - `/_next/static/*` is served from the cache only if it was precached; nothing else is written.
+  - It never touches non-GET requests, cross-origin requests (the API, Clerk's frontend API,
+    Paddle, Amplitude, Turnstile) or same-origin `/__clerk/*`. Nothing signed-in or from the API
+    is ever cached, so nothing can go stale or leak between accounts on a shared device.
+- **Updates.** The worker calls `skipWaiting()` on install and `clients.claim()` on activate, so a
+  new `sw.js` takes control of the open pages as soon as it has installed, without waiting for a
+  reload; activating it then deletes every other `speakup-*` cache.
+  When the offline page changes (new design, new CSS), bump the cache name in `sw.js`
+  (`speakup-offline-v2`, …) so installed clients precache the new version.
+- `/sw.js`, `/speakup.webmanifest` and `/icons/*` skip the proxy (see above), so both hosts serve
+  them; the landing just never links them. If a CSP is added later it needs
+  `worker-src 'self'; manifest-src 'self'`.
+- **Vercel previews.** With deployment protection on, the worker's credential-less `/offline`
+  fetch gets the protection's auth response instead of the page, so the install fails on purpose
+  (nothing is cached and the old worker, if any, stays). Check the service worker and the offline
+  screen on production or a local `next start` instead.
 
 ## Network (AWS)
 

@@ -46,4 +46,12 @@ describe("ContinueButton", () => {
     await userEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("leaves room for the home indicator", () => {
+    // The installed app draws under the home indicator (viewport-fit=cover), so the sticky bar
+    // pads itself by the safe-area inset instead of a fixed 1rem.
+    render(<ContinueButton onClick={() => {}} />);
+    const bar = screen.getByRole("button", { name: "Continue" }).parentElement;
+    expect(bar?.className).toContain("env(safe-area-inset-bottom)");
+  });
 });

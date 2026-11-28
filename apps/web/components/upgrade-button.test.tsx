@@ -36,6 +36,10 @@ vi.mock("@/lib/paddle", () => ({
   },
 }));
 vi.mock("@/funnel/analytics", () => ({ track }));
+// A browser that can show the native install prompt (Chrome on Android).
+vi.mock("@/lib/pwa/install-events", () => ({
+  useInstall: () => ({ platform: "prompt", promptInstall: vi.fn() }),
+}));
 
 const me = (plan: "free" | "pro") => ({ entitlements: { plan } });
 
@@ -105,5 +109,38 @@ describe("UpgradeButton", () => {
       { amount: 9.99, currency: "USD" },
     );
     expect(track).toHaveBeenCalledTimes(4); // 2× checkout_started, closed, completed
+  });
+
+  async function payAndActivate(placement: "pricing" | "funnel", onActivated = vi.fn()) {
+    api.getMe.mockResolvedValueOnce(me("free")).mockResolvedValue(me("pro"));
+    api.startCheckout.mockResolvedValue({ priceId: "pri_1", customData: {} });
+    renderButton(<UpgradeButton placement={placement} onActivated={onActivated} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Upgrade to Pro" }));
+    act(() => paddle.emit({ name: "checkout.completed", data: {} }));
+    expect(await screen.findByText(/You’re on SpeakUp Pro/)).toBeInTheDocument();
+    return onActivated;
+  }
+
+  it("after activation on /pricing, offers to install the app", async () => {
+    const onActivated = await payAndActivate("pricing");
+    expect(onActivated).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("heading", { name: "Get SpeakUp on your home screen" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Install the app" })).toBeVisible();
+    expect(track).toHaveBeenCalledWith("pro_activated", { placement: "pricing" });
+    expect(track).toHaveBeenCalledWith("install_prompt_shown", {
+      placement: "purchase",
+      platform: "prompt",
+    });
+  });
+
+  it("leaves the install offer to the install screen in the funnel", async () => {
+    // The funnel paywall navigates to /install itself after activation (see PaywallStep).
+    const onActivated = await payAndActivate("funnel");
+    expect(onActivated).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith("pro_activated", { placement: "funnel" });
+    expect(
+      screen.queryByRole("heading", { name: "Get SpeakUp on your home screen" }),
+    ).not.toBeInTheDocument();
+    expect(track).not.toHaveBeenCalledWith("install_prompt_shown", expect.anything());
   });
 });

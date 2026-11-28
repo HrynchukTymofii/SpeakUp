@@ -15,12 +15,14 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 
 | Route                           | Host | Who              | What                                                                                          |
 | ------------------------------- | ---- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `/`                             | site | everyone         | Landing: value proposition, how it works, example feedback, lessons, entry to the funnel      |
+| `/`                             | site | everyone         | Landing: value proposition, how it works, feedback, lessons, funnel entry, "Download the app" |
 | `/privacy`, `/terms`, `/refund` | site | everyone         | Legal pages (texts in `app/(marketing)`, owner facts in `lib/legal.ts`)                       |
 | `/start/<step>`                 | app  | everyone         | The onboarding funnel (below), the bundled default `main`                                     |
 | `/f/<slug>/<step>`              | app  | everyone         | The same funnel shell with a definition from the API (ad links; unknown slug → 404)           |
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |
 | `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                |
+| `/install`                      | app  | everyone         | Put SpeakUp on the home screen, or "Not now, continue" (see "Installing the app" below)       |
+| `/offline`                      | app  | everyone         | Shown by the service worker when a page can't load; `noindex`                                 |
 | `/app`                          | app  | signed in        | Learn tab: warm-up card, LVL · streak · today, "Continue" (or speaking check), picks, courses |
 | `/app/warm-up`                  | app  | signed in        | Pitch warm-up: 1 minute of box breathing, then back home; records nothing                     |
 | `/app/courses/<slug>`           | app  | signed in        | One course: its lessons as a winding path                                                     |
@@ -31,6 +33,26 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/app/profile`                  | app  | signed in        | Stats, goal picker, skills, score trend, recurring problems, recent recordings                |
 | `/results/<attemptId>`          | app  | signed in, owner | Waits for the analysis, then the report; `?next=` adds "Continue" (next topic / lesson step)  |
 | `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                |
+
+## Installing the app (`/install`)
+
+The app host is an installable web app (see [`architecture.md`](./architecture.md)). `/install`
+shows `InstallCard` — the install button, the iOS Share → Add to Home Screen steps, or a fallback,
+depending on the browser — and a "Not now, continue" button. Links come from `installHref(from,
+next)` in `apps/web/lib/pwa/install-href.ts`:
+
+- `from` (`landing`, `funnel`, `purchase`; anything else counts as `direct`) is sent with the
+  install analytics events.
+- `next` is where "Not now, continue" goes, default `/app`. Only same-site paths are accepted;
+  anything else falls back to `/app`, so the link can't send people to another site.
+- Opened inside the installed app, the screen skips straight to `next`.
+- The landing's "Download the app" opens `/install?from=landing&next=%2Fapp`. There, signed-out
+  visitors also get "New here? Take the 2-minute speaking check" → `/start`.
+- The end of the funnel opens it for everyone, free or paid: the paywall's "Continue with the free
+  plan" goes to `/install?from=funnel&next=%2Fapp`, and a completed upgrade there goes to
+  `/install?from=purchase&next=%2Fapp`.
+- Upgrading on `/pricing` or `/app/billing` shows the same `InstallCard` (placement `purchase`)
+  under "You're on SpeakUp Pro" instead of leaving the page.
 
 ## The onboarding funnel (`/start`, `/f/<slug>`)
 
@@ -68,6 +90,9 @@ is unavailable. Both share the visitor's saved progress for `main`.
     a visible "continue with the free plan", and two FAQs. No countdowns or fake discounts.
     Someone who already has Pro sees "You're already on SpeakUp Pro" and a dashboard button
     instead of the upgrade button and the free-plan link (the same applies on `/pricing`).
+    Both ways out — the free plan and a completed upgrade — lead to the install screen
+    (`/install`, see "Installing the app" above) and from there to `/app`; the installed app skips
+    that screen.
 
 Funnel answers are copied into the account's onboarding profile when the anonymous session is
 claimed after sign-up.

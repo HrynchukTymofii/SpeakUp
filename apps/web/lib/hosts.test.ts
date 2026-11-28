@@ -22,6 +22,8 @@ describe("routeForHost on the marketing host", () => {
     "/app/lessons/x",
     "/results/abc",
     "/pricing",
+    "/install",
+    "/offline",
   ])("sends product route %s to the app host, keeping path and query", (path) => {
     expect(route(SITE, path, "?redirect_url=%2Fapp")).toEqual({
       kind: "redirect",
@@ -58,6 +60,14 @@ describe("routeForHost on the marketing host", () => {
   it("leaves Clerk's and Next's internal paths alone", () => {
     expect(route(SITE, "/__clerk/v1/client")).toEqual({ kind: "next", noindex: false });
   });
+
+  it("keeps the landing's install link query when sending it to the app host", () => {
+    expect(route(SITE, "/install", "?from=landing")).toEqual({
+      kind: "redirect",
+      url: "https://app.speakup.fibipals.com/install?from=landing",
+      status: 308,
+    });
+  });
 });
 
 describe("routeForHost on the app host", () => {
@@ -80,6 +90,10 @@ describe("routeForHost on the app host", () => {
   it("serves product routes and marks them noindex", () => {
     expect(route(APP, "/start/goal")).toEqual({ kind: "next", noindex: true });
     expect(route(APP, "/app")).toEqual({ kind: "next", noindex: true });
+  });
+
+  it.each(["/install", "/offline"])("serves %s on the app host with noindex", (path) => {
+    expect(route(APP, path)).toEqual({ kind: "next", noindex: true });
   });
 
   it("ignores the port and letter case of the Host header", () => {

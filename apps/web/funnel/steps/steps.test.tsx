@@ -310,4 +310,17 @@ describe("loader questions", () => {
       await screen.findByRole("dialog", { name: "You said Yes. Want reminders?" }),
     ).toBeInTheDocument();
   });
+
+  it("keeps the question sheet's buttons above the home indicator", async () => {
+    renderDef({
+      id: "loader",
+      type: "loader_with_questions",
+      title: "Building your plan",
+      checklist: [],
+      durationMs: 200,
+      questions: [{ atPct: 1, answerKey: "practice-now", title: "Practice right after this?" }],
+    });
+    const sheet = await screen.findByRole("dialog", { name: "Practice right after this?" });
+    expect(sheet.className).toContain("env(safe-area-inset-bottom)");
+  });
 });

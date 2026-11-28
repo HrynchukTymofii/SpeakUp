@@ -144,22 +144,23 @@ restart `cloudflared` — update the destination URL when it does.
 
 ## Scripts (run from the repo root)
 
-| Script                   | What it does                                          |
-| ------------------------ | ----------------------------------------------------- |
-| `pnpm dev`               | Run all apps in watch mode via Turborepo              |
-| `pnpm build`             | Build every package                                   |
-| `pnpm lint`              | ESLint in every package                               |
-| `pnpm typecheck`         | `tsc --noEmit` in every package                       |
-| `pnpm test`              | Vitest in every package                               |
-| `pnpm format`            | Prettier write (`format:check` is used in CI)         |
-| `pnpm infra:up/down`     | Start/stop local Postgres + Redis + S3                |
-| `pnpm db:migrate`        | Create/apply migrations in dev (`prisma migrate dev`) |
-| `pnpm db:migrate:deploy` | Apply existing migrations only (CI/prod)              |
-| `pnpm db:seed`           | Seed content (idempotent — safe to re-run)            |
-| `pnpm db:reset`          | Drop DB, re-apply migrations, re-seed (dev only!)     |
-| `pnpm db:studio`         | Browse data in Prisma Studio                          |
-| `pnpm cdk:synth`         | Generate the CloudFormation template (no AWS needed)  |
-| `pnpm cdk:diff/deploy`   | Compare with / deploy to your AWS account             |
+| Script                             | What it does                                                                                               |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                         | Run all apps in watch mode via Turborepo                                                                   |
+| `pnpm build`                       | Build every package                                                                                        |
+| `pnpm lint`                        | ESLint in every package                                                                                    |
+| `pnpm typecheck`                   | `tsc --noEmit` in every package                                                                            |
+| `pnpm test`                        | Vitest in every package                                                                                    |
+| `pnpm format`                      | Prettier write (`format:check` is used in CI)                                                              |
+| `pnpm infra:up/down`               | Start/stop local Postgres + Redis + S3                                                                     |
+| `pnpm db:migrate`                  | Create/apply migrations in dev (`prisma migrate dev`)                                                      |
+| `pnpm db:migrate:deploy`           | Apply existing migrations only (CI/prod)                                                                   |
+| `pnpm db:seed`                     | Seed content (idempotent — safe to re-run)                                                                 |
+| `pnpm db:reset`                    | Drop DB, re-apply migrations, re-seed (dev only!)                                                          |
+| `pnpm db:studio`                   | Browse data in Prisma Studio                                                                               |
+| `pnpm cdk:synth`                   | Generate the CloudFormation template (no AWS needed)                                                       |
+| `pnpm cdk:diff/deploy`             | Compare with / deploy to your AWS account                                                                  |
+| `pnpm --filter @speakup/web icons` | Regenerate the app icons (`apps/web/public/icons`) from the Mascot and the theme tokens; commit the result |
 
 CI (`.github/workflows/ci.yml`) runs install → format check → lint → typecheck → test on every
 push to `main` and every pull request.

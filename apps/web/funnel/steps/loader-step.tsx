@@ -107,7 +107,7 @@ export function LoaderStep({ step, ctx, onNext }: StepProps<"loader_with_questio
             role="dialog"
             aria-modal="true"
             aria-label={questionTitle}
-            className="funnel-sheet w-full max-w-md rounded-t-[32px] border-t border-line bg-card p-6 pb-8 shadow-soft"
+            className="funnel-sheet w-full max-w-md rounded-t-[32px] border-t border-line bg-card p-6 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-soft"
           >
             <p className="mb-5 font-display text-xl leading-snug font-semibold">{questionTitle}</p>
             <div className="grid grid-cols-2 gap-3">

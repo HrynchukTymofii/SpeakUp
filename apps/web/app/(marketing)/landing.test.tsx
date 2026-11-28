@@ -22,6 +22,14 @@ describe("landing page", () => {
     );
   });
 
+  it("offers the app download on the app host", () => {
+    render(<HomePage />);
+    const download = screen.getByRole("link", { name: /download the app/i });
+    expect(download).toHaveAttribute("href", "https://app.test/install?from=landing&next=%2Fapp");
+    // A secondary action: the speaking check stays the one primary call to action.
+    expect(download).toHaveClass("btn", "btn-secondary");
+  });
+
   it("has the sections the header links jump to", () => {
     const { container } = render(<HomePage />);
     for (const id of ["how", "feedback", "lessons"]) {
