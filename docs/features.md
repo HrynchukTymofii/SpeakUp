@@ -34,6 +34,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/results/<attemptId>`          | app  | signed in, owner | Waits for the analysis, then the report; `?next=` adds "Continue" (next topic / lesson step)  |
 | `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                |
 | `/admin/funnels`                | app  | admins           | Funnel admin (below); other signed-in users see "This page is for admins"                     |
+| `/admin/funnels/<slug>`         | app  | admins           | Funnel editor (below): a funnel's screens in order, with a preview                            |
 
 ## Installing the app (`/install`)
 
@@ -281,8 +282,31 @@ days, sessions started and how many signed up.
 
 - **Take live / Take offline** switches the status. `main` is always live (it's the default funnel).
   A funnel whose stored definition is invalid can't go live.
-- **Duplicate** copies a funnel into a new draft at version 1, under a new link and name. It's how
-  a funnel for a new ad starts until the editor exists (`SPEC.md` §12).
+- **Duplicate** copies a funnel into a new draft at version 1, under a new link and name: how a
+  funnel for a new ad starts.
+- **Edit screens** opens the editor. Cards say "Has unpublished changes" when a draft is saved.
+
+### Funnel editor (`/admin/funnels/<slug>`)
+
+A funnel is a list of screens. The screens themselves are code (questions, reflections, the
+mini-lesson, the recording, sign-up, results, the plan loader, plan, paywall); the editor only
+chooses which of them a funnel shows and in what order. The library of screens is the default
+funnel's (`FUNNEL_SCREEN_LIBRARY` in `packages/shared/src/funnel-screens.ts`): a developer adds a
+new screen there.
+
+- **Move up / Move down / Remove** on each screen; **Add a screen** picks one from the library
+  that the funnel doesn't show yet (added before a closing paywall).
+- **Problems** are marked on the screen they concern, in plain words, and Save stays off until
+  they're fixed: the paywall must be last and come after sign-up; sign-up and results need the
+  recording before them.
+- **Save changes** stores a draft. Visitors keep seeing the published version until **Publish to
+  visitors**, which bumps the version. **Discard changes** (asks first) drops the draft; **Undo
+  unsaved changes** resets what isn't saved yet. Closing the tab with unsaved changes asks first.
+- **Preview** shows the selected screen in a phone-size frame. Questions, the slider, reflections,
+  the mini-lesson, the microphone screen and the plan are the real components, not clickable, with
+  personalized wording at its no-answers fallback; the lesson video doesn't autoplay there.
+  Screens that act as soon as they open (recording, sign-up, results, plan loader, paywall) are
+  described instead, so a preview never records, signs up, opens checkout or sends analytics.
 
 ## Not built yet
 
