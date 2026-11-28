@@ -228,6 +228,39 @@ describe("PATCH /v1/admin/funnels/:slug/status", () => {
   });
 });
 
+describe("POST /v1/admin/funnels (new funnel)", () => {
+  it("creates a draft from the default funnel's screens at version 1", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/admin/funnels",
+      headers: ADMIN,
+      payload: { slug: "tiktok-dec", name: "TikTok December" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().funnel).toMatchObject({
+      slug: "tiktok-dec",
+      name: "TikTok December",
+      status: "draft",
+      version: 1,
+      hasDraft: false,
+    });
+    expect(db.funnels.find((f) => f.slug === "tiktok-dec")?.definition).toEqual(
+      DEFAULT_FUNNEL_DEFINITION,
+    );
+  });
+
+  it("409 for a taken slug, 400 for a bad one, 403 for non-admins", async () => {
+    const app = await buildTestServer({ db: setup(), env });
+    const post = (payload: { slug: string; name: string }, headers = ADMIN) =>
+      app.inject({ method: "POST", url: "/v1/admin/funnels", headers, payload });
+    expect((await post({ slug: "main", name: "Again" })).statusCode).toBe(409);
+    expect((await post({ slug: "Bad Slug", name: "x" })).statusCode).toBe(400);
+    expect((await post({ slug: "ok", name: "x" }, NOT_ADMIN)).statusCode).toBe(403);
+  });
+});
+
 describe("POST /v1/admin/funnels/:slug/duplicate", () => {
   it("copies the definition into a new draft at version 1", async () => {
     const db = setup();

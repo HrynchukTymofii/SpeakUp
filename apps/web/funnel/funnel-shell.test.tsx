@@ -105,6 +105,25 @@ describe("FunnelShell", () => {
     });
   });
 
+  it("in an admin's test run, creates a session linked to no funnel and no traffic source", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <FunnelProvider
+          slug="test"
+          version={4}
+          definition={definition}
+          basePath="/admin/funnels/test/try"
+          testRun
+        >
+          <FunnelShell stepId="pick-goal" />
+        </FunnelProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(funnelApi.createSession).toHaveBeenCalledTimes(1));
+    expect(funnelApi.createSession).toHaveBeenCalledWith({});
+  });
+
   it("redirects an unknown step to the first step under its basePath", async () => {
     render(inFunnel(<FunnelShell stepId="goal" />));
 

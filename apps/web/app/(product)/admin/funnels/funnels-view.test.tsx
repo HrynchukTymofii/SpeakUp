@@ -27,7 +27,10 @@ const api = vi.hoisted(() => ({
   getAdminFunnels: vi.fn(),
   setFunnelStatus: vi.fn(),
   duplicateFunnel: vi.fn(),
+  createFunnel: vi.fn(),
 }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/use-api", () => ({ useApi: () => api }));
 
 afterEach(() => {
@@ -82,12 +85,12 @@ describe("FunnelsView", () => {
     const spring = cardFor("Spring sale");
     expect(within(spring).getByText("Draft")).toBeInTheDocument();
     expect(within(spring).getByText("0 (0%)")).toBeInTheDocument();
-    // Drafts 404 for visitors, so no link to them; only the editor link.
+    // Drafts 404 for visitors, so no link to them; only the editor and the test run.
     expect(
       within(spring)
         .getAllByRole("link")
         .map((a) => a.getAttribute("href")),
-    ).toEqual(["/admin/funnels/spring-sale"]);
+    ).toEqual(["/admin/funnels/spring-sale", "/admin/funnels/spring-sale/try"]);
   });
 
   it("takes a draft live and refreshes the list", async () => {
@@ -185,5 +188,31 @@ describe("FunnelsView", () => {
     );
     expect(within(main).queryByText("Has unpublished changes")).not.toBeInTheDocument();
     expect(within(cardFor("Spring")).getByText("Has unpublished changes")).toBeInTheDocument();
+  });
+
+  it("creates a new funnel and opens it in the editor", async () => {
+    api.getAdminFunnels.mockResolvedValue({ funnels: [funnel({})] });
+    api.createFunnel.mockResolvedValue({
+      funnel: funnel({ slug: "tiktok-dec", name: "TikTok December", status: "draft" }),
+    });
+    renderView();
+
+    await userEvent.click(await screen.findByRole("button", { name: "New funnel" }));
+    await userEvent.type(screen.getByLabelText("New link"), "tiktok-dec");
+    await userEvent.type(screen.getByLabelText("Name"), "TikTok December");
+    await userEvent.click(screen.getByRole("button", { name: "Create draft" }));
+
+    expect(api.createFunnel).toHaveBeenCalledWith({ slug: "tiktok-dec", name: "TikTok December" });
+    expect(router.push).toHaveBeenCalledWith("/admin/funnels/tiktok-dec");
+  });
+
+  it("links each funnel to a test run", async () => {
+    api.getAdminFunnels.mockResolvedValue({ funnels: [funnel({})] });
+    renderView();
+    await screen.findByRole("heading", { name: "Main funnel" });
+    expect(within(cardFor("Main funnel")).getByRole("link", { name: "Try it" })).toHaveAttribute(
+      "href",
+      "/admin/funnels/main/try",
+    );
   });
 });

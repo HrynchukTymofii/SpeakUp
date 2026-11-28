@@ -264,6 +264,7 @@ gets `403 FORBIDDEN` (checked before the body is read); signed out, `401`. Respo
 | Method | Path                                | Auth  | Description                                                                                                             |
 | ------ | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/v1/admin/funnels`                 | admin | Every funnel, drafts included: `{ "funnels": [{ slug, name, status, version, updatedAt, hasDraft, sessions30d }] }`     |
+| POST   | `/v1/admin/funnels`                 | admin | Body `{ slug, name }` → `201 { "funnel": … }`: a new draft with the default funnel's screens, version 1                 |
 | PATCH  | `/v1/admin/funnels/:slug/status`    | admin | Body `{ "status": "live" \| "draft" }` → `{ "funnel": … }`                                                              |
 | POST   | `/v1/admin/funnels/:slug/duplicate` | admin | Body `{ slug, name }` → `201 { "funnel": … }`: a draft copy of the definition at version 1                              |
 | GET    | `/v1/admin/funnels/:slug`           | admin | The editor's view: `{ "funnel": …, "definition": …, "draft": … \| null, "draftInvalid" }`                               |

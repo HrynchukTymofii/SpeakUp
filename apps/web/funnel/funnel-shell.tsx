@@ -41,7 +41,7 @@ const useSlideDirection = create<{
  */
 let creatingSession: Promise<void> | null = null;
 function useGuestSession() {
-  const { slug, version } = useFunnel();
+  const { slug, version, testRun } = useFunnel();
   const token = useFunnelStore((s) => s.guestToken);
   const [failures, setFailures] = useState(0);
   useEffect(() => {
@@ -49,8 +49,12 @@ function useGuestSession() {
     const retry = setTimeout(
       () => {
         const { attribution } = useFunnelStore.getState();
+        // A test run's session isn't linked to the funnel, so it never counts in its numbers
+        // (a draft's screens would otherwise be counted under the live version).
         creatingSession ??= funnelApi
-          .createSession({ funnel: { slug, version }, ...(attribution ? { attribution } : {}) })
+          .createSession(
+            testRun ? {} : { funnel: { slug, version }, ...(attribution ? { attribution } : {}) },
+          )
           .then(({ token: t }) => useFunnelStore.getState().setGuestToken(t))
           .catch(() => setFailures((f) => f + 1))
           .finally(() => {
@@ -60,7 +64,7 @@ function useGuestSession() {
       failures === 0 ? 0 : 2_000 * failures,
     );
     return () => clearTimeout(retry);
-  }, [token, failures, slug, version]);
+  }, [token, failures, slug, version, testRun]);
 }
 
 /** PATCH answers + current step to the server, debounced; failures never block the UI. */

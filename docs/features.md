@@ -35,6 +35,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                |
 | `/admin/funnels`                | app  | admins           | Funnel admin (below); other signed-in users see "This page is for admins"                     |
 | `/admin/funnels/<slug>`         | app  | admins           | Funnel editor (below): a funnel's screens in order, with a preview                            |
+| `/admin/funnels/<slug>/try`     | app  | admins           | Test run (below): the real funnel, before launch                                              |
 
 ## Installing the app (`/install`)
 
@@ -282,9 +283,10 @@ days, sessions started and how many signed up.
 
 - **Take live / Take offline** switches the status. `main` is always live (it's the default funnel).
   A funnel whose stored definition is invalid can't go live.
-- **Duplicate** copies a funnel into a new draft at version 1, under a new link and name: how a
-  funnel for a new ad starts.
+- **New funnel** (link and name) creates a draft at version 1 with the default funnel's screens
+  and opens it in the editor. **Duplicate** copies an existing funnel the same way.
 - **Edit screens** opens the editor. Cards say "Has unpublished changes" when a draft is saved.
+- **Try it** opens a test run (below).
 
 ### Funnel editor (`/admin/funnels/<slug>`)
 
@@ -294,8 +296,10 @@ chooses which of them a funnel shows and in what order. The library of screens i
 funnel's (`FUNNEL_SCREEN_LIBRARY` in `packages/shared/src/funnel-screens.ts`): a developer adds a
 new screen there.
 
-- **Move up / Move down / Remove** on each screen; **Add a screen** picks one from the library
-  that the funnel doesn't show yet (added before a closing paywall).
+- **Move up / Move down / Remove** on each screen. **Add screens** opens a gallery of every
+  library screen as a small phone preview, grouped by kind (questions, reflections and lesson,
+  speaking check, sign-up, plan and paywall); screens the funnel already shows say "In this
+  funnel", the others have **Add** (added before a closing paywall).
 - **Problems** are marked on the screen they concern, in plain words, and Save stays off until
   they're fixed: the paywall must be last and come after sign-up; sign-up and results need the
   recording before them.
@@ -316,6 +320,23 @@ new screen there.
   on the free plan sees, whatever the admin’s own plan. In preview a
   screen never calls the API for a visitor session, sends analytics, writes the visitor's saved
   progress, uses the microphone, signs up or claims a session; the lesson video doesn't autoplay.
+
+### Test run (`/admin/funnels/<slug>/try`)
+
+**Try it** (on the list and in the editor) runs the real funnel inside the admin area, step by step,
+to check everything works before launch: recording and analysis, sign-up, results, plan and
+paywall. It uses the saved draft when there is one (unsaved edits aren't included), otherwise what
+visitors see, so draft funnels can be tried too. A bar on top says it's a test run and has
+**Start over** (forget this run's answers, recording and sign-up) and **Back to the editor**.
+
+The recording is real (it counts toward the per-IP daily limit and is analyzed), and so is
+checkout (pick the free plan). The admin is signed in, so the sign-up step skips the form and
+attaches the check and its answers to the admin's own account (they show up in its history and
+profile); test the sign-up form itself on `/f/<slug>` in a private window once the funnel is live.
+A test run's guest session is linked to no funnel and no traffic source, so it never counts in a
+funnel's numbers, and analytics events carry `test_run: true`. Its saved progress is kept apart
+from a real visit of the same funnel in the same browser (the store key is `test:<slug>`), so
+neither resumes the other.
 
 ## Not built yet
 

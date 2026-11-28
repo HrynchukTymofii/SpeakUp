@@ -17,7 +17,15 @@ export interface FunnelContextValue {
   steps: FunnelStep[];
   /** Step URLs are `${basePath}/<stepId>`: "/start" or "/f/<slug>". */
   basePath: string;
+  /** An admin's test run: the guest session isn't linked to the funnel or attributed. */
+  testRun: boolean;
 }
+
+/**
+ * Which funnel the visitor store holds. A test run has its own key, so it never resumes a real
+ * visit of the same funnel in this browser, and a real visit never resumes a test run.
+ */
+export const funnelStoreKey = (slug: string, testRun: boolean) => (testRun ? `test:${slug}` : slug);
 
 const FunnelContext = createContext<FunnelContextValue | null>(null);
 
@@ -40,16 +48,20 @@ export function FunnelProvider({
   version,
   definition,
   basePath,
+  testRun = false,
   children,
 }: {
   slug: string;
   version: number;
   definition: FunnelDefinition;
   basePath: string;
+  /** An admin's test run (`/admin/funnels/<slug>/try`): events carry `test_run: true`. */
+  testRun?: boolean;
   children: ReactNode;
 }) {
   // Steps render only once the store belongs to this funnel, never with another funnel's state.
-  const entered = useFunnelStore((s) => s.funnelSlug === slug);
+  const storeKey = funnelStoreKey(slug, testRun);
+  const entered = useFunnelStore((s) => s.funnelSlug === storeKey);
 
   // Layout effect: runs before the children's effects (guest session, step redirects) and before
   // paint. Attribution comes after enterFunnel, which clears it when the funnel changes (a new
@@ -57,15 +69,23 @@ export function FunnelProvider({
   // only after this whole effect, so the steps never see a half-entered funnel.
   useLayoutEffect(() => {
     const store = useFunnelStore.getState();
-    store.enterFunnel(slug, version);
-    store.captureAttribution(
-      readAttribution(window.location.search, document.referrer, ownHosts()),
-    );
-    setEventContext({ funnel_id: slug, funnel_version: version });
+    store.enterFunnel(storeKey, version);
+    // An admin's test run isn't traffic: no UTM / referrer to record.
+    if (!testRun) {
+      store.captureAttribution(
+        readAttribution(window.location.search, document.referrer, ownHosts()),
+      );
+    }
+    setEventContext({
+      funnel_id: slug,
+      funnel_version: version,
+      // Lets the Amplitude charts leave out admins trying a funnel before launch.
+      ...(testRun ? { test_run: true } : {}),
+    });
     return () => setEventContext(null);
-  }, [slug, version]);
+  }, [slug, version, testRun, storeKey]);
 
-  const value = { slug, version, steps: definition.steps, basePath };
+  const value = { slug, version, steps: definition.steps, basePath, testRun };
   return (
     <FunnelContext.Provider value={value}>
       {entered ? children : <div className="flex-1" aria-busy />}
@@ -87,7 +107,7 @@ export function FunnelPreviewScope({
   steps: FunnelStep[];
   children: ReactNode;
 }) {
-  const value = { slug, version: 0, steps, basePath: `/f/${slug}` };
+  const value = { slug, version: 0, steps, basePath: `/f/${slug}`, testRun: false };
   return (
     <FunnelContext.Provider value={value}>
       <FunnelPreviewContext.Provider value>{children}</FunnelPreviewContext.Provider>

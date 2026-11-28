@@ -9,8 +9,10 @@ import {
 } from "@speakup/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { BackLink } from "@/components/back-link";
+import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
@@ -28,7 +30,8 @@ function errorText(error: unknown): string {
 
 /**
  * Funnel admin (funnel builder part 3): every funnel with its status and 30-day numbers, a
- * live/draft switch, "Duplicate" to start a new funnel for an ad, and a link to its editor.
+ * live/draft switch, "New funnel" and "Duplicate" to start a funnel for an ad, and links to its
+ * editor and a test run.
  */
 export function FunnelsView() {
   const api = useApi();
@@ -84,6 +87,7 @@ export function FunnelsView() {
           Numbers cover the last 30 days. Open “Edit screens” to change a funnel’s screens.
         </p>
       </div>
+      <NewFunnel />
       <ul className="flex flex-col gap-4">
         {funnels.data.funnels.map((funnel) => (
           <li key={funnel.slug}>
@@ -158,6 +162,12 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
         <Link href={`/admin/funnels/${funnel.slug}`} className={`${SMALL_BUTTON} btn-primary`}>
           Edit screens
         </Link>
+        <Link
+          href={`/admin/funnels/${funnel.slug}/try`}
+          className={`${SMALL_BUTTON} btn-secondary`}
+        >
+          Try it
+        </Link>
         {isDefault ? (
           <p className="text-sm text-muted">The default funnel is always live.</p>
         ) : (
@@ -187,8 +197,9 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
       )}
 
       {duplicating && (
-        <DuplicateForm
-          source={funnel}
+        <SlugNameForm
+          intro={`Copies “${funnel.name}” into a new draft. Take it live when it’s ready.`}
+          create={(body) => api.duplicateFunnel(funnel.slug, body)}
           onDone={closeForm}
           onCreated={() => {
             closeForm();
@@ -200,30 +211,71 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
   );
 }
 
+/** "New funnel": a draft with the default screens, opened in the editor right away. */
+function NewFunnel() {
+  const api = useApi();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const close = () => {
+    setOpen(false);
+    button.current?.focus();
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        ref={button}
+        type="button"
+        className={`${SMALL_BUTTON} btn-primary w-fit`}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name="plus" className="size-4" /> New funnel
+      </button>
+      {open && (
+        <div className="card">
+          <SlugNameForm
+            intro="Starts as a draft with the default funnel’s screens. Remove, reorder and add screens in the editor."
+            create={(body) => api.createFunnel(body)}
+            onDone={close}
+            onCreated={(slug) => {
+              void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+              router.push(`/admin/funnels/${slug}`);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const INPUT =
   "h-12 w-full rounded-2xl border border-line-2 bg-card px-4 text-ink placeholder:text-muted";
 
-function DuplicateForm({
-  source,
+/** A new funnel's link and name: used by "New funnel" and "Duplicate". */
+function SlugNameForm({
+  intro,
+  create,
   onDone,
   onCreated,
 }: {
-  source: AdminFunnel;
+  intro: string;
+  create: (body: DuplicateFunnelBody) => Promise<unknown>;
   onDone: () => void;
-  onCreated: () => void;
+  onCreated: (slug: string) => void;
 }) {
-  const api = useApi();
   const id = useId();
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [slugError, setSlugError] = useState<string | null>(null);
   const slugInput = useRef<HTMLInputElement>(null);
-  // The form opens from the "Duplicate" button: start typing in its first field.
+  // The form opens from a button: start typing in its first field.
   useEffect(() => slugInput.current?.focus(), []);
 
   const duplicate = useMutation({
-    mutationFn: (body: DuplicateFunnelBody) => api.duplicateFunnel(source.slug, body),
-    onSuccess: onCreated,
+    mutationFn: create,
+    onSuccess: (_data, body) => onCreated(body.slug),
   });
 
   function submit(event: FormEvent) {
@@ -239,9 +291,7 @@ function DuplicateForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 border-t border-line pt-4">
-      <p className="text-sm text-muted">
-        Copies “{source.name}” into a new draft. Take it live when it’s ready.
-      </p>
+      <p className="text-sm text-muted">{intro}</p>
       <label htmlFor={`${id}-slug`} className="text-sm font-bold">
         New link
       </label>

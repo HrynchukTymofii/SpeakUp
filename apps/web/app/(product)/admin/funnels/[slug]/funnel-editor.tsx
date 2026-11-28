@@ -2,18 +2,18 @@
 
 import {
   EditableFunnelDefinitionSchema,
-  FUNNEL_SCREEN_LIBRARY,
   type AdminFunnelDetailResponse,
   type FunnelStepDef,
 } from "@speakup/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { BackLink } from "@/components/back-link";
 import { Icon, type IconName } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { ScreenGallery } from "./screen-gallery";
 import { ScreenPreview } from "./screen-preview";
 import { SCREEN_KINDS, screenName } from "./screens";
 
@@ -144,7 +144,8 @@ function Editor({
   const saved = (detail.draft ?? detail.definition).steps;
   const [steps, setSteps] = useState<FunnelStepDef[]>(saved);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [addId, setAddId] = useState("");
+  // The gallery renders every library screen live: only while it's open.
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const dirty = JSON.stringify(steps) !== JSON.stringify(saved);
   const problems = problemsOf(steps);
@@ -172,6 +173,11 @@ function Editor({
     else controls.delete(key);
   };
   const register = (id: string, control: Control) => registerKey(`${id}:${control}`);
+
+  // Leaving inside the app skips the browser's beforeunload check: ask here instead.
+  const confirmLeave = (event: MouseEvent) => {
+    if (dirty && !window.confirm("Leave without saving your changes?")) event.preventDefault();
+  };
 
   // Unsaved changes are only in this tab: ask before the page is closed or reloaded.
   useEffect(() => {
@@ -237,15 +243,13 @@ function Editor({
     setAnnouncement(`Removed “${screenName(step)}”. You can add it back below.`);
   }
 
-  const addable = FUNNEL_SCREEN_LIBRARY.filter((s) => !steps.some((own) => own.id === s.id));
-  function add() {
-    const screen = addable.find((s) => s.id === addId);
-    if (!screen) return;
+  const inFunnel = new Set(steps.map((s) => s.id));
+  function add(screen: FunnelStepDef) {
+    if (inFunnel.has(screen.id)) return;
     // New screens go before a closing paywall, the one place a paywall may be.
     const last = steps.at(-1);
     const at = last?.type === "paywall" ? steps.length - 1 : steps.length;
     setSteps([...steps.slice(0, at), screen, ...steps.slice(at)]);
-    setAddId("");
     onSelect(screen.id);
     setFocusTarget({ id: screen.id, control: "select" });
     setAnnouncement(`Added “${screenName(screen)}” at position ${at + 1}.`);
@@ -256,11 +260,7 @@ function Editor({
       <Link
         href="/admin/funnels"
         // Leaving inside the app skips the browser's beforeunload check: ask here instead.
-        onClick={(event) => {
-          if (dirty && !window.confirm("Leave without saving your changes?")) {
-            event.preventDefault();
-          }
-        }}
+        onClick={confirmLeave}
         className="link -my-3 inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-bold"
       >
         <Icon name="arrowLeft" className="size-4" />
@@ -274,6 +274,20 @@ function Editor({
           /f/{funnel.slug} · {funnel.status === "live" ? "Live" : "Draft"} · visitors see version{" "}
           {funnel.version}
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link
+            href={`/admin/funnels/${funnel.slug}/try`}
+            onClick={confirmLeave}
+            className={`${SMALL_BUTTON} btn-secondary`}
+          >
+            Try it
+          </Link>
+          <p className="text-sm text-muted">
+            {dirty
+              ? "Save first: the test run uses the saved screens."
+              : "Go through the real funnel: record, sign up, see results."}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
@@ -344,36 +358,23 @@ function Editor({
             })}
           </ol>
 
-          {addable.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <label htmlFor={`${ids}-add`} className="text-sm font-bold">
-                Add a screen
-              </label>
-              <div className="flex flex-wrap gap-3">
-                <select
-                  id={`${ids}-add`}
-                  value={addId}
-                  onChange={(e) => setAddId(e.target.value)}
-                  className="h-12 min-w-0 flex-1 rounded-2xl border border-line-2 bg-card px-4 text-ink"
-                >
-                  <option value="">Choose a screen…</option>
-                  {addable.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {screenName(s)} ({SCREEN_KINDS[s.type]})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className={`${SMALL_BUTTON} btn-secondary`}
-                  disabled={!addId}
-                  onClick={add}
-                >
-                  <Icon name="plus" className="size-4" /> Add
-                </button>
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              className={`${SMALL_BUTTON} btn-secondary w-fit`}
+              aria-expanded={galleryOpen}
+              aria-controls={`${ids}-gallery`}
+              onClick={() => setGalleryOpen((open) => !open)}
+            >
+              <Icon name="plus" className="size-4" />
+              {galleryOpen ? "Hide the screens" : "Add screens"}
+            </button>
+            {galleryOpen && (
+              <div id={`${ids}-gallery`}>
+                <ScreenGallery slug={funnel.slug} inFunnel={inFunnel} onAdd={add} />
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="flex flex-col gap-3 border-t border-line pt-4">
             <p ref={registerKey(STATUS)} tabIndex={-1} className="text-sm text-muted">

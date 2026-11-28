@@ -158,6 +158,11 @@ export function createApiClient(getToken: GetToken) {
         method: "PATCH",
         body: JSON.stringify({ status }),
       }),
+    createFunnel: (body: DuplicateFunnelBody): Promise<AdminFunnelResponse> =>
+      request("/v1/admin/funnels", AdminFunnelResponseSchema, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     duplicateFunnel: (slug: string, body: DuplicateFunnelBody): Promise<AdminFunnelResponse> =>
       request(
         `/v1/admin/funnels/${encodeURIComponent(slug)}/duplicate`,
