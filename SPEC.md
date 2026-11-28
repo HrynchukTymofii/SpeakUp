@@ -217,6 +217,8 @@ The full reference is [`docs/api.md`](./docs/api.md). The rules every endpoint f
 - REST under `/v1`. Every route needs `Authorization: Bearer <Clerk token>` except `/health*`,
   the public billing plans, published funnel definitions (`GET /v1/funnels/:slug`, no auth),
   webhooks (signature instead) and the funnel routes (guest token instead). The first authenticated request creates our `User` row (lazy provisioning).
+- **Admin routes** (`/v1/admin/*`) also need the user's Clerk id in `ADMIN_CLERK_USER_IDS`,
+  otherwise `403 FORBIDDEN`.
 - **One error shape:** `{ "error": { "code", "message", "requestId" } }`. Statuses: 400
   validation, 401 unauthenticated, 402 paywall, 403 forbidden, 404 (also for someone else's
   resource), 409 wrong state, 429 rate-limited or over quota, 500.
@@ -325,8 +327,9 @@ on product pages only. It stays online-only: the worker caches nothing but an of
   each one protects: [`docs/scaling.md` §2.6](./docs/scaling.md#26-single-points-of-failure).
 - **Funnel builder** (issue #45). Funnels are already data (`FunnelDefinitionSchema`), stored in
   the `Funnel` table and served at `/f/<slug>`, with the funnel, revision and first-touch UTM /
-  referrer host saved on the funnel session. Still to build:
-  - admin sign-in and a list of funnels;
+  referrer host saved on the funnel session. Admins (`ADMIN_CLERK_USER_IDS`) list funnels with
+  30-day numbers, take them live or offline and duplicate one into a draft at `/admin/funnels`.
+  Still to build:
   - an admin editor with a live preview and publishing (bumps `Funnel.version`);
   - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
     send the variant to Amplitude as a property.
@@ -377,6 +380,7 @@ One row per significant technical choice. The bigger ones also have a decision r
 | Funnel definition = versioned JSON validated by `FunnelDefinitionSchema`; closed enums for personalizers and option providers, declarative `showIf` rules and `{{answer:key}}` templates instead of functions | Storable in Postgres and editable without a deploy; names from a closed list can't reference arbitrary code, and every value is checked against the answer options when saving                                                                                          | TS functions in the web config (previous) while only developers edit funnels; a full expression language if admins need logic the rules can't express                           |
 | Funnels as JSON rows (`Funnel.definition`), loaded by the server page for `/f/<slug>` (3 s timeout, cached 60 s), the bundled default as fallback for `main`; `/start` never calls the API                    | Funnels can change without a web deploy, while ad traffic must not break when the API is down or slow: `/start` and `/f/main` always render; the definition is validated on the server, so the browser only gets checked data                                           | Edge cache/CDN in front of `GET /v1/funnels/:slug` if the API becomes a bottleneck; drop the bundled fallback once the editor exists and `main` is edited only there            |
 | PWA: hand-written `public/sw.js` caching only the offline screen, network-only navigations; manifest linked only on the app host; icons generated from the Mascot via `next/og` (no image dependency)         | No new dependency; nothing signed-in or from the API is cached, so nothing can go stale or leak between accounts on a shared device; the landing stays a plain website                                                                                                  | Serwist/Workbox if we ever cache content offline; the Expo app (§12) for store presence and push                                                                                |
+| Funnel admins = an allowlist of Clerk user ids in the API env (`ADMIN_CLERK_USER_IDS`, from `speakup:adminClerkUserIds` in production), checked by a nested `requireAdmin` scope inside the authed routes     | One or two admins for now: no migration, no role UI, and the check lives where the data is (the API), so the web page only shows what the API allows                                                                                                                    | A `User.role` column or Clerk metadata once admins change often or need different rights                                                                                        |
 
 ---
 

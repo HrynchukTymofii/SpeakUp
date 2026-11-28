@@ -65,10 +65,10 @@ Why each was chosen, and when we'd switch: `SPEC.md` §14 and [`adr/`](./adr/REA
 
 The web app is one Next.js project on Vercel with two domains attached:
 
-| Host                       | Serves                                                                                         | Route group                                          |
-| -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                                                       | `apps/web/app/(marketing)`                           |
-| `app.speakup.fibipals.com` | `/start`, `/f`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing`, `/install`, `/offline` | `apps/web/app/(product)` (`/offline`: `app/offline`) |
+| Host                       | Serves                                                                                                   | Route group                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                                                                 | `apps/web/app/(marketing)`                           |
+| `app.speakup.fibipals.com` | `/start`, `/f`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing`, `/install`, `/offline`, `/admin` | `apps/web/app/(product)` (`/offline`: `app/offline`) |
 
 - `proxy.ts` asks `routeForHost` (`apps/web/lib/hosts.ts`) on every request. A product route on
   the site host gets a **308** to the app host (path and query kept, so old links such as

@@ -33,6 +33,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/app/profile`                  | app  | signed in        | Stats, goal picker, skills, score trend, recurring problems, recent recordings                |
 | `/results/<attemptId>`          | app  | signed in, owner | Waits for the analysis, then the report; `?next=` adds "Continue" (next topic / lesson step)  |
 | `/app/billing`                  | app  | signed in        | Plan, status, renewal date, usage today, "Manage subscription"                                |
+| `/admin/funnels`                | app  | admins           | Funnel admin (below); other signed-in users see "This page is for admins"                     |
 
 ## Installing the app (`/install`)
 
@@ -269,6 +270,19 @@ problem) in `learn/catalog.ts`.
 - Usage analytics (Amplitude): pages opened, funnel answers and key actions, tied to a random device
   id and, after sign-up, the account id. Never emails, recordings or transcripts
   ([`analytics.md`](./analytics.md)).
+
+## Funnel admin (`/admin/funnels`)
+
+For the owner, not users: there's no link to it in the app. Admins are the Clerk user ids in the
+API's `ADMIN_CLERK_USER_IDS`; signed-out visitors go to sign-in first, and other signed-in users
+get "This page is for admins". Each funnel is a card with its name, Live/Draft, version, last
+change, its `/f/<slug>` link (live funnels only: drafts 404 for visitors) and, for the last 30
+days, sessions started and how many signed up.
+
+- **Take live / Take offline** switches the status. `main` is always live (it's the default funnel).
+  A funnel whose stored definition is invalid can't go live.
+- **Duplicate** copies a funnel into a new draft at version 1, under a new link and name. It's how
+  a funnel for a new ad starts until the editor exists (`SPEC.md` §12).
 
 ## Not built yet
 
