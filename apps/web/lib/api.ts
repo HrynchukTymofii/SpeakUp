@@ -1,4 +1,5 @@
 import {
+  AdminFunnelDetailResponseSchema,
   AdminFunnelResponseSchema,
   AdminFunnelsResponseSchema,
   ApiErrorSchema,
@@ -16,7 +17,9 @@ import {
   PortalResponseSchema,
   NextTopicResponseSchema,
   PracticeExercisesResponseSchema,
+  type AdminFunnelDetailResponse,
   type AdminFunnelResponse,
+  type FunnelDefinition,
   type AdminFunnelsResponse,
   type DuplicateFunnelBody,
   type FunnelStatus,
@@ -163,6 +166,30 @@ export function createApiClient(getToken: GetToken) {
           method: "POST",
           body: JSON.stringify(body),
         },
+      ),
+    // Funnel editor: the draft is what the admin edits; publish makes it what visitors see.
+    getAdminFunnel: (slug: string): Promise<AdminFunnelDetailResponse> =>
+      request(`/v1/admin/funnels/${encodeURIComponent(slug)}`, AdminFunnelDetailResponseSchema),
+    saveFunnelDraft: (
+      slug: string,
+      definition: FunnelDefinition,
+    ): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/draft`,
+        AdminFunnelDetailResponseSchema,
+        { method: "PUT", body: JSON.stringify({ definition }) },
+      ),
+    discardFunnelDraft: (slug: string): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/draft`,
+        AdminFunnelDetailResponseSchema,
+        { method: "DELETE" },
+      ),
+    publishFunnel: (slug: string): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/publish`,
+        AdminFunnelDetailResponseSchema,
+        { method: "POST" },
       ),
   };
 }

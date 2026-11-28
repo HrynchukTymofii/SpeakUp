@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
+import { useIsFunnelPreview } from "./preview";
 
 /**
  * The funnel's mini-lesson video. It starts on its own when the step opens.
@@ -14,10 +15,11 @@ import { Icon } from "@/components/icons";
 export function LessonVideo({ src, onEnded }: { src: string; onEnded: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [needsTap, setNeedsTap] = useState(false);
+  const preview = useIsFunnelPreview();
 
   useEffect(() => {
     const video = ref.current;
-    if (!video) return;
+    if (!video || preview) return;
     let cancelled = false;
     video.muted = false;
     Promise.resolve(video.play())
@@ -31,7 +33,7 @@ export function LessonVideo({ src, onEnded }: { src: string; onEnded: () => void
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [src, preview]);
 
   const playWithSound = () => {
     const video = ref.current;
