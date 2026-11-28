@@ -11,14 +11,14 @@ import { AppTabBar } from "@/components/app-tab-bar";
  * token on every request — a page check alone protects nothing.
  *
  * The bottom tab bar (Learn · Practice · Challenges · Profile) is fixed, so pages leave room
- * for it with bottom padding.
+ * for it with bottom padding — plus the home-indicator inset the bar adds in the installed app.
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   return (
     <>
-      <div className="pb-24">{children}</div>
+      <div className="pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</div>
       <AppTabBar />
     </>
   );

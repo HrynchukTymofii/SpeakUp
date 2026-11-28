@@ -67,7 +67,7 @@ export function ContinueButton({
   children?: ReactNode;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-4 mt-auto bg-gradient-to-t from-page via-page to-page/0 px-4 pt-6 pb-4">
+    <div className="sticky bottom-0 -mx-4 mt-auto bg-gradient-to-t from-page via-page to-page/0 px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
         onClick={onClick}

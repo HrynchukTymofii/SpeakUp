@@ -215,5 +215,12 @@ Clerk gotchas (Clerk 7):
 2. Use tokens and the component classes above; no raw hex, no `slate-*`/`emerald-*` palettes.
 3. Page title in `font-display`; group content in `card`s; one `btn-primary` per screen.
 4. Add the mascot where the screen has an emotional beat (waiting, success, failure) — not everywhere.
-5. Check at 375 px for horizontal overflow, then at desktop width.
-6. Run `pnpm --filter @speakup/web typecheck`, `lint`, `test`, and the build.
+5. Respect the safe areas. Product pages set `viewport-fit=cover`, so the installed app draws under
+   the notch, status bar and home indicator. Fixed or sticky UI pads itself with
+   `env(safe-area-inset-*)`: bottom bars and sheets `pb-[max(<usual>,env(safe-area-inset-bottom))]`
+   (`ContinueButton`, the tab bar, the loader question sheet), the header
+   `pt-[env(safe-area-inset-top)]` plus left/right insets on its row (landscape notch), and the
+   `/app` page padding grows by the bottom inset to clear the tab bar. On the marketing host (no
+   `viewport-fit=cover`) and in a normal browser tab the insets are 0, so this costs nothing there.
+6. Check at 375 px for horizontal overflow, then at desktop width.
+7. Run `pnpm --filter @speakup/web typecheck`, `lint`, `test`, and the build.
