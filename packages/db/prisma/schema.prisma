@@ -134,15 +134,18 @@ model FunnelSession {
 // FunnelDefinitionSchema (packages/shared) on every read and write; its own `version` field is
 // the schema format, while `Funnel.version` is the content revision (bumped on publish).
 model Funnel {
-  id         String          @id @default(cuid())
-  slug       String          @unique
-  name       String
-  status     FunnelStatus    @default(draft)
-  definition Json
-  version    Int             @default(1)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  sessions   FunnelSession[]
+  id              String          @id @default(cuid())
+  slug            String          @unique
+  name            String
+  status          FunnelStatus    @default(draft)
+  definition      Json // what visitors see
+  // Saved admin edits not yet published (funnel builder part 4). Publish copies it to
+  // `definition`, bumps `version` and clears it.
+  draftDefinition Json?
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sessions        FunnelSession[]
 }
 
 model Attempt {

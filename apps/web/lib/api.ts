@@ -1,4 +1,5 @@
 import {
+  AdminFunnelDetailResponseSchema,
   AdminFunnelResponseSchema,
   AdminFunnelsResponseSchema,
   ApiErrorSchema,
@@ -16,7 +17,9 @@ import {
   PortalResponseSchema,
   NextTopicResponseSchema,
   PracticeExercisesResponseSchema,
+  type AdminFunnelDetailResponse,
   type AdminFunnelResponse,
+  type FunnelDefinition,
   type AdminFunnelsResponse,
   type DuplicateFunnelBody,
   type FunnelStatus,
@@ -163,6 +166,35 @@ export function createApiClient(getToken: GetToken) {
           method: "POST",
           body: JSON.stringify(body),
         },
+      ),
+    // Funnel editor: the draft is what the admin edits; publish makes it what visitors see.
+    getAdminFunnel: (slug: string): Promise<AdminFunnelDetailResponse> =>
+      request(`/v1/admin/funnels/${encodeURIComponent(slug)}`, AdminFunnelDetailResponseSchema),
+    // `expectedUpdatedAt`: the funnel's updatedAt as loaded; a write made meanwhile → 409.
+    saveFunnelDraft: (
+      slug: string,
+      definition: FunnelDefinition,
+      expectedUpdatedAt: string,
+    ): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/draft`,
+        AdminFunnelDetailResponseSchema,
+        { method: "PUT", body: JSON.stringify({ definition, expectedUpdatedAt }) },
+      ),
+    discardFunnelDraft: (
+      slug: string,
+      expectedUpdatedAt: string,
+    ): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/draft?expectedUpdatedAt=${encodeURIComponent(expectedUpdatedAt)}`,
+        AdminFunnelDetailResponseSchema,
+        { method: "DELETE" },
+      ),
+    publishFunnel: (slug: string, expectedUpdatedAt: string): Promise<AdminFunnelDetailResponse> =>
+      request(
+        `/v1/admin/funnels/${encodeURIComponent(slug)}/publish`,
+        AdminFunnelDetailResponseSchema,
+        { method: "POST", body: JSON.stringify({ expectedUpdatedAt }) },
       ),
   };
 }

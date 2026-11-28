@@ -1,12 +1,16 @@
-import type { DbClient } from "@speakup/db";
+import { Prisma, type DbClient } from "@speakup/db";
 import {
+  AdminFunnelDetailResponseSchema,
   AdminFunnelResponseSchema,
   AdminFunnelsResponseSchema,
   DEFAULT_FUNNEL_SLUG,
   DuplicateFunnelBodySchema,
+  EditableFunnelDefinitionSchema,
   ErrorCode,
   FunnelDefinitionSchema,
   FunnelSlugSchema,
+  FunnelWriteGuardSchema,
+  SaveFunnelDraftBodySchema,
   UpdateFunnelStatusBodySchema,
   type AdminFunnel,
 } from "@speakup/shared";
@@ -24,6 +28,7 @@ const FUNNEL_SELECT = {
   status: true,
   version: true,
   updatedAt: true,
+  draftDefinition: true,
 } as const;
 
 type FunnelRow = {
@@ -33,6 +38,7 @@ type FunnelRow = {
   status: "draft" | "live";
   version: number;
   updatedAt: Date;
+  draftDefinition: unknown;
 };
 
 const notFound = () => new AppError(404, ErrorCode.NOT_FOUND, "Funnel not found");
@@ -42,9 +48,9 @@ const isUniqueViolation = (err: unknown) =>
 const slugParams = z.object({ slug: FunnelSlugSchema });
 
 /**
- * Funnel admin (funnel builder part 3): list funnels, take them live/offline, duplicate one as a
- * new draft. Must be registered inside a `requireAdmin` scope. Editing a definition and
- * publishing a new version come with the editor (part 4).
+ * Funnel admin (funnel builder parts 3–4): list funnels, take them live/offline, duplicate one as
+ * a new draft, and edit a funnel's screens as a draft that visitors see only once it's published.
+ * Must be registered inside a `requireAdmin` scope.
  */
 export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async (app, { db }) => {
   // Admin data changes with every click; never let a browser or proxy reuse it.
@@ -79,6 +85,7 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
       status: row.status,
       version: row.version,
       updatedAt: row.updatedAt.toISOString(),
+      hasDraft: row.draftDefinition !== null,
       sessions30d: stats(row.id),
     }));
   }
@@ -87,6 +94,53 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
     const [funnel] = await toAdminFunnels([row]);
     if (!funnel) throw new Error("unreachable: one row in, one funnel out");
     return funnel;
+  }
+
+  /** What visitors see, checked: the editor can't work on a funnel whose live copy is broken. */
+  function publishedDefinition(row: { definition: unknown }) {
+    const definition = FunnelDefinitionSchema.safeParse(row.definition);
+    if (!definition.success) {
+      throw new AppError(409, ErrorCode.WRONG_STATE, "This funnel's definition is invalid");
+    }
+    return definition.data;
+  }
+
+  /** The editor's view of a funnel: what visitors see and the unpublished draft. */
+  async function toDetail(row: FunnelRow & { definition: unknown }) {
+    // A stored draft that today's schema rejects isn't sent (the response schema would make it a
+    // 500); the editor is told, so it can still be discarded or replaced.
+    const draft =
+      row.draftDefinition === null ? null : FunnelDefinitionSchema.safeParse(row.draftDefinition);
+    return {
+      funnel: await toAdminFunnel(row),
+      definition: publishedDefinition(row),
+      draft: draft?.success ? draft.data : null,
+      draftInvalid: draft !== null && !draft.success,
+    };
+  }
+
+  /**
+   * Writes only if the funnel is still as the admin loaded it (`updatedAt`, which every write
+   * changes), then answers with the new editor view. Refuses instead of overwriting a draft saved
+   * meanwhile or publishing changes this admin hasn't seen.
+   */
+  async function writeIfUnchanged(
+    slug: string,
+    expectedUpdatedAt: string,
+    data: Parameters<DbClient["funnel"]["updateMany"]>[0]["data"],
+  ) {
+    const { count } = await db.funnel.updateMany({
+      where: { slug, updatedAt: new Date(expectedUpdatedAt) },
+      data,
+    });
+    if (count === 0) {
+      throw new AppError(
+        409,
+        ErrorCode.WRONG_STATE,
+        "This funnel was changed somewhere else. Reload to see the latest version.",
+      );
+    }
+    return toDetail(await findFunnel(slug));
   }
 
   async function findFunnel(slug: string) {
@@ -176,6 +230,84 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
         if (isUniqueViolation(err)) throw slugTaken();
         throw err;
       }
+    },
+  );
+
+  app.get(
+    "/admin/funnels/:slug",
+    { schema: { params: slugParams, response: { 200: AdminFunnelDetailResponseSchema } } },
+    async (request) => toDetail(await findFunnel(request.params.slug)),
+  );
+
+  app.put(
+    "/admin/funnels/:slug/draft",
+    {
+      schema: {
+        params: slugParams,
+        body: SaveFunnelDraftBodySchema,
+        response: { 200: AdminFunnelDetailResponseSchema },
+      },
+    },
+    async (request) => {
+      const { slug } = request.params;
+      const { definition, expectedUpdatedAt } = request.body;
+      publishedDefinition(await findFunnel(slug));
+      const detail = await writeIfUnchanged(slug, expectedUpdatedAt, {
+        draftDefinition: definition,
+      });
+      request.log.info({ slug }, "funnel draft saved");
+      return detail;
+    },
+  );
+
+  app.delete(
+    "/admin/funnels/:slug/draft",
+    {
+      schema: {
+        params: slugParams,
+        querystring: FunnelWriteGuardSchema,
+        response: { 200: AdminFunnelDetailResponseSchema },
+      },
+    },
+    async (request) => {
+      const { slug } = request.params;
+      publishedDefinition(await findFunnel(slug));
+      const detail = await writeIfUnchanged(slug, request.query.expectedUpdatedAt, {
+        draftDefinition: Prisma.DbNull,
+      });
+      request.log.info({ slug }, "funnel draft discarded");
+      return detail;
+    },
+  );
+
+  app.post(
+    "/admin/funnels/:slug/publish",
+    {
+      schema: {
+        params: slugParams,
+        body: FunnelWriteGuardSchema,
+        response: { 200: AdminFunnelDetailResponseSchema },
+      },
+    },
+    async (request) => {
+      const { slug } = request.params;
+      const funnel = await findFunnel(slug);
+      if (funnel.draftDefinition === null) {
+        throw new AppError(409, ErrorCode.WRONG_STATE, "There are no changes to publish");
+      }
+      // Re-checked here: what goes live must pass today's rules, not the ones it was saved under.
+      const draft = EditableFunnelDefinitionSchema.safeParse(funnel.draftDefinition);
+      if (!draft.success) {
+        throw new AppError(409, ErrorCode.WRONG_STATE, "The saved changes are invalid");
+      }
+      // Publishes exactly the draft this admin saw; two publishes at once bump the version once.
+      const detail = await writeIfUnchanged(slug, request.body.expectedUpdatedAt, {
+        definition: draft.data,
+        draftDefinition: Prisma.DbNull,
+        version: { increment: 1 },
+      });
+      request.log.info({ slug, version: detail.funnel.version }, "funnel published");
+      return detail;
     },
   );
 };

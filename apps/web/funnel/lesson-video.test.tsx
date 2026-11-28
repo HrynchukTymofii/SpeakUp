@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LessonVideo } from "./lesson-video";
+import { FunnelPreviewContext } from "./preview";
 
 // jsdom has no media playback: stub play() and record whether the video was muted at each call.
 function stubPlay(results: Array<"ok" | "blocked">) {
@@ -39,5 +40,17 @@ describe("LessonVideo", () => {
     await userEvent.click(unmute);
     expect(calls).toEqual([false, true, false]);
     expect(screen.queryByRole("button", { name: /tap for sound/i })).not.toBeInTheDocument();
+  });
+
+  it("doesn't start on its own inside the funnel editor's preview", async () => {
+    const calls = stubPlay(["ok"]);
+    render(
+      <FunnelPreviewContext.Provider value>
+        <LessonVideo src="/lesson.mp4" onEnded={() => {}} />
+      </FunnelPreviewContext.Provider>,
+    );
+    // Give a would-be autoplay effect time to run.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(calls).toEqual([]);
   });
 });

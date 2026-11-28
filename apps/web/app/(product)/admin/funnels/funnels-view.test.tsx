@@ -18,6 +18,7 @@ const funnel = (overrides: Partial<AdminFunnel>): AdminFunnel => ({
   status: "live",
   version: 3,
   updatedAt: "2026-11-01T10:00:00.000Z",
+  hasDraft: false,
   sessions30d: { started: 200, signedUp: 50 },
   ...overrides,
 });
@@ -81,8 +82,12 @@ describe("FunnelsView", () => {
     const spring = cardFor("Spring sale");
     expect(within(spring).getByText("Draft")).toBeInTheDocument();
     expect(within(spring).getByText("0 (0%)")).toBeInTheDocument();
-    // Drafts 404 for visitors, so no link to them.
-    expect(within(spring).queryByRole("link")).not.toBeInTheDocument();
+    // Drafts 404 for visitors, so no link to them; only the editor link.
+    expect(
+      within(spring)
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href")),
+    ).toEqual(["/admin/funnels/spring-sale"]);
   });
 
   it("takes a draft live and refreshes the list", async () => {
@@ -165,5 +170,20 @@ describe("FunnelsView", () => {
     expect(screen.getByRole("link", { name: /Back to the app/ })).toHaveAttribute("href", "/app");
     // A 403 won't change by asking again.
     expect(api.getAdminFunnels).toHaveBeenCalledTimes(1);
+  });
+
+  it("links each funnel to its editor and flags unpublished changes", async () => {
+    api.getAdminFunnels.mockResolvedValue({
+      funnels: [funnel({}), funnel({ slug: "spring", name: "Spring", hasDraft: true })],
+    });
+    renderView();
+    await screen.findByRole("heading", { name: "Main funnel" });
+    const main = cardFor("Main funnel");
+    expect(within(main).getByRole("link", { name: "Edit screens" })).toHaveAttribute(
+      "href",
+      "/admin/funnels/main",
+    );
+    expect(within(main).queryByText("Has unpublished changes")).not.toBeInTheDocument();
+    expect(within(cardFor("Spring")).getByText("Has unpublished changes")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { FunnelDefinitionSchema } from "../funnel-definition.js";
+import { EditableFunnelDefinitionSchema } from "../funnel-screens.js";
 import { FunnelSlugSchema } from "../funnel.js";
 import { FunnelStatusSchema } from "./funnels.js";
 
@@ -10,6 +12,8 @@ export const AdminFunnelSchema = z.object({
   /** Content revision (`Funnel.version`). */
   version: z.number().int().min(1),
   updatedAt: z.iso.datetime(),
+  /** Saved edits that visitors don't see until they're published. */
+  hasDraft: z.boolean(),
   /** Funnel sessions started in the last 30 days, and how many of them signed up (claimed). */
   sessions30d: z.object({
     started: z.number().int().min(0),
@@ -36,3 +40,32 @@ export const DuplicateFunnelBodySchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
 });
 export type DuplicateFunnelBody = z.infer<typeof DuplicateFunnelBodySchema>;
+
+/**
+ * GET /v1/admin/funnels/:slug — the funnel with what visitors see (`definition`) and the saved,
+ * unpublished edits (`draft`, null when there are none). `draftInvalid`: a draft is stored but no
+ * longer passes the schema (rules got stricter since it was saved); it can only be discarded or
+ * replaced, so `draft` is null then.
+ */
+export const AdminFunnelDetailResponseSchema = z.object({
+  funnel: AdminFunnelSchema,
+  definition: FunnelDefinitionSchema,
+  draft: FunnelDefinitionSchema.nullable(),
+  draftInvalid: z.boolean(),
+});
+export type AdminFunnelDetailResponse = z.infer<typeof AdminFunnelDetailResponseSchema>;
+
+/** PUT /v1/admin/funnels/:slug/draft — must also run in a working order (funnelFlowIssues). */
+export const SaveFunnelDraftBodySchema = z.strictObject({
+  definition: EditableFunnelDefinitionSchema,
+  expectedUpdatedAt: z.iso.datetime(),
+});
+export type SaveFunnelDraftBody = z.infer<typeof SaveFunnelDraftBodySchema>;
+
+/**
+ * Every editor write names the funnel's `updatedAt` as the admin loaded it (body for PUT/POST,
+ * query for DELETE). A write made meanwhile, by another admin or tab, changes it, and the request
+ * is refused with 409 instead of overwriting or publishing changes nobody here has seen.
+ */
+export const FunnelWriteGuardSchema = z.strictObject({ expectedUpdatedAt: z.iso.datetime() });
+export type FunnelWriteGuard = z.infer<typeof FunnelWriteGuardSchema>;

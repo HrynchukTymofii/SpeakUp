@@ -300,8 +300,10 @@ erDiagram
 - `Analysis` stores metrics and feedback as JSON validated by the shared Zod schemas, plus the model,
   prompt version, latency and estimated cost of each analysis.
 - `Funnel` holds one web funnel per `slug` (`draft` or `live`). `definition` is JSON validated by
-  `FunnelDefinitionSchema` (`packages/shared`); `Funnel.version` is the content revision, separate
-  from the definition's own schema-format `version`. A `FunnelSession` optionally records the funnel
+  `FunnelDefinitionSchema` (`packages/shared`): what visitors see. `draftDefinition` holds the
+  editor's saved, unpublished changes (null when there are none); publishing copies it over and
+  bumps `Funnel.version`, the content revision, separate from the definition's own schema-format
+  `version`. A `FunnelSession` optionally records the funnel
   and revision it was started on, first-touch UTM values and the referrer **host** only; its
   `variant` column is reserved for A/B tests and nothing writes it yet. All of these columns are
   nullable, so sessions from before funnels lived in the DB stay valid.

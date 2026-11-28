@@ -14,5 +14,6 @@ export * from "./api/admin-funnels.js";
 export * from "./funnel.js";
 export * from "./funnel-definition.js";
 export * from "./funnel-default.js";
+export * from "./funnel-screens.js";
 export * from "./logging.js";
 export * from "./error-reporting.js";

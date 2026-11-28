@@ -28,8 +28,7 @@ function errorText(error: unknown): string {
 
 /**
  * Funnel admin (funnel builder part 3): every funnel with its status and 30-day numbers, a
- * live/draft switch and "Duplicate" to start a new funnel for an ad. Editing a funnel's steps
- * comes with the editor (part 4).
+ * live/draft switch, "Duplicate" to start a new funnel for an ad, and a link to its editor.
  */
 export function FunnelsView() {
   const api = useApi();
@@ -82,7 +81,7 @@ export function FunnelsView() {
         </h1>
         <p className="mt-2 text-muted">
           Each funnel has its own link for an ad or audience. Drafts aren’t visible to visitors.
-          Numbers cover the last 30 days.
+          Numbers cover the last 30 days. Open “Edit screens” to change a funnel’s screens.
         </p>
       </div>
       <ul className="flex flex-col gap-4">
@@ -127,6 +126,7 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
           <p className="text-sm text-muted">
             Version {funnel.version} · updated {updated}
           </p>
+          {funnel.hasDraft && <p className="text-sm font-bold">Has unpublished changes</p>}
         </div>
         <span className={`pill ${isLive ? "bg-sage" : "bg-card-2"} text-on-pastel`}>
           {isLive ? "Live" : "Draft"}
@@ -155,6 +155,9 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
       </dl>
 
       <div className="flex flex-wrap gap-3">
+        <Link href={`/admin/funnels/${funnel.slug}`} className={`${SMALL_BUTTON} btn-primary`}>
+          Edit screens
+        </Link>
         {isDefault ? (
           <p className="text-sm text-muted">The default funnel is always live.</p>
         ) : (
