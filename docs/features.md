@@ -46,6 +46,11 @@ next)` in `apps/web/lib/pwa/install-href.ts`:
 - Opened inside the installed app, the screen skips straight to `next`.
 - The landing's "Download the app" opens `/install?from=landing`. There, signed-out visitors also
   get "New here? Take the 2-minute speaking check" → `/start`.
+- The end of the funnel opens it for everyone, free or paid: the paywall's "Continue with the free
+  plan" goes to `/install?from=funnel&next=/app`, and a completed upgrade there goes to
+  `/install?from=purchase&next=/app`.
+- Upgrading on `/pricing` or `/app/billing` shows the same `InstallCard` (placement `purchase`)
+  under "You're on SpeakUp Pro" instead of leaving the page.
 
 ## The onboarding funnel (`/start`)
 
@@ -80,6 +85,9 @@ there. Conditions are declarative rules and text can insert earlier answers (`{{
     a visible "continue with the free plan", and two FAQs. No countdowns or fake discounts.
     Someone who already has Pro sees "You're already on SpeakUp Pro" and a dashboard button
     instead of the upgrade button and the free-plan link (the same applies on `/pricing`).
+    Both ways out — the free plan and a completed upgrade — lead to the install screen
+    (`/install`, see "Installing the app" above) and from there to `/app`; the installed app skips
+    that screen.
 
 Funnel answers are copied into the account's onboarding profile when the anonymous session is
 claimed after sign-up.

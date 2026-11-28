@@ -98,19 +98,22 @@ separate one.
 | 19  | Paywall `/start/paywall`               | `paywall_viewed` placement = `funnel`           |
 | 20  | Checkout opened                        | `checkout_started` placement = `funnel`         |
 | 21  | Paid                                   | `checkout_completed` placement = `funnel`       |
-| 22  | First screen in the app `/app`         | `[Amplitude] Page Viewed` page path = `/app`    |
-| 23  | First recording in the app             | `recording_submitted`                           |
+| 22  | Install screen `/install` (_optional_) | `install_prompt_shown` placement = `funnel`     |
+| 23  | First screen in the app `/app`         | `[Amplitude] Page Viewed` page path = `/app`    |
+| 24  | First recording in the app             | `recording_submitted`                           |
 
 Visitors who are already signed in pass step 13 without a form (their check is claimed at once,
 which still fires `funnel_signup_completed`). People who choose the free plan leave at step 19 with
 `funnel_free_plan_chosen` and continue at step 22.
 
-The install screen `/install` will sit between steps 21 and 22 (after the paywall, before `/app`).
-Use `install_prompt_shown` placement = `funnel` (free plan) or `purchase` (after paying) as an
-_optional_ step there: people already running the installed app skip it, and on browsers that
-can't show a prompt (iOS, desktop Firefox) only `install_prompt_shown` fires, never `accepted`.
+Both paywall exits — the free plan and a completed upgrade — open the install screen `/install`
+(step 22) on the way to `/app`. In the chart, step 22 is `install_prompt_shown` with placement
+`funnel` (free plan) or `purchase` (after paying); keep it _optional_: people already running the
+installed app skip the screen and fire nothing there. On browsers that can't show a prompt (iOS,
+desktop Firefox) only `install_prompt_shown` fires, never `install_prompt_accepted`.
 `app_installed` also fires for installs from the browser's own menu, so it is the count of real
-installs.
+installs. Upgrades on `/pricing` and `/app/billing` show the same install card right under "You're
+on SpeakUp Pro", with placement `purchase`.
 
 Useful extra charts:
 

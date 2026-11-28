@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ProPrice } from "@/components/pro-price";
 import { UpgradeButton } from "@/components/upgrade-button";
+import { installHref } from "@/lib/pwa/install-href";
 import { useMe } from "@/lib/use-me";
 import { track } from "../analytics";
 import { PRO_FEATURES } from "../plans";
@@ -66,6 +67,10 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
  * plan with Paddle's localized price, ONE primary button, "cancel anytime", and a visible free
  * option. No countdowns, no fake discounts. The visitor is signed in here (after the auth step),
  * so the checkout is tied to their account.
+ *
+ * Both exits — the free plan and a completed upgrade — go through the install screen on their way
+ * to the app: the end of the funnel is when someone is most likely to keep SpeakUp on their home
+ * screen. `/install` skips itself when the app is already installed.
  */
 export function PaywallStep({ ctx }: StepProps<"paywall">) {
   const router = useRouter();
@@ -102,7 +107,7 @@ export function PaywallStep({ ctx }: StepProps<"paywall">) {
         </span>
       </Card>
 
-      <UpgradeButton placement="funnel" onActivated={() => router.push("/app")} />
+      <UpgradeButton placement="funnel" onActivated={() => router.push(installHref("purchase"))} />
       <div className="-mt-3 flex flex-col gap-1">
         <p className="text-center text-xs text-muted">Renews automatically. Cancel anytime.</p>
         <CheckoutTerms />
@@ -113,7 +118,7 @@ export function PaywallStep({ ctx }: StepProps<"paywall">) {
           type="button"
           onClick={() => {
             track("funnel_free_plan_chosen");
-            router.push("/app");
+            router.push(installHref("funnel"));
           }}
           className="py-2 text-sm font-bold text-muted underline-offset-4 hover:text-ink hover:underline"
         >

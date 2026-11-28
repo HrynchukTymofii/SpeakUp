@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { InstallCard } from "@/components/pwa/install-card";
 import { track } from "@/funnel/analytics";
 import { ApiClientError } from "@/lib/api";
 import { getPaddle, onPaddleEvent, paddleConfigured } from "@/lib/paddle";
@@ -24,6 +25,9 @@ const ACTIVATION_TIMEOUT_MS = 60_000;
  * We poll /v1/me until the API reports Pro (usually a few seconds), then refresh the app's data.
  *
  * Someone who already has Pro is never offered the upgrade: they get a way to the dashboard instead.
+ *
+ * Right after activation we offer to install the app (on /pricing and /app/billing). The funnel paywall
+ * doesn't need that here: it moves on to the install screen itself in `onActivated`.
  */
 export function UpgradeButton({
   placement,
@@ -142,10 +146,17 @@ export function UpgradeButton({
   }
 
   if (phase === "active") {
-    return (
+    const status = (
       <p role="status" className="rounded-[20px] bg-sage p-4 font-bold text-on-pastel">
         You’re on SpeakUp Pro. Every lesson is unlocked.
       </p>
+    );
+    if (placement === "funnel") return status;
+    return (
+      <div className="flex flex-col gap-4">
+        {status}
+        <InstallCard placement="purchase" />
+      </div>
     );
   }
 
