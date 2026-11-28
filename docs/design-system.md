@@ -126,6 +126,13 @@ with labels, the active tab in ink with a dot); the Learn stat cards (today's go
 card, then streak and level) in `app/(product)/app/learn-view.tsx`; the lesson path with its START
 bubble and mascot in `app/(product)/app/course-path.tsx`.
 
+`InstallCard` (`components/pwa/install-card.tsx`) is the "Get SpeakUp on your home screen" card:
+the happy mascot, then what this browser can do: one `btn btn-primary` "Install the app" (Chrome,
+Edge: the browser's own dialog), numbered Share → Add to Home Screen steps with the `share` and
+`plusSquare` icons (iPhone, iPad), "open in Safari or Chrome" (Instagram, Facebook, TikTok
+webviews) or a pointer to the browser menu. It renders nothing inside the installed app. The
+`download` icon marks "Download the app" links.
+
 > Tailwind v4 cannot `@apply` a custom class, so variants are composed in markup
 > (`className="btn btn-primary"`), not inside CSS.
 
@@ -162,8 +169,9 @@ plan loader), the recorder, results page, dashboard, lesson, pricing.
 
 Implementation notes:
 
-- Pure inline SVG, no images. Colors come from tokens (`--mascot-*`, `--rose`, `--on-pastel`),
-  so it re-themes with `globals.css`.
+- Pure inline SVG, no images, except the app icons (home screen, install dialog), which are PNGs
+  generated from it by `pnpm --filter @speakup/web icons`. Colors come from tokens (`--mascot-*`,
+  `--rose`, `--on-pastel`), so it re-themes with `globals.css`.
 - Gradient ids are made unique with `useId()`, so many mascots can share a page.
 - Decorative by default (`aria-hidden`); pass `label` when it carries meaning.
 - Animations are the `.mascot*` rules in `globals.css`. The body morph animates the SVG path via

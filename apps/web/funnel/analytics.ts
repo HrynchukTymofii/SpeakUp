@@ -26,6 +26,11 @@ export type AnalyticsEvent =
   | "checkout_closed"
   | "checkout_completed"
   | "pro_activated"
+  // Install the app (PWA): /install, after the funnel and after purchase
+  | "install_prompt_shown"
+  | "install_prompt_accepted"
+  | "install_prompt_dismissed"
+  | "app_installed"
   // The signed-in app
   | "recording_submitted"
   | "results_viewed"
