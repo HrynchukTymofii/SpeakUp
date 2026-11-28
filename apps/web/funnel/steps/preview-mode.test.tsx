@@ -42,9 +42,11 @@ vi.mock("@clerk/nextjs", () => ({
   SignUp: () => <p>Real Clerk form</p>,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
-vi.mock("@/lib/use-me", () => ({ useMe: () => ({ data: undefined }) }));
+// The admin previewing is on Pro: the preview must still show the visitor's paywall.
+vi.mock("@/lib/use-me", () => ({ useMe: () => ({ data: { entitlements: { plan: "pro" } } }) }));
 vi.mock("@/components/pro-price", () => ({ ProPrice: () => "$9.99" }));
 vi.mock("@/components/upgrade-button", () => ({ UpgradeButton: () => <button>Upgrade</button> }));
+vi.mock("@/components/checkout-terms", () => ({ CheckoutTerms: () => null }));
 
 // The admin went through the funnel themselves: a token, an attempt, a finished recording.
 const ADMIN_OWN_STATE = {
@@ -140,6 +142,7 @@ describe("funnel screens in the editor preview", () => {
     expect(screen.getByText("64/100")).toBeInTheDocument();
     renderPreview("paywall");
     expect(screen.getByRole("button", { name: "Upgrade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with the free plan" })).toBeInTheDocument();
     expectUntouched();
   });
 });

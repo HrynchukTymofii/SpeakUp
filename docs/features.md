@@ -312,7 +312,8 @@ new screen there.
   own data run in preview mode (`FunnelPreviewContext`, samples in
   `apps/web/funnel/preview-samples.ts`): the recording shows a sample question, results show
   "Analyzing…" and then a sample report, sign-up shows a sample of the form, the plan loader plays
-  and loops (answering its own questions), the plan and paywall use a sample score. In preview a
+  and loops (answering its own questions), the plan uses a sample score, and the paywall shows what a visitor
+  on the free plan sees, whatever the admin’s own plan. In preview a
   screen never calls the API for a visitor session, sends analytics, writes the visitor's saved
   progress, uses the microphone, signs up or claims a session; the lesson video doesn't autoplay.
 

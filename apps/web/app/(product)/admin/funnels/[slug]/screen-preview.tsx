@@ -77,7 +77,9 @@ export function ScreenPreview({
           >
             <div inert className="flex min-h-full flex-col" data-testid="live-preview">
               <SiteHeader homeHref="/">
-                <span className="font-bold">Sign in</span>
+                {/* What a signed-out visitor sees in the real header (app/(product)/layout.tsx). */}
+                <span className="btn btn-sm px-3 text-ink">Sign in</span>
+                <span className="btn btn-primary btn-sm">Sign up</span>
               </SiteHeader>
               <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5">
                 <FunnelPreviewScope slug={slug} steps={steps}>

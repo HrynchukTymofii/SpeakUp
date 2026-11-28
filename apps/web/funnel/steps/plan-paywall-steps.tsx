@@ -79,10 +79,11 @@ export function PlanStep({ step, ctx, onNext }: StepProps<"plan_summary">) {
 export function PaywallStep({ ctx }: StepProps<"paywall">) {
   const router = useRouter();
   const plan = buildPlan(ctx.answers);
-  // Someone who already has Pro gets the dashboard link from UpgradeButton, not a "free plan" exit.
-  const alreadyPro = useMe().data?.entitlements.plan === "pro";
-
+  const me = useMe();
   const preview = useIsFunnelPreview();
+  // Someone who already has Pro gets the dashboard link from UpgradeButton, not a "free plan" exit.
+  // The editor's preview shows the visitor's paywall, whatever the admin's own plan.
+  const alreadyPro = !preview && me.data?.entitlements.plan === "pro";
   useEffect(() => {
     if (!preview) track("paywall_viewed", { placement: "funnel" });
   }, [preview]);
