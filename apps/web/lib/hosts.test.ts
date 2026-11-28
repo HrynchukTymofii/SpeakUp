@@ -24,6 +24,8 @@ describe("routeForHost on the marketing host", () => {
     "/pricing",
     "/install",
     "/offline",
+    "/admin",
+    "/admin/funnels",
   ])("sends product route %s to the app host, keeping path and query", (path) => {
     expect(route(SITE, path, "?redirect_url=%2Fapp")).toEqual({
       kind: "redirect",
