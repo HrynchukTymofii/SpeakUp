@@ -128,7 +128,10 @@ with an icon) and `PlayCircle` (the black play button in white "Continue" pills)
 top of a screen with the `arrowLeft` icon and a 44 px tap area; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
 with labels, the active tab in ink with a dot); the Learn stat cards (today's goal is the black
 card, then streak and level) in `app/(product)/app/learn-view.tsx`; the lesson path with its START
-bubble and mascot in `app/(product)/app/course-path.tsx`.
+bubble and mascot in `app/(product)/app/course-path.tsx`; `DeviceFrame`
+(`app/(product)/admin/funnels/[slug]/device-frame.tsx`), the chrome around a funnel preview — a
+phone with a 390 px screen or a desktop browser window with an address pill (`phone` and `monitor`
+icons) — that goes full-bleed below `sm` and is shared by the test run and the editor preview.
 
 `InstallCard` (`components/pwa/install-card.tsx`) is the "Get SpeakUp on your home screen" card:
 the happy mascot, then what this browser can do: one `btn btn-primary` "Install the app" (Chrome,

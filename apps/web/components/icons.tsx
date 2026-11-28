@@ -41,6 +41,10 @@ const PATHS = {
   arrowDown: "M12 5v14m-6-6 6 6 6-6",
   close: "M6 6l12 12M18 6 6 18",
   plus: "M12 5v14M5 12h14",
+  phone:
+    "M8.5 3h7A1.5 1.5 0 0 1 17 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 19.5v-15A1.5 1.5 0 0 1 8.5 3ZM11 18h2",
+  monitor:
+    "M4.5 4h15A1.5 1.5 0 0 1 21 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 14.5v-9A1.5 1.5 0 0 1 4.5 4ZM12 16v4m-4 0h8",
 } as const;
 
 export type IconName = keyof typeof PATHS;

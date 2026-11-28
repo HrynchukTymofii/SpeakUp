@@ -326,8 +326,17 @@ new screen there.
 **Try it** (on the list and in the editor) runs the real funnel inside the admin area, step by step,
 to check everything works before launch: recording and analysis, sign-up, results, plan and
 paywall. It uses the saved draft when there is one (unsaved edits aren't included), otherwise what
-visitors see, so draft funnels can be tried too. A bar on top says it's a test run and has
-**Start over** (forget this run's answers, recording and sign-up) and **Back to the editor**.
+visitors see, so draft funnels can be tried too.
+
+There's no banner over the funnel: it's drawn in a phone frame (390 px screen) or a desktop
+browser frame (up to 1280 px, with `/f/<slug>` in the address bar), under the header a signed-out
+visitor sees. A small dock in the bottom-right corner holds the **Phone / Desktop** switch,
+**Start over** (forget this run's answers, recording and sign-up), **Back to the editor** and a
+dot that marks the test run: its tooltip (and screen-reader text) names the funnel, says when the
+unpublished changes run, and says checkout is real. The dot turns red when the saved changes no
+longer pass the checks, so the run uses what visitors see. Switching the frame doesn't restart
+the run, and the choice is remembered in this browser (the editor preview shares it). Below
+640 px there is no frame and no switch: the funnel fills the screen as it does for a visitor.
 
 The recording is real (it counts toward the per-IP daily limit and is analyzed), and so is
 checkout (pick the free plan). The admin is signed in, so the sign-up step skips the form and

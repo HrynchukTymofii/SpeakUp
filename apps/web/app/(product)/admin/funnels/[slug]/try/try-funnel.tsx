@@ -1,8 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { Mascot } from "@/components/mascot";
@@ -11,6 +10,10 @@ import { useFunnelStore } from "@/funnel/store";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { FunnelProviderClient } from "../../../../start/funnel-client";
+import { DeviceFrame } from "../device-frame";
+import { useFunnelPreviewDevice } from "../preview-device";
+import { VisitorHeader } from "../visitor-header";
+import { TryDock } from "./try-dock";
 
 /**
  * A test run: the real funnel, step by step, so an admin can check everything works before
@@ -20,10 +23,16 @@ import { FunnelProviderClient } from "../../../../start/funnel-client";
  * What runs is real: the recording is analyzed, sign-up attaches the check to the admin's
  * account, checkout charges. Events carry `test_run: true`. A session for a draft funnel isn't
  * linked to it, so it doesn't count in its numbers; a live funnel's test sessions do count.
+ *
+ * It's drawn in a phone or desktop frame (the admin's last choice) with the visitor's header, and
+ * the controls float in a dock, so the screens look as a visitor sees them. Switching the frame
+ * only changes classes around the funnel, never its position in the tree, so the run keeps going.
  */
 export function TryFunnel({ slug, children }: { slug: string; children: ReactNode }) {
   const api = useApi();
   const router = useRouter();
+  const pathname = usePathname();
+  const [device, setDevice] = useFunnelPreviewDevice();
   const detail = useQuery({
     queryKey: ["admin-funnel", slug],
     queryFn: () => api.getAdminFunnel(slug),
@@ -63,37 +72,38 @@ export function TryFunnel({ slug, children }: { slug: string; children: ReactNod
   };
 
   return (
-    <main className="mx-auto flex min-h-[calc(100dvh-57px)] w-full max-w-md flex-col px-4 pt-3">
-      <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-line bg-card-2 p-3 text-sm">
-        <p>
-          <span className="font-bold">Test run of {funnel.name}</span>
-          {draft ? " with the unpublished changes" : ""}. The recording, analysis and checkout are
-          real; pick the free plan at the end. You’re signed in, so the sign-up step skips the form
-          and saves this check and its answers to your own account.
-        </p>
-        {draftInvalid && (
-          <p className="font-medium text-danger">
-            The saved changes no longer pass the checks, so this runs what visitors see.
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-sm min-h-11 btn-secondary" onClick={startOver}>
-            Start over
-          </button>
-          <Link href={`/admin/funnels/${slug}`} className="btn btn-sm min-h-11 btn-secondary">
-            Back to the editor
-          </Link>
+    <main className="sm:px-6 sm:py-7">
+      <DeviceFrame device={device} address={`/f/${slug}`} scrollResetKey={pathname}>
+        {/* What a new visitor sees above the funnel; a picture only, so it can't be tapped. */}
+        <div inert className="hidden sm:block">
+          <VisitorHeader />
         </div>
-      </div>
-      <FunnelProviderClient
+        {/*
+         * The same column as the real funnel's layout (app/(product)/start/layout.tsx). Below
+         * 640 px there's no frame, so the column itself fills the window (sticky Continue sits at
+         * the bottom); in a frame it fills the viewport instead.
+         */}
+        <div className="mx-auto flex min-h-[calc(100dvh-57px)] w-full max-w-md flex-1 flex-col px-4 pt-5 sm:min-h-auto">
+          <FunnelProviderClient
+            slug={slug}
+            version={funnel.version}
+            definition={draft ?? definition}
+            basePath={basePath}
+            testRun
+          >
+            {children}
+          </FunnelProviderClient>
+        </div>
+      </DeviceFrame>
+      <TryDock
         slug={slug}
-        version={funnel.version}
-        definition={draft ?? definition}
-        basePath={basePath}
-        testRun
-      >
-        {children}
-      </FunnelProviderClient>
+        name={funnel.name}
+        hasDraft={draft !== null}
+        draftInvalid={draftInvalid}
+        device={device}
+        onDeviceChange={setDevice}
+        onStartOver={startOver}
+      />
     </main>
   );
 }
