@@ -10,7 +10,9 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api";
+import { PREVIEW_EXERCISE } from "@/funnel/preview-samples";
 import { FunnelEditor } from "./funnel-editor";
+import { PHONE } from "./screen-preview";
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL ??= "http://localhost:4000";
@@ -97,12 +99,20 @@ describe("FunnelEditor", () => {
     expect(preview).toHaveAttribute("inert");
     expect(within(preview).getByRole("heading", { name: NAME.goal })).toBeInTheDocument();
 
-    // A screen that acts on its own is described instead of run.
+    // Drawn at a real phone viewport, with the funnel's progress bar above the question.
+    const phone = screen.getByTestId("phone").firstElementChild as HTMLElement;
+    expect(phone.style.width).toBe(`${PHONE.width + 24}px`);
+    expect(phone.style.height).toBe(`${PHONE.height + 24}px`);
+    expect(within(preview).getByRole("progressbar")).toBeInTheDocument();
+
+    // Screens that act on their own are shown too, with sample data.
     await userEvent.click(
       screen.getByRole("button", { pressed: false, name: new RegExp(NAME.exercise) }),
     );
-    expect(screen.queryByTestId("live-preview")).not.toBeInTheDocument();
-    expect(screen.getByText(/isn’t shown here/)).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("live-preview")).getByText(PREVIEW_EXERCISE.prompt),
+    ).toBeInTheDocument();
+    expect(api.getAdminFunnel).toHaveBeenCalledTimes(1);
   });
 
   it("moves, removes and adds screens, then saves them as a draft", async () => {

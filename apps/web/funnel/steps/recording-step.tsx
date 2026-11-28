@@ -9,6 +9,8 @@ import { uploadToS3 } from "@/lib/upload";
 import { useRecorder, type Recording } from "@/lib/use-recorder";
 import { track } from "../analytics";
 import { funnelApi } from "../api";
+import { useIsFunnelPreview } from "../preview";
+import { PREVIEW_EXERCISE } from "../preview-samples";
 import { funnelExerciseKey } from "../query-keys";
 import { useFunnelStore } from "../store";
 import { Turnstile } from "../turnstile";
@@ -40,12 +42,13 @@ function submitError(err: unknown): string {
 export function RecordingStep({ step, onNext }: StepProps<"recording">) {
   const { guestToken, attemptId, completed, setAttemptId, markCompleted, answers } =
     useFunnelStore();
-  const alreadyDone = attemptId !== null && completed.includes(step.id);
+  const preview = useIsFunnelPreview();
+  const alreadyDone = !preview && attemptId !== null && completed.includes(step.id);
 
   const exercise = useQuery({
     queryKey: funnelExerciseKey(answers.goal),
     queryFn: () => funnelApi.getExercise(guestToken ?? ""),
-    enabled: guestToken !== null && !alreadyDone,
+    enabled: !preview && guestToken !== null && !alreadyDone,
     staleTime: Infinity,
   });
   const maxSec = Math.min(
@@ -110,7 +113,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
   };
 
   const { state } = recorder;
-  const data = exercise.data?.exercise;
+  const data = preview ? PREVIEW_EXERCISE : exercise.data?.exercise;
   const isReading = data?.type === "read_aloud";
   // What's on the card: the text to read, or the question to answer.
   const text = isReading ? data?.referenceText : data?.prompt;
@@ -138,7 +141,7 @@ export function RecordingStep({ step, onNext }: StepProps<"recording">) {
       </div>
 
       <Card className="text-lg leading-relaxed font-medium text-ink">
-        {exercise.isPending
+        {exercise.isPending && !preview
           ? "Loading…"
           : (text ?? "Couldn’t load the text. Please reload the page.")}
       </Card>

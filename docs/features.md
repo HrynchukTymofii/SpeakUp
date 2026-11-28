@@ -305,11 +305,16 @@ new screen there.
   admin saved meanwhile, Save, Publish and Discard are refused with "changed somewhere else";
   reload to see their version. A saved draft that no longer passes newer checks is flagged and
   can be discarded or replaced.
-- **Preview** shows the selected screen in a phone-size frame. Questions, the slider, reflections,
-  the mini-lesson, the microphone screen and the plan are the real components, not clickable, with
-  personalized wording at its no-answers fallback; the lesson video doesn't autoplay there.
-  Screens that act as soon as they open (recording, sign-up, results, plan loader, paywall) are
-  described instead, so a preview never records, signs up, opens checkout or sends analytics.
+- **Preview** shows the selected screen as it looks on a phone: the real page (header, progress
+  bar, the funnel's column) laid out at a 390 × 844 viewport, then scaled down as a whole to fit
+  the panel, and scrollable like the phone. Every screen is the real component, not clickable,
+  with personalized wording at its no-answers fallback. Screens that normally use the visitor's
+  own data run in preview mode (`FunnelPreviewContext`, samples in
+  `apps/web/funnel/preview-samples.ts`): the recording shows a sample question, results show
+  "Analyzing…" and then a sample report, sign-up shows a sample of the form, the plan loader plays
+  and loops (answering its own questions), the plan and paywall use a sample score. In preview a
+  screen never calls the API for a visitor session, sends analytics, writes the visitor's saved
+  progress, uses the microphone, signs up or claims a session; the lesson video doesn't autoplay.
 
 ## Not built yet
 

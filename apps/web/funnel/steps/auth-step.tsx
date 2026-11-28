@@ -3,13 +3,14 @@
 import { SignUp, useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
 import { funnelApi } from "../api";
 import { useFunnel } from "../funnel-context";
+import { useIsFunnelPreview } from "../preview";
 import { useFunnelStore } from "../store";
 import { StepHeading } from "../ui";
 import type { StepProps } from "./props";
@@ -35,11 +36,13 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
   // Clerk sends the visitor back to this step of the same funnel, where the claim runs.
   const returnUrl = `${useFunnel().basePath}/${step.id}`;
   const { guestToken, attemptId, claimed, setClaimed } = useFunnelStore();
+  // The admin is signed in: without this, the preview would claim their own funnel session.
+  const preview = useIsFunnelPreview();
 
   const status = useQuery({
     queryKey: ["funnel-status", attemptId],
     queryFn: () => funnelApi.getAttemptStatus(guestToken ?? "", attemptId ?? ""),
-    enabled: guestToken !== null && attemptId !== null && !isSignedIn,
+    enabled: !preview && guestToken !== null && attemptId !== null && !isSignedIn,
     refetchInterval: (q) => {
       const stage = q.state.data?.attempt.stage;
       return stage === "completed" || stage === "failed" ? false : 2_000;
@@ -58,8 +61,10 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
   // Signed in (just now, or already) → claim once.
   const { mutate, isIdle } = claim;
   useEffect(() => {
-    if (isLoaded && isSignedIn && guestToken && !claimed && isIdle) mutate();
-  }, [isLoaded, isSignedIn, guestToken, claimed, isIdle, mutate]);
+    if (!preview && isLoaded && isSignedIn && guestToken && !claimed && isIdle) mutate();
+  }, [preview, isLoaded, isSignedIn, guestToken, claimed, isIdle, mutate]);
+
+  if (preview) return <SignUpScreen stage="analyzing" form={<SignUpFormSample />} />;
 
   if (!isLoaded) return <p className="text-muted">Loading…</p>;
 
@@ -96,7 +101,24 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
     );
   }
 
-  const stage = status.data?.attempt.stage;
+  return (
+    <SignUpScreen
+      stage={status.data?.attempt.stage}
+      form={
+        // routing="hash": the whole sign-up (incl. email code) happens inside this page.
+        <SignUp
+          routing="hash"
+          forceRedirectUrl={returnUrl}
+          signInForceRedirectUrl={returnUrl}
+          signInUrl={`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`}
+        />
+      }
+    />
+  );
+}
+
+/** The signed-out screen: analysis status, and the sign-up form below it. */
+function SignUpScreen({ stage, form }: { stage: string | undefined; form: ReactNode }) {
   return (
     <div className="flex flex-col gap-5">
       <Mascot mood={stage === "completed" ? "happy" : "thinking"} size={96} className="-ml-2" />
@@ -114,15 +136,34 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
         />
         {STAGE_TEXT[stage ?? "queued"]}
       </p>
-      <div className="flex justify-center">
-        {/* routing="hash": the whole sign-up (incl. email code) happens inside this page. */}
-        <SignUp
-          routing="hash"
-          forceRedirectUrl={returnUrl}
-          signInForceRedirectUrl={returnUrl}
-          signInUrl={`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`}
-        />
+      <div className="flex justify-center">{form}</div>
+    </div>
+  );
+}
+
+/**
+ * Stands in for Clerk's form in the editor preview (the real one would act on the admin's own
+ * session). It follows the layout Clerk shows, not its exact styling.
+ */
+function SignUpFormSample() {
+  return (
+    <div className="flex w-full max-w-[400px] flex-col gap-4 rounded-2xl border border-line bg-card p-6 shadow-soft">
+      <div className="text-center">
+        <p className="font-bold">Create your account</p>
+        <p className="text-sm text-muted">Welcome! Please fill in the details to get started.</p>
       </div>
+      <span className="rounded-lg border border-line px-3 py-2 text-center text-sm font-semibold">
+        Continue with Google
+      </span>
+      <p className="text-center text-xs text-muted">or</p>
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold">Email address</span>
+        <span className="h-9 rounded-lg border border-line" />
+      </div>
+      <span className="rounded-lg bg-ink py-2 text-center text-sm font-semibold text-page">
+        Continue
+      </span>
+      <p className="text-center text-xs text-muted">Sample of the sign-up form</p>
     </div>
   );
 }

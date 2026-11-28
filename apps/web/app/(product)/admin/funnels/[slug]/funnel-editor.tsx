@@ -276,7 +276,7 @@ function Editor({
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_375px] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
         <section aria-labelledby={`${ids}-screens`} className="flex flex-col gap-4">
           <h2 id={`${ids}-screens`} className="text-xl font-bold tracking-[-0.01em]">
             Screens, in order
@@ -483,7 +483,10 @@ function Editor({
             <h2 id={`${ids}-preview`} className="text-xl font-bold tracking-[-0.01em]">
               Preview
             </h2>
-            <ScreenPreview step={selected} />
+            <p className="text-sm text-muted">
+              On a 390 px phone, with sample answers and results. Nothing in it is saved or sent.
+            </p>
+            <ScreenPreview slug={funnel.slug} steps={steps} step={selected} />
           </section>
         )}
       </div>
