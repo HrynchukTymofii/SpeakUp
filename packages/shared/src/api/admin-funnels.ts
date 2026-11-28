@@ -41,6 +41,10 @@ export const DuplicateFunnelBodySchema = z.strictObject({
 });
 export type DuplicateFunnelBody = z.infer<typeof DuplicateFunnelBodySchema>;
 
+/** POST /v1/admin/funnels — a new draft from the default funnel's screens, at version 1. */
+export const CreateFunnelBodySchema = DuplicateFunnelBodySchema;
+export type CreateFunnelBody = DuplicateFunnelBody;
+
 /**
  * GET /v1/admin/funnels/:slug — the funnel with what visitors see (`definition`) and the saved,
  * unpublished edits (`draft`, null when there are none). `draftInvalid`: a draft is stored but no

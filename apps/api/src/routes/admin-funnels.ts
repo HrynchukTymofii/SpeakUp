@@ -3,6 +3,8 @@ import {
   AdminFunnelDetailResponseSchema,
   AdminFunnelResponseSchema,
   AdminFunnelsResponseSchema,
+  CreateFunnelBodySchema,
+  DEFAULT_FUNNEL_DEFINITION,
   DEFAULT_FUNNEL_SLUG,
   DuplicateFunnelBodySchema,
   EditableFunnelDefinitionSchema,
@@ -13,6 +15,7 @@ import {
   SaveFunnelDraftBodySchema,
   UpdateFunnelStatusBodySchema,
   type AdminFunnel,
+  type FunnelDefinition,
 } from "@speakup/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -197,6 +200,38 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
     },
   );
 
+  /**
+   * A new draft at version 1. Drafts can't be opened by visitors, so it's safe to create before
+   * anyone has reviewed it. 409 when the slug is taken, including by a create racing this one.
+   */
+  async function createDraft(slug: string, name: string, definition: FunnelDefinition) {
+    const slugTaken = () => new AppError(409, ErrorCode.WRONG_STATE, `"${slug}" is already used`);
+    if (await db.funnel.findUnique({ where: { slug }, select: { id: true } })) throw slugTaken();
+    try {
+      const created = await db.funnel.create({
+        data: { slug, name, status: "draft", version: 1, definition },
+        select: FUNNEL_SELECT,
+      });
+      return { funnel: await toAdminFunnel(created) };
+    } catch (err) {
+      if (isUniqueViolation(err)) throw slugTaken();
+      throw err;
+    }
+  }
+
+  app.post(
+    "/admin/funnels",
+    { schema: { body: CreateFunnelBodySchema, response: { 201: AdminFunnelResponseSchema } } },
+    async (request, reply) => {
+      const { slug, name } = request.body;
+      // Starts from the default funnel's screens: an empty funnel would fail the flow checks,
+      // and removing screens is quicker than adding them.
+      const created = await createDraft(slug, name, DEFAULT_FUNNEL_DEFINITION);
+      request.log.info({ slug }, "funnel created");
+      return reply.code(201).send(created);
+    },
+  );
+
   app.post(
     "/admin/funnels/:slug/duplicate",
     {
@@ -214,22 +249,9 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
       }
 
       const { slug, name } = request.body;
-      const slugTaken = () => new AppError(409, ErrorCode.WRONG_STATE, `"${slug}" is already used`);
-      if (await db.funnel.findUnique({ where: { slug }, select: { id: true } })) throw slugTaken();
-
-      try {
-        const created = await db.funnel.create({
-          // Drafts can't be opened by visitors, so a copy is safe to make before it's reviewed.
-          data: { slug, name, status: "draft", version: 1, definition: definition.data },
-          select: FUNNEL_SELECT,
-        });
-        request.log.info({ slug, from: source.slug }, "funnel duplicated");
-        return reply.code(201).send({ funnel: await toAdminFunnel(created) });
-      } catch (err) {
-        // Two admins (or two clicks) creating the same slug at once.
-        if (isUniqueViolation(err)) throw slugTaken();
-        throw err;
-      }
+      const created = await createDraft(slug, name, definition.data);
+      request.log.info({ slug, from: source.slug }, "funnel duplicated");
+      return reply.code(201).send(created);
     },
   );
 
