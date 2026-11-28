@@ -331,10 +331,19 @@ on product pages only. It stays online-only: the worker caches nothing but an of
   30-day numbers, take them live or offline, duplicate one into a draft at `/admin/funnels`, and
   create funnels, reorder, remove and add screens (from a gallery) with a phone preview, saved
   as a draft and published, at `/admin/funnels/<slug>`, and try a funnel end to end at
-  `/admin/funnels/<slug>/try`. Still to build:
-  - editing a screen's text (titles, options) in the editor, and drag-and-drop ordering;
-  - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
-    send the variant to Amplitude as a property.
+  `/admin/funnels/<slug>/try`. The list editor is being replaced by a **graph builder**
+  (epic #62), so a growth partner can build funnels with no developer:
+  - screens are code-defined templates (question, statement + mascot, video, sign-up, paywall…)
+    filled with content in the editor; each button or answer is an edge to the next screen, so
+    paths branch on what the visitor says;
+  - funnel-defined questions and answers, with a "Saves to" mapping onto the fixed app fields;
+  - immutable published versions (`FunnelVersion`) with rollback; sessions keep their version;
+  - a searchable screen library, "who's editing" presence, phone and desktop preview frames;
+  - per-paywall Paddle plans (subscriptions with free or paid trials) and A/B split nodes.
+
+  Publishing needs a sign-up screen; a missing paywall only warns. The phases and every decision
+  are on issue #62.
+
 - **Body-language feedback** (gestures, eye contact, posture). The camera runs next to the mic
   during recording, and MediaPipe (`@mediapipe/tasks-vision`: hand, pose and face landmarkers)
   tracks the speaker on the device. Only per-attempt numbers leave the browser (share of time the
