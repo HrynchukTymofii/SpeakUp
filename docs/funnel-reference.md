@@ -87,7 +87,11 @@ Files studied: `funnels/types.ts`, `funnels/struggle.ts` (the config), `funnels/
 - **Conditions and wording are declarative data, not functions:** `showIf` is a rule object,
   text is a template (`{{answer:key|fallback}}`), and dynamic copy or options are named
   personalizers / option providers. So the whole definition is JSON, checked by
-  `FunnelDefinitionSchema`, and could be stored and edited without a deploy.
+  `FunnelDefinitionSchema`, and could be stored and edited without a deploy. The default funnel
+  lives in `packages/shared/src/funnel-default.ts`, shared by the web app and the database seed.
+- **A condition can only use answers asked earlier.** A `showIf` that reads an answer from a later
+  step, from its own step, or from its own loader's questions is rejected when the definition is
+  checked, instead of silently hiding the step forever.
 - Analytics go to Amplitude instead of PostHog; events and the funnel chart are in
   [`analytics.md`](./analytics.md).
 - All copy is about speaking; social-proof numbers are `TODO(founder)` placeholders.

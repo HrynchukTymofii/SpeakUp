@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_FUNNEL_DEFINITION,
+  DEFAULT_FUNNEL_REVISION,
   FUNNEL_OPTIONS,
+  FunnelDefinitionSchema,
   MODE_EXERCISE_SLUG,
   PRACTICE_MODES,
   PRACTICE_SLUG_PREFIXES,
@@ -9,6 +12,7 @@ import {
 import {
   baselineExercise,
   courses,
+  defaultFunnel,
   practiceExercises,
   speakingChecks,
   type SeedExercise,
@@ -129,5 +133,15 @@ describe("seed data", () => {
     const exerciseSlugs = allExercises.map((e) => e.slug);
     expect(new Set(lessonSlugs).size).toBe(lessonSlugs.length);
     expect(new Set(exerciseSlugs).size).toBe(exerciseSlugs.length);
+  });
+
+  it("seeds a live 'main' funnel whose definition parses with FunnelDefinitionSchema", () => {
+    expect(defaultFunnel.slug).toBe("main");
+    expect(defaultFunnel.status).toBe("live");
+    expect(defaultFunnel.version).toBe(DEFAULT_FUNNEL_REVISION);
+    expect(defaultFunnel.name).toBeTruthy();
+    // The same copy the web app bundles for /start, so /f/main starts identical.
+    expect(defaultFunnel.definition).toBe(DEFAULT_FUNNEL_DEFINITION);
+    expect(FunnelDefinitionSchema.safeParse(defaultFunnel.definition).success).toBe(true);
   });
 });

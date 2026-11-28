@@ -1,6 +1,10 @@
-import { FunnelResumeClient } from "./funnel-client";
+import { DefaultFunnel, FunnelResumeClient } from "./funnel-client";
 
 /** `/start` → resume where the visitor left off (first visit: the first step). */
 export default function FunnelStartPage() {
-  return <FunnelResumeClient />;
+  return (
+    <DefaultFunnel>
+      <FunnelResumeClient />
+    </DefaultFunnel>
+  );
 }

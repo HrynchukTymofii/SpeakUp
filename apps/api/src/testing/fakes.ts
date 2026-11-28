@@ -45,6 +45,18 @@ function fakeExercise(slug: string, type: "read_aloud" | "free_speech") {
   };
 }
 
+/** Where a funnel session came from: the funnel shown and its first-touch attribution. */
+interface FunnelSessionOrigin {
+  funnelId: string | null;
+  funnelVersion: number | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  referrerHost: string | null;
+}
+
 export class FakeDb {
   users: User[] = [];
   subscriptions: Omit<Subscription, "id">[] = [];
@@ -248,7 +260,7 @@ export class FakeDb {
     },
   };
 
-  funnelSessions: {
+  funnelSessions: ({
     id: string;
     tokenHash: string;
     answers: unknown;
@@ -256,16 +268,28 @@ export class FakeDb {
     userId: string | null;
     ipHash: string | null;
     claimedAt: Date | null;
-  }[] = [];
+  } & FunnelSessionOrigin)[] = [];
 
   funnelSession = {
-    create: async ({ data }: { data: { tokenHash: string; ipHash: string } }) => {
+    create: async ({
+      data,
+    }: {
+      data: { tokenHash: string; ipHash: string } & Partial<FunnelSessionOrigin>;
+    }) => {
       const session = {
         id: `fs_${this.nextId++}`,
         answers: {},
         currentStep: null,
         userId: null,
         claimedAt: null,
+        funnelId: null,
+        funnelVersion: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
+        utmContent: null,
+        utmTerm: null,
+        referrerHost: null,
         ...data,
       };
       this.funnelSessions.push(session);
@@ -281,7 +305,22 @@ export class FakeDb {
     },
   };
 
-  /** Array form of a Prisma transaction: the fake ops have already run; just await them. */
+  /** Funnel rows in the shape the public route selects (definition is raw JSON, unvalidated). */
+  funnels: {
+    id?: string;
+    slug: string;
+    status: "draft" | "live";
+    version: number;
+    definition: unknown;
+  }[] = [];
+
+  funnel = {
+    findUnique: async ({ where }: { where: { slug: string } }) => {
+      const funnel = this.funnels.find((f) => f.slug === where.slug);
+      return funnel ? { ...funnel, id: funnel.id ?? `fn_${funnel.slug}` } : null;
+    },
+  };
+
   /**
    * Both Prisma transaction forms: an array of (already running) fake ops, or an interactive
    * callback that gets the client. The fake can't roll back — tests don't rely on rollback.

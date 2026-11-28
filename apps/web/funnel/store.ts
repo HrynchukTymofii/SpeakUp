@@ -1,6 +1,6 @@
 "use client";
 
-import type { FunnelAnswers } from "@speakup/shared";
+import type { FunnelAnswers, FunnelAttribution } from "@speakup/shared";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -31,9 +31,40 @@ export interface FunnelState {
   setClaimed: () => void;
   setResultSummary: (summary: { topIssues: string[]; score: number }) => void;
   reset: () => void;
+
+  /** The funnel this state belongs to. The store holds ONE funnel at a time (see enterFunnel). */
+  funnelSlug: string | null;
+  /** The funnel's content revision (`Funnel.version`) the visitor was last shown. */
+  funnelVersion: number | null;
+  /** First-touch UTM + referrer host, sent when the guest session is created. */
+  attribution: FunnelAttribution | null;
+
+  /**
+   * Called when a funnel page opens. A different funnel starts fresh — answers, guest token,
+   * attempt and claim all belong to the previous funnel's session. The same funnel at a newer
+   * revision keeps the visitor's progress.
+   */
+  enterFunnel: (slug: string, version: number) => void;
+  /** Keeps the first attribution seen; later visits (other ads, reloads) don't overwrite it. */
+  captureAttribution: (attribution: FunnelAttribution | null) => void;
 }
 
-const initial = {
+/** The persisted part of the state (everything but the actions). */
+type FunnelData = Pick<
+  FunnelState,
+  | "answers"
+  | "completed"
+  | "guestToken"
+  | "attemptId"
+  | "claimed"
+  | "topIssues"
+  | "baselineScore"
+  | "funnelSlug"
+  | "funnelVersion"
+  | "attribution"
+>;
+
+const initial: FunnelData = {
   answers: {},
   completed: [],
   guestToken: null,
@@ -41,11 +72,25 @@ const initial = {
   claimed: false,
   topIssues: [],
   baselineScore: null,
+  funnelSlug: null,
+  funnelVersion: null,
+  attribution: null,
 };
+
+/**
+ * v1 (before funnels lived in the database) only ever held the `/start` funnel, which is the
+ * funnel `main` now: keep that visitor's progress instead of resetting it on their next visit.
+ */
+function migrate(persisted: unknown, version: number): FunnelData {
+  const state = (persisted ?? {}) as Partial<FunnelData>;
+  if (version < 2)
+    return { ...initial, ...state, funnelSlug: "main", funnelVersion: null, attribution: null };
+  return { ...initial, ...state };
+}
 
 export const useFunnelStore = create<FunnelState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initial,
       setAnswers: (patch) => set((s) => ({ answers: { ...s.answers, ...patch } })),
       markCompleted: (stepId) =>
@@ -55,10 +100,18 @@ export const useFunnelStore = create<FunnelState>()(
       setClaimed: () => set({ claimed: true }),
       setResultSummary: ({ topIssues, score }) => set({ topIssues, baselineScore: score }),
       reset: () => set(initial),
+      // One update, so no subscriber ever sees the old funnel's answers under the new slug.
+      enterFunnel: (slug, version) => {
+        const entered = { funnelSlug: slug, funnelVersion: version };
+        set(get().funnelSlug === slug ? entered : { ...initial, ...entered });
+      },
+      captureAttribution: (attribution) =>
+        set((s) => (s.attribution || !attribution ? s : { attribution })),
     }),
     {
       name: "speakup-funnel",
-      version: 1,
+      version: 2,
+      migrate,
       // localStorage can throw (private mode, blocked storage); Zustand then just keeps state
       // in memory for this tab — the funnel still works, it only won't survive a reload.
       storage: createJSONStorage(() => localStorage),

@@ -65,14 +65,15 @@ Why each was chosen, and when we'd switch: `SPEC.md` §14 and [`adr/`](./adr/REA
 
 The web app is one Next.js project on Vercel with two domains attached:
 
-| Host                       | Serves                                                           | Route group                |
-| -------------------------- | ---------------------------------------------------------------- | -------------------------- |
-| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                         | `apps/web/app/(marketing)` |
-| `app.speakup.fibipals.com` | `/start`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing` | `apps/web/app/(product)`   |
+| Host                       | Serves                                                                 | Route group                |
+| -------------------------- | ---------------------------------------------------------------------- | -------------------------- |
+| `speakup.fibipals.com`     | landing, `/privacy`, `/terms`, `/refund`                               | `apps/web/app/(marketing)` |
+| `app.speakup.fibipals.com` | `/start`, `/f`, `/sign-in`, `/sign-up`, `/app`, `/results`, `/pricing` | `apps/web/app/(product)`   |
 
 - `proxy.ts` asks `routeForHost` (`apps/web/lib/hosts.ts`) on every request. A product route on
   the site host gets a **308** to the app host (path and query kept, so old links such as
-  `speakup.fibipals.com/start?…` keep working); a legal page on the app host gets a 308 back.
+  `speakup.fibipals.com/start?…` keep working and ad links to `/f/<slug>?utm_…` keep their UTM
+  tags); a legal page on the app host gets a 308 back.
   `/` on the app host is a **307** to `/app` (which sends signed-out visitors to sign-in).
 - Every response on the app host carries `X-Robots-Tag: noindex`: only the marketing site is meant
   for search results.
@@ -161,7 +162,22 @@ Design points:
 
 ## Funnel flow: anonymous recording, claimed at sign-up
 
-The funnel (`/start/<step>`) lets a visitor record a baseline **before** creating an account.
+The funnel (`/start/<step>` or `/f/<slug>/<step>`) lets a visitor record a baseline **before**
+creating an account.
+The step pages get the funnel they show from a `FunnelProvider` (`apps/web/funnel/funnel-context.tsx`):
+its slug, content revision (`Funnel.version`), steps and base path. `/start` passes the bundled
+default funnel `main` (`packages/shared/src/funnel-default.ts`) and never calls the API for it.
+`/f/<slug>` loads the live definition once per visit in the server layout
+(`app/(product)/f/[slug]/layout.tsx` → `apps/web/funnel/load-funnel.ts`: `GET /v1/funnels/:slug`,
+3 s timeout, cached 60 s, validated by `FunnelResponseSchema`), so moving between steps neither
+refetches it nor remounts the provider. An unknown or draft slug is a 404; any other API failure
+shows `app/(product)/f/error.tsx` (a mascot and "Try again", which refetches from the server). That
+boundary sits one level up because a segment's own error.tsx can't catch its layout's errors.
+`main` never errors: it falls back to the bundled definition so ad traffic keeps working when the
+API is down.
+On mount, before any step renders, the provider points the browser store at that funnel (a
+different funnel starts fresh), keeps first-touch attribution (`utm_*` and the referrer's host,
+never SpeakUp's own hosts) and tags every analytics event with `funnel_id` / `funnel_version`.
 
 ```mermaid
 sequenceDiagram
@@ -169,7 +185,7 @@ sequenceDiagram
   participant A as API
   participant W as Worker
 
-  B->>A: POST /v1/funnel/sessions
+  B->>A: POST /v1/funnel/sessions {funnel, attribution}
   A-->>B: guest token (only its sha256 is stored)
   B->>A: PATCH /v1/funnel/sessions/current (answers, step) — header Authorization: Guest + token
   B->>A: POST /v1/funnel/attempts {mimeType, turnstileToken}
@@ -232,6 +248,7 @@ erDiagram
   User ||--o{ Subscription : has
   User ||--o{ FunnelSession : "claims"
   FunnelSession ||--o{ Attempt : "anonymous baseline"
+  Funnel ||--o{ FunnelSession : "is shown in"
   Course ||--o{ Lesson : contains
   Lesson ||--o{ Exercise : contains
   Exercise ||--o{ Attempt : "is practiced in"
@@ -244,6 +261,12 @@ erDiagram
 - `Exercise.lessonId = null` marks the baseline exercise (used by the funnel and the dashboard).
 - `Analysis` stores metrics and feedback as JSON validated by the shared Zod schemas, plus the model,
   prompt version, latency and estimated cost of each analysis.
+- `Funnel` holds one web funnel per `slug` (`draft` or `live`). `definition` is JSON validated by
+  `FunnelDefinitionSchema` (`packages/shared`); `Funnel.version` is the content revision, separate
+  from the definition's own schema-format `version`. A `FunnelSession` optionally records the funnel
+  and revision it was started on, first-touch UTM values and the referrer **host** only; its
+  `variant` column is reserved for A/B tests and nothing writes it yet. All of these columns are
+  nullable, so sessions from before funnels lived in the DB stay valid.
 - `WebhookEvent` exists only for webhook idempotency.
 - Full schema: [`packages/db/prisma/schema.prisma`](../packages/db/prisma/schema.prisma).
 

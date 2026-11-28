@@ -47,6 +47,11 @@ enum SubStatus {
   canceled
 }
 
+enum FunnelStatus {
+  draft
+  live
+}
+
 model User {
   id             String          @id @default(cuid())
   clerkUserId    String          @unique
@@ -107,7 +112,37 @@ model FunnelSession {
   claimedAt   DateTime?
   attempts    Attempt[]
 
+  // Which funnel (and which revision of it) the visitor saw. Null for sessions created before
+  // funnels lived in the DB, by older web builds, or for an unknown/draft slug.
+  funnelId      String?
+  funnel        Funnel? @relation(fields: [funnelId], references: [id], onDelete: SetNull)
+  funnelVersion Int? // Funnel.version at session start
+  // First-touch attribution, captured once on the landing URL.
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmContent    String?
+  utmTerm       String?
+  referrerHost  String? // hostname only, never the full referrer URL
+  variant       String? // reserved for A/B tests (funnel builder part 5); nothing writes it yet
+
   @@index([createdAt]) // cleanup job for unclaimed sessions
+  @@index([funnelId, createdAt]) // per-funnel conversion reports
+}
+
+// A web onboarding funnel served at /f/<slug>. `definition` is JSON validated by
+// FunnelDefinitionSchema (packages/shared) on every read and write; its own `version` field is
+// the schema format, while `Funnel.version` is the content revision (bumped on publish).
+model Funnel {
+  id         String          @id @default(cuid())
+  slug       String          @unique
+  name       String
+  status     FunnelStatus    @default(draft)
+  definition Json
+  version    Int             @default(1)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  sessions   FunnelSession[]
 }
 
 model Attempt {

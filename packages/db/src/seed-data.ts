@@ -1,7 +1,8 @@
 /**
  * Seed content (SPEC §5): the courses (a shared "basics" course + one per goal track), their
  * lessons and recorded exercises, the standalone `baseline` and funnel speaking checks, and the
- * standalone practice exercises (quick drills, "speak like a legend", challenges).
+ * standalone practice exercises (quick drills, "speak like a legend", challenges), and the
+ * default web funnel `main`.
  *
  * Plain data, no DB access — so it can be unit-tested (seed-data.test.ts) and reviewed
  * like copy. MVP has no admin CMS; content changes = edit this file + `pnpm db:seed`.
@@ -12,6 +13,13 @@
  *
  * Content rule: the methods are classic public-speaking practice; the wording here is our own.
  */
+
+import {
+  DEFAULT_FUNNEL_DEFINITION,
+  DEFAULT_FUNNEL_NAME,
+  DEFAULT_FUNNEL_REVISION,
+  DEFAULT_FUNNEL_SLUG,
+} from "@speakup/shared";
 
 type ExerciseType = "read_aloud" | "free_speech";
 
@@ -1050,3 +1058,16 @@ export const practiceExercises: SeedExercise[] = [
     90,
   ),
 ];
+
+/**
+ * The default web funnel (/f/main). Its definition is the copy apps/web bundles for /start, so
+ * both start out identical. Seeded create-only: once the row exists a re-seed never overwrites
+ * it, so a funnel edited in the database is not reset.
+ */
+export const defaultFunnel = {
+  slug: DEFAULT_FUNNEL_SLUG,
+  name: DEFAULT_FUNNEL_NAME,
+  status: "live",
+  version: DEFAULT_FUNNEL_REVISION,
+  definition: DEFAULT_FUNNEL_DEFINITION,
+} as const;
