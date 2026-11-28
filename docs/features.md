@@ -21,6 +21,7 @@ host (`app.speakup.fibipals.com`); a page asked for on the wrong host redirects 
 | `/sign-in`, `/sign-up`          | app  | everyone         | Clerk forms, themed like the app                                                              |
 | `/pricing`                      | app  | everyone         | Free vs Pro, the Pro price localized by Paddle, upgrade button                                |
 | `/install`                      | app  | everyone         | Put SpeakUp on the home screen, or "Not now, continue" (see "Installing the app" below)       |
+| `/offline`                      | app  | everyone         | Shown by the service worker when a page can't load; `noindex`                                 |
 | `/app`                          | app  | signed in        | Learn tab: warm-up card, LVL · streak · today, "Continue" (or speaking check), picks, courses |
 | `/app/warm-up`                  | app  | signed in        | Pitch warm-up: 1 minute of box breathing, then back home; records nothing                     |
 | `/app/courses/<slug>`           | app  | signed in        | One course: its lessons as a winding path                                                     |
@@ -44,11 +45,11 @@ next)` in `apps/web/lib/pwa/install-href.ts`:
 - `next` is where "Not now, continue" goes, default `/app`. Only same-site paths are accepted;
   anything else falls back to `/app`, so the link can't send people to another site.
 - Opened inside the installed app, the screen skips straight to `next`.
-- The landing's "Download the app" opens `/install?from=landing`. There, signed-out visitors also
-  get "New here? Take the 2-minute speaking check" → `/start`.
+- The landing's "Download the app" opens `/install?from=landing&next=%2Fapp`. There, signed-out
+  visitors also get "New here? Take the 2-minute speaking check" → `/start`.
 - The end of the funnel opens it for everyone, free or paid: the paywall's "Continue with the free
-  plan" goes to `/install?from=funnel&next=/app`, and a completed upgrade there goes to
-  `/install?from=purchase&next=/app`.
+  plan" goes to `/install?from=funnel&next=%2Fapp`, and a completed upgrade there goes to
+  `/install?from=purchase&next=%2Fapp`.
 - Upgrading on `/pricing` or `/app/billing` shows the same `InstallCard` (placement `purchase`)
   under "You're on SpeakUp Pro" instead of leaving the page.
 

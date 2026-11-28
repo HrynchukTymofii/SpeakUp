@@ -112,12 +112,17 @@ The app host can be installed to the home screen; the marketing host cannot.
     Paddle, Amplitude, Turnstile) or same-origin `/__clerk/*`. Nothing signed-in or from the API
     is ever cached, so nothing can go stale or leak between accounts on a shared device.
 - **Updates.** The worker calls `skipWaiting()` on install and `clients.claim()` on activate, so a
-  new `sw.js` takes over on the next load, and activation deletes every other `speakup-*` cache.
+  new `sw.js` takes control of the open pages as soon as it has installed, without waiting for a
+  reload; activating it then deletes every other `speakup-*` cache.
   When the offline page changes (new design, new CSS), bump the cache name in `sw.js`
   (`speakup-offline-v2`, …) so installed clients precache the new version.
 - `/sw.js`, `/speakup.webmanifest` and `/icons/*` skip the proxy (see above), so both hosts serve
   them; the landing just never links them. If a CSP is added later it needs
   `worker-src 'self'; manifest-src 'self'`.
+- **Vercel previews.** With deployment protection on, the worker's credential-less `/offline`
+  fetch gets the protection's auth response instead of the page, so the install fails on purpose
+  (nothing is cached and the old worker, if any, stays). Check the service worker and the offline
+  screen on production or a local `next start` instead.
 
 ## Network (AWS)
 
