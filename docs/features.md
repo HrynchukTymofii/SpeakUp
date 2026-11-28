@@ -301,7 +301,10 @@ new screen there.
   recording before them.
 - **Save changes** stores a draft. Visitors keep seeing the published version until **Publish to
   visitors**, which bumps the version. **Discard changes** (asks first) drops the draft; **Undo
-  unsaved changes** resets what isn't saved yet. Closing the tab with unsaved changes asks first.
+  unsaved changes** resets what isn't saved yet. Leaving with unsaved changes (closing the tab, or "All funnels") asks first. If another
+  admin saved meanwhile, Save, Publish and Discard are refused with "changed somewhere else";
+  reload to see their version. A saved draft that no longer passes newer checks is flagged and
+  can be discarded or replaced.
 - **Preview** shows the selected screen in a phone-size frame. Questions, the slider, reflections,
   the mini-lesson, the microphone screen and the plan are the real components, not clickable, with
   personalized wording at its no-answers fallback; the lesson video doesn't autoplay there.

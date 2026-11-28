@@ -55,6 +55,7 @@ function detail(
     },
     definition,
     draft,
+    draftInvalid: false,
   };
 }
 
@@ -120,8 +121,16 @@ describe("FunnelEditor", () => {
     expect(names()).toEqual([NAME.time, NAME.goal, NAME.language]);
 
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(api.saveFunnelDraft).toHaveBeenCalledWith("spring", def("time", "goal", "language"));
-    expect(await screen.findByRole("button", { name: "Publish to visitors" })).toBeEnabled();
+    // Sent with the state it was loaded at, so a save made elsewhere meanwhile is refused.
+    expect(api.saveFunnelDraft).toHaveBeenCalledWith(
+      "spring",
+      def("time", "goal", "language"),
+      "2026-11-02T10:00:00.000Z",
+    );
+    // The editor re-mounts with the saved state; focus lands on the next step, Publish.
+    const publish = await screen.findByRole("button", { name: "Publish to visitors" });
+    expect(publish).toBeEnabled();
+    expect(publish).toHaveFocus();
     expect(screen.getByText(/Visitors still see version 2/)).toBeInTheDocument();
   });
 
@@ -149,7 +158,7 @@ describe("FunnelEditor", () => {
     renderEditor();
 
     await userEvent.click(await screen.findByRole("button", { name: "Publish to visitors" }));
-    expect(api.publishFunnel).toHaveBeenCalledWith("spring");
+    expect(api.publishFunnel).toHaveBeenCalledWith("spring", "2026-11-02T10:00:00.000Z");
     expect(await screen.findByText("No unpublished changes.")).toBeInTheDocument();
     expect(screen.getByText(/visitors see version 3/)).toBeInTheDocument();
   });
@@ -163,9 +172,23 @@ describe("FunnelEditor", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Discard changes" }));
     expect(api.discardFunnelDraft).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
-    expect(api.discardFunnelDraft).toHaveBeenCalledWith("spring");
+    const confirm = screen.getByRole("button", { name: "Discard" });
+    expect(confirm).toHaveFocus();
+    await userEvent.click(confirm);
+    expect(api.discardFunnelDraft).toHaveBeenCalledWith("spring", "2026-11-02T10:00:00.000Z");
     expect(await screen.findByText("No unpublished changes.")).toBeInTheDocument();
+  });
+
+  it("offers to discard a saved draft that no longer passes the checks", async () => {
+    api.getAdminFunnel.mockResolvedValue({
+      ...detail(def("goal")),
+      funnel: { ...detail(def("goal")).funnel, hasDraft: true },
+      draftInvalid: true,
+    });
+    renderEditor();
+    expect(await screen.findByText(/no longer pass today’s checks/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Publish to visitors" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard changes" })).toBeEnabled();
   });
 
   it("shows a no-access screen on 403 and a not-found screen on 404", async () => {

@@ -9,6 +9,9 @@ const env = { ADMIN_CLERK_USER_IDS: ["user_admin"] };
 const DAY = 24 * 60 * 60 * 1000;
 
 /** The default funnel's first three screens: a valid, shorter funnel to save as a draft. */
+/** `main`'s updatedAt in setup(): what an admin who just opened the editor sends back. */
+const LOADED = "2026-11-01T10:00:00.000Z";
+
 const SHORT: FunnelDefinition = { version: 1, steps: DEFAULT_FUNNEL_DEFINITION.steps.slice(0, 3) };
 
 function setup() {
@@ -67,9 +70,17 @@ describe("admin access", () => {
       payload: { slug: "copy", name: "Copy" },
     },
     { method: "GET", url: "/v1/admin/funnels/main" },
-    { method: "PUT", url: "/v1/admin/funnels/main/draft", payload: { definition: SHORT } },
-    { method: "DELETE", url: "/v1/admin/funnels/main/draft" },
-    { method: "POST", url: "/v1/admin/funnels/main/publish" },
+    {
+      method: "PUT",
+      url: "/v1/admin/funnels/main/draft",
+      payload: { definition: SHORT, expectedUpdatedAt: LOADED },
+    },
+    { method: "DELETE", url: `/v1/admin/funnels/main/draft?expectedUpdatedAt=${LOADED}` },
+    {
+      method: "POST",
+      url: "/v1/admin/funnels/main/publish",
+      payload: { expectedUpdatedAt: LOADED },
+    },
   ] as const;
 
   it("401 without a session", async () => {
@@ -279,7 +290,27 @@ describe("POST /v1/admin/funnels/:slug/duplicate", () => {
 });
 
 describe("funnel editor: drafts and publishing", () => {
-  const draftUrl = "/v1/admin/funnels/main/draft";
+  type App = Awaited<ReturnType<typeof buildTestServer>>;
+  const saveDraft = (app: App, definition: unknown, expectedUpdatedAt = LOADED) =>
+    app.inject({
+      method: "PUT",
+      url: "/v1/admin/funnels/main/draft",
+      headers: ADMIN,
+      payload: { definition, expectedUpdatedAt },
+    });
+  const publish = (app: App, expectedUpdatedAt: string) =>
+    app.inject({
+      method: "POST",
+      url: "/v1/admin/funnels/main/publish",
+      headers: ADMIN,
+      payload: { expectedUpdatedAt },
+    });
+  const discard = (app: App, expectedUpdatedAt: string) =>
+    app.inject({
+      method: "DELETE",
+      url: `/v1/admin/funnels/main/draft?expectedUpdatedAt=${expectedUpdatedAt}`,
+      headers: ADMIN,
+    });
 
   it("GET returns what visitors see and the draft (none yet)", async () => {
     const app = await buildTestServer({ db: setup(), env });
@@ -287,9 +318,10 @@ describe("funnel editor: drafts and publishing", () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers["cache-control"]).toBe("no-store");
     expect(res.json()).toMatchObject({
-      funnel: { slug: "main", version: 3, hasDraft: false },
+      funnel: { slug: "main", version: 3, hasDraft: false, updatedAt: LOADED },
       definition: DEFAULT_FUNNEL_DEFINITION,
       draft: null,
+      draftInvalid: false,
     });
     const unknown = await app.inject({
       method: "GET",
@@ -302,12 +334,7 @@ describe("funnel editor: drafts and publishing", () => {
   it("saves a draft without changing what visitors see", async () => {
     const db = setup();
     const app = await buildTestServer({ db, env });
-    const res = await app.inject({
-      method: "PUT",
-      url: draftUrl,
-      headers: ADMIN,
-      payload: { definition: SHORT },
-    });
+    const res = await saveDraft(app, SHORT);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ funnel: { hasDraft: true, version: 3 }, draft: SHORT });
     expect(db.funnels[0]?.definition).toEqual(DEFAULT_FUNNEL_DEFINITION);
@@ -317,14 +344,8 @@ describe("funnel editor: drafts and publishing", () => {
   it("400 for a draft whose screens are in an order that breaks the funnel", async () => {
     const db = setup();
     const app = await buildTestServer({ db, env });
-    const steps = DEFAULT_FUNNEL_DEFINITION.steps;
-    const results = steps.find((s) => s.type === "results");
-    const res = await app.inject({
-      method: "PUT",
-      url: draftUrl,
-      headers: ADMIN,
-      payload: { definition: { version: 1, steps: [results, ...SHORT.steps] } },
-    });
+    const results = DEFAULT_FUNNEL_DEFINITION.steps.find((s) => s.type === "results");
+    const res = await saveDraft(app, { version: 1, steps: [results, ...SHORT.steps] });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.message).toContain("recording screen");
     expect(db.funnels[0]?.draftDefinition).toBeUndefined();
@@ -333,17 +354,8 @@ describe("funnel editor: drafts and publishing", () => {
   it("publishes the draft: visitors get it, the version goes up, the draft is cleared", async () => {
     const db = setup();
     const app = await buildTestServer({ db, env });
-    await app.inject({
-      method: "PUT",
-      url: draftUrl,
-      headers: ADMIN,
-      payload: { definition: SHORT },
-    });
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/admin/funnels/main/publish",
-      headers: ADMIN,
-    });
+    const saved = (await saveDraft(app, SHORT)).json();
+    const res = await publish(app, saved.funnel.updatedAt);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({
       funnel: { version: 4, hasDraft: false },
@@ -353,41 +365,65 @@ describe("funnel editor: drafts and publishing", () => {
     expect(db.funnels[0]).toMatchObject({ definition: SHORT, draftDefinition: null, version: 4 });
 
     // Nothing left to publish.
-    const again = await app.inject({
-      method: "POST",
-      url: "/v1/admin/funnels/main/publish",
-      headers: ADMIN,
-    });
+    const again = await publish(app, res.json().funnel.updatedAt);
     expect(again.statusCode).toBe(409);
     expect(db.funnels[0]?.version).toBe(4);
+  });
+
+  it("refuses writes based on a stale view: a draft saved meanwhile is neither lost nor published unseen", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    // Admin A saves and keeps the editor open on that state.
+    const seenByA = (await saveDraft(app, SHORT)).json().funnel.updatedAt;
+    // Admin B, who loaded the same state, saves a different draft.
+    const other: FunnelDefinition = { version: 1, steps: SHORT.steps.slice(0, 2) };
+    expect((await saveDraft(app, other, seenByA)).statusCode).toBe(200);
+
+    // A's publish, discard and save are all refused; B's draft stays and nothing goes live.
+    for (const res of [
+      await publish(app, seenByA),
+      await discard(app, seenByA),
+      await saveDraft(app, SHORT, seenByA),
+    ]) {
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error.message).toContain("changed somewhere else");
+    }
+    expect(db.funnels[0]).toMatchObject({
+      version: 3,
+      definition: DEFAULT_FUNNEL_DEFINITION,
+      draftDefinition: other,
+    });
   });
 
   it("discards the draft", async () => {
     const db = setup();
     const app = await buildTestServer({ db, env });
-    await app.inject({
-      method: "PUT",
-      url: draftUrl,
-      headers: ADMIN,
-      payload: { definition: SHORT },
-    });
-    const res = await app.inject({ method: "DELETE", url: draftUrl, headers: ADMIN });
+    const saved = (await saveDraft(app, SHORT)).json();
+    const res = await discard(app, saved.funnel.updatedAt);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ funnel: { hasDraft: false, version: 3 }, draft: null });
     expect(db.funnels[0]?.draftDefinition).toBeNull();
   });
 
-  it("409 instead of publishing a stored draft that no longer passes the checks", async () => {
+  it("a stored draft that no longer passes is flagged, can be discarded, and is never published", async () => {
     const db = setup();
     const main = db.funnels[0];
     if (main) main.draftDefinition = { version: 1, steps: [] };
     const app = await buildTestServer({ db, env });
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/admin/funnels/main/publish",
-      headers: ADMIN,
+
+    const res = await app.inject({ method: "GET", url: "/v1/admin/funnels/main", headers: ADMIN });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      funnel: { hasDraft: true },
+      draft: null,
+      draftInvalid: true,
     });
-    expect(res.statusCode).toBe(409);
+
+    expect((await publish(app, LOADED)).statusCode).toBe(409);
     expect(db.funnels[0]?.version).toBe(3);
+
+    const discarded = await discard(app, LOADED);
+    expect(discarded.statusCode).toBe(200);
+    expect(discarded.json()).toMatchObject({ draftInvalid: false, funnel: { hasDraft: false } });
   });
 });

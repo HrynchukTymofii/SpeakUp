@@ -9,6 +9,7 @@ import {
   ErrorCode,
   FunnelDefinitionSchema,
   FunnelSlugSchema,
+  FunnelWriteGuardSchema,
   SaveFunnelDraftBodySchema,
   UpdateFunnelStatusBodySchema,
   type AdminFunnel,
@@ -95,21 +96,51 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
     return funnel;
   }
 
-  /** The editor's view of a funnel: what visitors see and the unpublished draft. */
-  async function toDetail(row: FunnelRow & { definition: unknown }) {
-    // Both were checked before they were stored; a row edited by hand that no longer passes
-    // can't be shown in the editor (the response schema would turn it into a 500).
+  /** What visitors see, checked: the editor can't work on a funnel whose live copy is broken. */
+  function publishedDefinition(row: { definition: unknown }) {
     const definition = FunnelDefinitionSchema.safeParse(row.definition);
-    const draft =
-      row.draftDefinition === null ? null : FunnelDefinitionSchema.safeParse(row.draftDefinition);
-    if (!definition.success || (draft && !draft.success)) {
+    if (!definition.success) {
       throw new AppError(409, ErrorCode.WRONG_STATE, "This funnel's definition is invalid");
     }
+    return definition.data;
+  }
+
+  /** The editor's view of a funnel: what visitors see and the unpublished draft. */
+  async function toDetail(row: FunnelRow & { definition: unknown }) {
+    // A stored draft that today's schema rejects isn't sent (the response schema would make it a
+    // 500); the editor is told, so it can still be discarded or replaced.
+    const draft =
+      row.draftDefinition === null ? null : FunnelDefinitionSchema.safeParse(row.draftDefinition);
     return {
       funnel: await toAdminFunnel(row),
-      definition: definition.data,
-      draft: draft ? draft.data : null,
+      definition: publishedDefinition(row),
+      draft: draft?.success ? draft.data : null,
+      draftInvalid: draft !== null && !draft.success,
     };
+  }
+
+  /**
+   * Writes only if the funnel is still as the admin loaded it (`updatedAt`, which every write
+   * changes), then answers with the new editor view. Refuses instead of overwriting a draft saved
+   * meanwhile or publishing changes this admin hasn't seen.
+   */
+  async function writeIfUnchanged(
+    slug: string,
+    expectedUpdatedAt: string,
+    data: Parameters<DbClient["funnel"]["updateMany"]>[0]["data"],
+  ) {
+    const { count } = await db.funnel.updateMany({
+      where: { slug, updatedAt: new Date(expectedUpdatedAt) },
+      data,
+    });
+    if (count === 0) {
+      throw new AppError(
+        409,
+        ErrorCode.WRONG_STATE,
+        "This funnel was changed somewhere else. Reload to see the latest version.",
+      );
+    }
+    return toDetail(await findFunnel(slug));
   }
 
   async function findFunnel(slug: string) {
@@ -219,36 +250,45 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
     },
     async (request) => {
       const { slug } = request.params;
-      await findFunnel(slug);
-      const updated = await db.funnel.update({
-        where: { slug },
-        data: { draftDefinition: request.body.definition },
-        select: { ...FUNNEL_SELECT, definition: true },
+      const { definition, expectedUpdatedAt } = request.body;
+      publishedDefinition(await findFunnel(slug));
+      const detail = await writeIfUnchanged(slug, expectedUpdatedAt, {
+        draftDefinition: definition,
       });
       request.log.info({ slug }, "funnel draft saved");
-      return toDetail(updated);
+      return detail;
     },
   );
 
   app.delete(
     "/admin/funnels/:slug/draft",
-    { schema: { params: slugParams, response: { 200: AdminFunnelDetailResponseSchema } } },
+    {
+      schema: {
+        params: slugParams,
+        querystring: FunnelWriteGuardSchema,
+        response: { 200: AdminFunnelDetailResponseSchema },
+      },
+    },
     async (request) => {
       const { slug } = request.params;
-      await findFunnel(slug);
-      const updated = await db.funnel.update({
-        where: { slug },
-        data: { draftDefinition: Prisma.DbNull },
-        select: { ...FUNNEL_SELECT, definition: true },
+      publishedDefinition(await findFunnel(slug));
+      const detail = await writeIfUnchanged(slug, request.query.expectedUpdatedAt, {
+        draftDefinition: Prisma.DbNull,
       });
       request.log.info({ slug }, "funnel draft discarded");
-      return toDetail(updated);
+      return detail;
     },
   );
 
   app.post(
     "/admin/funnels/:slug/publish",
-    { schema: { params: slugParams, response: { 200: AdminFunnelDetailResponseSchema } } },
+    {
+      schema: {
+        params: slugParams,
+        body: FunnelWriteGuardSchema,
+        response: { 200: AdminFunnelDetailResponseSchema },
+      },
+    },
     async (request) => {
       const { slug } = request.params;
       const funnel = await findFunnel(slug);
@@ -260,20 +300,14 @@ export const adminFunnelRoutes: FastifyPluginAsyncZod<{ db: DbClient }> = async 
       if (!draft.success) {
         throw new AppError(409, ErrorCode.WRONG_STATE, "The saved changes are invalid");
       }
-      // Matching on the version makes two publishes at once bump it once, not twice.
-      const { count } = await db.funnel.updateMany({
-        where: { slug, version: funnel.version },
-        data: {
-          definition: draft.data,
-          draftDefinition: Prisma.DbNull,
-          version: { increment: 1 },
-        },
+      // Publishes exactly the draft this admin saw; two publishes at once bump the version once.
+      const detail = await writeIfUnchanged(slug, request.body.expectedUpdatedAt, {
+        definition: draft.data,
+        draftDefinition: Prisma.DbNull,
+        version: { increment: 1 },
       });
-      if (count === 0) {
-        throw new AppError(409, ErrorCode.WRONG_STATE, "The funnel changed meanwhile; reload it");
-      }
-      request.log.info({ slug, version: funnel.version + 1 }, "funnel published");
-      return toDetail(await findFunnel(slug));
+      request.log.info({ slug, version: detail.funnel.version }, "funnel published");
+      return detail;
     },
   );
 };

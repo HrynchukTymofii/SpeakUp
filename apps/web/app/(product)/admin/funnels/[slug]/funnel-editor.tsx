@@ -7,6 +7,7 @@ import {
   type FunnelStepDef,
 } from "@speakup/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { BackLink } from "@/components/back-link";
 import { Icon, type IconName } from "@/components/icons";
@@ -49,12 +50,17 @@ export function FunnelEditor({ slug }: { slug: string }) {
   const detail = useQuery({
     queryKey: detailKey(slug),
     queryFn: () => api.getAdminFunnel(slug),
+    // A refetch with another admin's save would reset the list under unsaved edits; writes
+    // already refuse a stale view (409), and the admin reloads to see the latest.
+    refetchOnWindowFocus: false,
     // 403 / 404 won't change by asking again: show the right screen at once.
     retry: (count, err) => !(err instanceof ApiClientError && err.status < 500) && count < 1,
   });
   // Kept here so they survive the Editor re-mounting after a save.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  // Save / publish / discard re-mount the Editor: where focus goes in the new one.
+  const [focusAfterRemount, setFocusAfterRemount] = useState<string | null>(null);
 
   if (detail.isPending) return <p className="text-muted">Loading…</p>;
   if (detail.isError) return <LoadError error={detail.error} retry={() => void detail.refetch()} />;
@@ -70,6 +76,8 @@ export function FunnelEditor({ slug }: { slug: string }) {
         selectedId={selectedId}
         onSelect={setSelectedId}
         announce={setAnnouncement}
+        initialFocus={focusAfterRemount}
+        focusAfterRemount={setFocusAfterRemount}
       />
       <p aria-live="polite" className="sr-only">
         {announcement}
@@ -105,6 +113,11 @@ function LoadError({ error, retry }: { error: Error; retry: () => void }) {
 }
 
 type Control = "select" | "up" | "down";
+/** Focus keys for the actions below the list. */
+const PUBLISH = "action:publish";
+const STATUS = "action:status";
+const CONFIRM_DISCARD = "action:confirm-discard";
+const DISCARD = "action:discard";
 
 function Editor({
   slug,
@@ -112,6 +125,8 @@ function Editor({
   selectedId,
   onSelect,
   announce: setAnnouncement,
+  initialFocus,
+  focusAfterRemount,
 }: {
   slug: string;
   detail: AdminFunnelDetailResponse;
@@ -119,6 +134,8 @@ function Editor({
   onSelect: (id: string) => void;
   /** Read out by screen readers: what a move, save or publish just did. */
   announce: (message: string) => void;
+  initialFocus: string | null;
+  focusAfterRemount: (key: string) => void;
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -133,23 +150,28 @@ function Editor({
   const problems = problemsOf(steps);
   const selected = steps.find((s) => s.id === selectedId) ?? steps[0];
 
-  // Reordering moves DOM nodes, which can drop focus: put it back on the control that was used.
-  const controls = useRef(new Map<string, HTMLElement>());
-  const focusTarget = useRef<{ id: string; control: Control } | null>(null);
-  // Runs after every render: the one after the move/remove/add that set a target.
+  // Moving rows, and every action that hides its own button, would drop keyboard focus to
+  // <body>: put it on the control that comes next. Keys are `<screen id>:<control>` or `action:…`.
+  // A plain Map held in state (never replaced), so ref callbacks can fill it during commit.
+  const [controls] = useState(() => new Map<string, HTMLElement>());
+  const focusTarget = useRef<string | null>(initialFocus);
+  // Runs after every render: the first one after a re-mount, or the one after the change.
   useEffect(() => {
-    const target = focusTarget.current;
-    if (!target) return;
+    const key = focusTarget.current;
+    if (!key) return;
     focusTarget.current = null;
-    controls.current.get(`${target.id}:${target.control}`)?.focus();
+    controls.get(key)?.focus();
   });
-  const setFocusTarget = (target: { id: string; control: Control }) => {
-    focusTarget.current = target;
+  const focusNext = (key: string) => {
+    focusTarget.current = key;
   };
-  const register = (id: string, control: Control) => (el: HTMLElement | null) => {
-    if (el) controls.current.set(`${id}:${control}`, el);
-    else controls.current.delete(`${id}:${control}`);
+  const setFocusTarget = ({ id, control }: { id: string; control: Control }) =>
+    focusNext(`${id}:${control}`);
+  const registerKey = (key: string) => (el: HTMLElement | null) => {
+    if (el) controls.set(key, el);
+    else controls.delete(key);
   };
+  const register = (id: string, control: Control) => registerKey(`${id}:${control}`);
 
   // Unsaved changes are only in this tab: ask before the page is closed or reloaded.
   useEffect(() => {
@@ -164,22 +186,25 @@ function Editor({
     void queryClient.invalidateQueries({ queryKey: ["admin-funnels"] });
   };
   const save = useMutation({
-    mutationFn: () => api.saveFunnelDraft(slug, { version: 1, steps }),
+    mutationFn: () => api.saveFunnelDraft(slug, { version: 1, steps }, funnel.updatedAt),
     onSuccess: (data) => {
+      focusAfterRemount(PUBLISH);
       onServerState(data);
       setAnnouncement("Changes saved. Visitors don’t see them until you publish.");
     },
   });
   const publish = useMutation({
-    mutationFn: () => api.publishFunnel(slug),
+    mutationFn: () => api.publishFunnel(slug, funnel.updatedAt),
     onSuccess: (data) => {
+      focusAfterRemount(STATUS);
       onServerState(data);
       setAnnouncement(`Published. Visitors now see version ${data.funnel.version}.`);
     },
   });
   const discard = useMutation({
-    mutationFn: () => api.discardFunnelDraft(slug),
+    mutationFn: () => api.discardFunnelDraft(slug, funnel.updatedAt),
     onSuccess: (data) => {
+      focusAfterRemount(STATUS);
       onServerState(data);
       setAnnouncement("Changes discarded.");
     },
@@ -228,7 +253,19 @@ function Editor({
 
   return (
     <>
-      <BackLink href="/admin/funnels">All funnels</BackLink>
+      <Link
+        href="/admin/funnels"
+        // Leaving inside the app skips the browser's beforeunload check: ask here instead.
+        onClick={(event) => {
+          if (dirty && !window.confirm("Leave without saving your changes?")) {
+            event.preventDefault();
+          }
+        }}
+        className="link -my-3 inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-bold"
+      >
+        <Icon name="arrowLeft" className="size-4" />
+        All funnels
+      </Link>
       <div>
         <h1 className="font-display text-[40px] leading-none font-semibold tracking-tight break-words">
           {funnel.name}
@@ -339,12 +376,14 @@ function Editor({
           )}
 
           <div className="flex flex-col gap-3 border-t border-line pt-4">
-            <p className="text-sm text-muted">
+            <p ref={registerKey(STATUS)} tabIndex={-1} className="text-sm text-muted">
               {dirty
                 ? "You have unsaved changes."
                 : detail.draft
                   ? `Changes saved but not published. Visitors still see version ${funnel.version}.`
-                  : "No unpublished changes."}
+                  : detail.draftInvalid
+                    ? "Saved changes no longer pass today’s checks, so they can’t be shown or published. Discard them, or save a new order."
+                    : "No unpublished changes."}
             </p>
             <div className="flex flex-wrap gap-3">
               {dirty && (
@@ -359,6 +398,7 @@ function Editor({
               )}
               {!dirty && detail.draft && (
                 <button
+                  ref={registerKey(PUBLISH)}
                   type="button"
                   className={`${SMALL_BUTTON} btn-primary`}
                   disabled={busy || problems.size > 0}
@@ -374,18 +414,23 @@ function Editor({
                   disabled={busy}
                   onClick={() => {
                     setSteps(saved);
+                    focusNext(STATUS);
                     setAnnouncement("Unsaved changes undone.");
                   }}
                 >
                   Undo unsaved changes
                 </button>
               )}
-              {!dirty && detail.draft && !confirmDiscard && (
+              {!dirty && funnel.hasDraft && !confirmDiscard && (
                 <button
+                  ref={registerKey(DISCARD)}
                   type="button"
                   className={`${SMALL_BUTTON} btn-secondary`}
                   disabled={busy}
-                  onClick={() => setConfirmDiscard(true)}
+                  onClick={() => {
+                    setConfirmDiscard(true);
+                    focusNext(CONFIRM_DISCARD);
+                  }}
                 >
                   Discard changes
                 </button>
@@ -397,6 +442,7 @@ function Editor({
                   Throw away the saved changes and go back to version {funnel.version}?
                 </p>
                 <button
+                  ref={registerKey(CONFIRM_DISCARD)}
                   type="button"
                   className={`${SMALL_BUTTON} btn-primary`}
                   disabled={busy}
@@ -407,7 +453,10 @@ function Editor({
                 <button
                   type="button"
                   className={`${SMALL_BUTTON} btn-secondary`}
-                  onClick={() => setConfirmDiscard(false)}
+                  onClick={() => {
+                    setConfirmDiscard(false);
+                    focusNext(DISCARD);
+                  }}
                 >
                   Keep them
                 </button>

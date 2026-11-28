@@ -362,6 +362,11 @@ export class FakeDb {
     updatedAt?: Date;
   }[] = [];
 
+  /** A new `updatedAt`, always later than the last one (two writes can share a millisecond). */
+  private touched(funnel: FakeDb["funnels"][number]) {
+    return new Date(Math.max(Date.now(), this.funnelRow(funnel).updatedAt.getTime() + 1));
+  }
+
   private funnelRow(funnel: FakeDb["funnels"][number]) {
     return {
       ...funnel,
@@ -382,20 +387,24 @@ export class FakeDb {
     update: async ({ where, data }: { where: { slug: string }; data: FakeFunnelUpdate }) => {
       const funnel = this.funnels.find((f) => f.slug === where.slug);
       if (!funnel) throw new Error("not found");
-      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: new Date() });
+      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: this.touched(funnel) });
       return this.funnelRow(funnel);
     },
-    /** Only the `{ slug, version }` match the publish route uses (an optimistic lock). */
+    /** Only the `{ slug, updatedAt }` match the editor routes use (an optimistic lock). */
     updateMany: async ({
       where,
       data,
     }: {
-      where: { slug: string; version: number };
+      where: { slug: string; updatedAt: Date };
       data: FakeFunnelUpdate;
     }) => {
-      const funnel = this.funnels.find((f) => f.slug === where.slug && f.version === where.version);
+      const funnel = this.funnels.find(
+        (f) =>
+          f.slug === where.slug &&
+          this.funnelRow(f).updatedAt.getTime() === where.updatedAt.getTime(),
+      );
       if (!funnel) return { count: 0 };
-      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: new Date() });
+      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: this.touched(funnel) });
       return { count: 1 };
     },
     /** Throws Prisma's unique-constraint error (P2002) for a taken slug, like Postgres. */

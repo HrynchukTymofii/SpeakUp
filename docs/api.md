@@ -261,15 +261,15 @@ Admins only: a Clerk session whose user id is in `ADMIN_CLERK_USER_IDS`. Anyone 
 gets `403 FORBIDDEN` (checked before the body is read); signed out, `401`. Responses are
 `Cache-Control: no-store`.
 
-| Method | Path                                | Auth  | Description                                                                                                         |
-| ------ | ----------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/v1/admin/funnels`                 | admin | Every funnel, drafts included: `{ "funnels": [{ slug, name, status, version, updatedAt, hasDraft, sessions30d }] }` |
-| PATCH  | `/v1/admin/funnels/:slug/status`    | admin | Body `{ "status": "live" \| "draft" }` → `{ "funnel": … }`                                                          |
-| POST   | `/v1/admin/funnels/:slug/duplicate` | admin | Body `{ slug, name }` → `201 { "funnel": … }`: a draft copy of the definition at version 1                          |
-| GET    | `/v1/admin/funnels/:slug`           | admin | The editor's view: `{ "funnel": …, "definition": …, "draft": … \| null }`                                           |
-| PUT    | `/v1/admin/funnels/:slug/draft`     | admin | Body `{ "definition": … }` → the editor's view. Saves unpublished changes; visitors don't see them                  |
-| DELETE | `/v1/admin/funnels/:slug/draft`     | admin | Drops the unpublished changes → the editor's view                                                                   |
-| POST   | `/v1/admin/funnels/:slug/publish`   | admin | The draft becomes `definition`, `version` + 1, the draft is cleared → the editor's view                             |
+| Method | Path                                | Auth  | Description                                                                                                             |
+| ------ | ----------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/admin/funnels`                 | admin | Every funnel, drafts included: `{ "funnels": [{ slug, name, status, version, updatedAt, hasDraft, sessions30d }] }`     |
+| PATCH  | `/v1/admin/funnels/:slug/status`    | admin | Body `{ "status": "live" \| "draft" }` → `{ "funnel": … }`                                                              |
+| POST   | `/v1/admin/funnels/:slug/duplicate` | admin | Body `{ slug, name }` → `201 { "funnel": … }`: a draft copy of the definition at version 1                              |
+| GET    | `/v1/admin/funnels/:slug`           | admin | The editor's view: `{ "funnel": …, "definition": …, "draft": … \| null, "draftInvalid" }`                               |
+| PUT    | `/v1/admin/funnels/:slug/draft`     | admin | Body `{ "definition": …, "expectedUpdatedAt" }` → the editor's view. Saves unpublished changes; visitors don't see them |
+| DELETE | `/v1/admin/funnels/:slug/draft`     | admin | `?expectedUpdatedAt=…`. Drops the unpublished changes → the editor's view                                               |
+| POST   | `/v1/admin/funnels/:slug/publish`   | admin | Body `{ "expectedUpdatedAt" }`. The draft becomes `definition`, `version` + 1, the draft is cleared → the editor's view |
 
 `sessions30d` is `{ started, signedUp }`: funnel sessions started in the last 30 days, and how many
 of those were claimed by a sign-up. Changing the status doesn't bump `version`.
@@ -280,8 +280,13 @@ A draft must pass `EditableFunnelDefinitionSchema` (`packages/shared/src/funnel-
 normal schema plus flow checks, so screens can't be put in an order that breaks for visitors — the
 paywall only as the last screen and after sign-up, a recording before sign-up and before results.
 A draft that fails is `400 VALIDATION_ERROR` with the problem. Publishing re-checks the stored draft
-(`409` if it no longer passes, or if there is no draft) and matches on the current `version`, so two
-publishes at once bump it once (the second gets `409`). The public route keeps serving with
+(`409` if it no longer passes, or if there is no draft).
+
+Every editor write carries `expectedUpdatedAt`, the funnel's `updatedAt` as the admin loaded it.
+The write only happens if it still matches; otherwise `409` ("changed somewhere else"). So a
+draft another admin saved meanwhile is never overwritten, discarded or published unseen, and two
+publishes at once bump the version once. A stored draft that today's schema rejects is returned as
+`draft: null, draftInvalid: true`, so the editor can still discard or replace it. The public route keeps serving with
 `FunnelDefinitionSchema` only, so the stricter checks never take a live funnel down.
 
 ## Funnel (anonymous)
