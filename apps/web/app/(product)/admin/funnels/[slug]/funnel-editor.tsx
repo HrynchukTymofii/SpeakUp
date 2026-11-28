@@ -7,7 +7,7 @@ import {
 } from "@speakup/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { BackLink } from "@/components/back-link";
 import { Icon, type IconName } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
@@ -174,6 +174,11 @@ function Editor({
   };
   const register = (id: string, control: Control) => registerKey(`${id}:${control}`);
 
+  // Leaving inside the app skips the browser's beforeunload check: ask here instead.
+  const confirmLeave = (event: MouseEvent) => {
+    if (dirty && !window.confirm("Leave without saving your changes?")) event.preventDefault();
+  };
+
   // Unsaved changes are only in this tab: ask before the page is closed or reloaded.
   useEffect(() => {
     if (!dirty) return;
@@ -255,11 +260,7 @@ function Editor({
       <Link
         href="/admin/funnels"
         // Leaving inside the app skips the browser's beforeunload check: ask here instead.
-        onClick={(event) => {
-          if (dirty && !window.confirm("Leave without saving your changes?")) {
-            event.preventDefault();
-          }
-        }}
+        onClick={confirmLeave}
         className="link -my-3 inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-bold"
       >
         <Icon name="arrowLeft" className="size-4" />
@@ -276,6 +277,7 @@ function Editor({
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Link
             href={`/admin/funnels/${funnel.slug}/try`}
+            onClick={confirmLeave}
             className={`${SMALL_BUTTON} btn-secondary`}
           >
             Try it

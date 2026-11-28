@@ -86,7 +86,7 @@ describe("TryFunnel (test run)", () => {
   it("start over forgets the earlier run and goes back to the first step", async () => {
     api.getAdminFunnel.mockResolvedValue(detail(null));
     useFunnelStore.setState({
-      funnelSlug: "spring",
+      funnelSlug: "test:spring",
       answers: { goal: "job-interviews" },
       attemptId: "att_1",
       claimed: true,
@@ -94,7 +94,7 @@ describe("TryFunnel (test run)", () => {
     renderTry();
     await userEvent.click(await screen.findByRole("button", { name: "Start over" }));
     expect(useFunnelStore.getState()).toMatchObject({
-      funnelSlug: "spring",
+      funnelSlug: "test:spring",
       funnelVersion: 2,
       answers: {},
       attemptId: null,

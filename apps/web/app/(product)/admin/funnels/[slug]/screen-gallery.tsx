@@ -5,14 +5,30 @@ import { Icon } from "@/components/icons";
 import { ScreenPreview } from "./screen-preview";
 import { SCREEN_KINDS, screenName } from "./screens";
 
-/** The library in the order a funnel usually runs. */
-const GROUPS: { title: string; types: FunnelStepType[] }[] = [
-  { title: "Questions", types: ["single_choice", "multi_choice", "slider"] },
-  { title: "Reflections and lesson", types: ["reflection", "video_lesson"] },
-  { title: "Speaking check", types: ["mic_permission", "recording", "results"] },
-  { title: "Sign-up", types: ["auth_gate"] },
-  { title: "Plan and paywall", types: ["loader_with_questions", "plan_summary", "paywall"] },
-];
+/** Gallery groups, in the order a funnel usually runs. */
+export const GALLERY_GROUPS = [
+  "Questions",
+  "Reflections and lesson",
+  "Speaking check",
+  "Sign-up",
+  "Plan and paywall",
+] as const;
+
+/** Every step type's group: a Record, so a new step type can't be left out of the gallery. */
+const GROUP_OF: Record<FunnelStepType, (typeof GALLERY_GROUPS)[number]> = {
+  single_choice: "Questions",
+  multi_choice: "Questions",
+  slider: "Questions",
+  reflection: "Reflections and lesson",
+  video_lesson: "Reflections and lesson",
+  mic_permission: "Speaking check",
+  recording: "Speaking check",
+  results: "Speaking check",
+  auth_gate: "Sign-up",
+  loader_with_questions: "Plan and paywall",
+  plan_summary: "Plan and paywall",
+  paywall: "Plan and paywall",
+};
 
 /**
  * Every screen the editor can add (FUNNEL_SCREEN_LIBRARY), as small phone previews grouped by
@@ -30,8 +46,8 @@ export function ScreenGallery({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      {GROUPS.map(({ title, types }) => {
-        const screens = FUNNEL_SCREEN_LIBRARY.filter((s) => types.includes(s.type));
+      {GALLERY_GROUPS.map((title) => {
+        const screens = FUNNEL_SCREEN_LIBRARY.filter((s) => GROUP_OF[s.type] === title);
         if (screens.length === 0) return null;
         return (
           <section key={title} className="flex flex-col gap-3">

@@ -165,6 +165,19 @@ describe("FunnelEditor", () => {
     );
   });
 
+  it("asks before a test run drops unsaved edits", async () => {
+    api.getAdminFunnel.mockResolvedValue(detail(def("goal", "time")));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderEditor();
+    await userEvent.click(await screen.findByRole("button", { name: `Move “${NAME.goal}” down` }));
+    const tryIt = screen.getByRole("link", { name: "Try it" });
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    tryIt.dispatchEvent(click);
+    expect(confirm).toHaveBeenCalled();
+    expect(click.defaultPrevented).toBe(true);
+    confirm.mockRestore();
+  });
+
   it("keeps focus on the move button that was used", async () => {
     api.getAdminFunnel.mockResolvedValue(detail(def("goal", "time", "language")));
     renderEditor();

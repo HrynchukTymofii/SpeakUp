@@ -329,10 +329,14 @@ paywall. It uses the saved draft when there is one (unsaved edits aren't include
 visitors see, so draft funnels can be tried too. A bar on top says it's a test run and has
 **Start over** (forget this run's answers, recording and sign-up) and **Back to the editor**.
 
-Everything in it is real: the recording counts toward the per-IP daily limit and is analyzed,
-sign-up attaches the check to the admin's account, checkout charges (pick the free plan).
-Analytics events carry `test_run: true`. Sessions of a draft funnel aren't linked to it, so they
-don't count in its numbers; test runs of a live funnel do.
+The recording is real (it counts toward the per-IP daily limit and is analyzed), and so is
+checkout (pick the free plan). The admin is signed in, so the sign-up step skips the form and
+attaches the check and its answers to the admin's own account (they show up in its history and
+profile); test the sign-up form itself on `/f/<slug>` in a private window once the funnel is live.
+A test run's guest session is linked to no funnel and no traffic source, so it never counts in a
+funnel's numbers, and analytics events carry `test_run: true`. Its saved progress is kept apart
+from a real visit of the same funnel in the same browser (the store key is `test:<slug>`), so
+neither resumes the other.
 
 ## Not built yet
 

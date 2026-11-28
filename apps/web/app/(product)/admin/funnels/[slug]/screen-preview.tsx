@@ -70,6 +70,8 @@ export function ScreenPreview({
           }}
         >
           <div
+            // Scrollable by mouse or touch, never a keyboard stop: the screen inside is inert.
+            tabIndex={-1}
             // translateZ: `position: fixed` inside a step (the loader's question sheet) is placed
             // against this screen, not the editor page. The screen itself isn't inert, so the
             // admin can still scroll a long screen (paywall, results); no scrollbar, like a phone.

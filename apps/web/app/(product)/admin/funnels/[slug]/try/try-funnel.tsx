@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { Mascot } from "@/components/mascot";
+import { funnelStoreKey } from "@/funnel/funnel-context";
 import { useFunnelStore } from "@/funnel/store";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
@@ -28,11 +29,13 @@ export function TryFunnel({ slug, children }: { slug: string; children: ReactNod
     queryFn: () => api.getAdminFunnel(slug),
     // Steps move with every answer; refetching mid-run would only re-render the funnel.
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: (count, err) => !(err instanceof ApiClientError && err.status < 500) && count < 1,
   });
 
   if (detail.isPending) return <p className="px-4 pt-8 text-muted">Loading…</p>;
-  if (detail.isError) {
+  // Only a failed first load: a failed refetch keeps the run that's in progress.
+  if (detail.isError && !detail.data) {
     const status = detail.error instanceof ApiClientError ? detail.error.status : 0;
     return (
       <div className="flex flex-col items-center gap-5 px-4 pt-10 text-center">
@@ -49,13 +52,13 @@ export function TryFunnel({ slug, children }: { slug: string; children: ReactNod
     );
   }
 
-  const { funnel, draft, definition } = detail.data;
+  const { funnel, draft, definition, draftInvalid } = detail.data;
   const basePath = `/admin/funnels/${slug}/try`;
   const startOver = () => {
     // A fresh visitor: no answers, recording or claim from an earlier run of this funnel.
     const store = useFunnelStore.getState();
     store.reset();
-    store.enterFunnel(slug, funnel.version);
+    store.enterFunnel(funnelStoreKey(slug, true), funnel.version);
     router.replace(basePath);
   };
 
@@ -64,9 +67,15 @@ export function TryFunnel({ slug, children }: { slug: string; children: ReactNod
       <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-line bg-card-2 p-3 text-sm">
         <p>
           <span className="font-bold">Test run of {funnel.name}</span>
-          {draft ? " with the unpublished changes" : ""}. Recording, sign-up and checkout are real;
-          pick the free plan at the end.
+          {draft ? " with the unpublished changes" : ""}. The recording, analysis and checkout are
+          real; pick the free plan at the end. You’re signed in, so the sign-up step skips the form
+          and saves this check and its answers to your own account.
         </p>
+        {draftInvalid && (
+          <p className="font-medium text-danger">
+            The saved changes no longer pass the checks, so this runs what visitors see.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-sm min-h-11 btn-secondary" onClick={startOver}>
             Start over
