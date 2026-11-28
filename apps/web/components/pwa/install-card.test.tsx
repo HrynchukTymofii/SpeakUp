@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InstallPlatform } from "@/lib/pwa/install-platform";
@@ -76,9 +76,11 @@ describe("InstallCard", () => {
   it("waits for Chrome's late prompt instead of flashing the fallback", () => {
     vi.useFakeTimers();
     install.platform = "manual";
-    const { container, rerender } = render(<InstallCard placement="funnel" />);
-    // Chrome's prompt often arrives after hydration: nothing shown or tracked until then.
-    expect(container).toBeEmptyDOMElement();
+    const { rerender } = render(<InstallCard placement="funnel" />);
+    // Chrome's prompt often arrives after hydration: the card is there, but no fallback text
+    // and no impression until the platform has settled.
+    expect(screen.getByRole("heading", { name: "Get SpeakUp on your home screen" })).toBeVisible();
+    expect(screen.queryByText(/browser's menu/)).not.toBeInTheDocument();
     expect(track).not.toHaveBeenCalled();
 
     install.platform = "prompt";
@@ -126,6 +128,42 @@ describe("InstallCard", () => {
     expect(shownEvents()).toEqual([
       ["install_prompt_shown", { placement: "funnel", platform: "manual" }],
     ]);
+  });
+
+  it("shows the fallback at once after the prompt was used up", async () => {
+    vi.useFakeTimers();
+    install.platform = "prompt";
+    // Showing Chrome's prompt uses it up: the platform drops to "manual" straight away.
+    install.promptInstall.mockImplementation(async () => {
+      install.platform = "manual";
+      return "dismissed";
+    });
+    const { rerender } = render(<InstallCard placement="funnel" />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Install the app" }));
+    });
+    rerender(<InstallCard placement="funnel" />);
+
+    // No timers advanced: this "manual" is final, not provisional.
+    expect(screen.getByText(/browser's menu/)).toBeVisible();
+    expect(shownEvents()).toEqual([
+      ["install_prompt_shown", { placement: "funnel", platform: "prompt" }],
+    ]);
+  });
+
+  it("stops waiting for the page load when unmounted", () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "readyState", "get").mockReturnValue("interactive");
+    const removeListener = vi.spyOn(window, "removeEventListener");
+    install.platform = "manual";
+    const { unmount } = render(<InstallCard placement="funnel" />);
+    unmount();
+
+    window.dispatchEvent(new Event("load"));
+    vi.advanceTimersByTime(5000);
+    expect(track).not.toHaveBeenCalled();
+    expect(removeListener).toHaveBeenCalledWith("load", expect.any(Function));
   });
 
   it("doesn't log a dismissal when there was no prompt to show", async () => {

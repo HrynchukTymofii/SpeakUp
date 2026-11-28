@@ -5,7 +5,7 @@ import { Icon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { track } from "@/funnel/analytics";
 import { useInstall } from "@/lib/pwa/install-events";
-import type { InstallPlacement } from "@/lib/pwa/install-platform";
+import type { InstallPlacement, InstallPlatform } from "@/lib/pwa/install-platform";
 
 /** How long after `load` to keep waiting for Chrome's `beforeinstallprompt`. */
 const MANUAL_GRACE_MS = 1500;
@@ -36,9 +36,10 @@ function useGraceElapsed(): [boolean, () => void] {
  * (see `install-platform.ts`). Renders nothing when SpeakUp already runs as the installed app,
  * and nothing during server render (the platform is only known in the browser).
  *
- * "manual" is provisional until the page has loaded plus `MANUAL_GRACE_MS`: the card waits (and
- * tracks nothing) so Android Chrome users don't flash the "use your browser's menu" fallback, and
- * `install_prompt_shown` reports the platform the user actually got.
+ * "manual" is provisional until the page has loaded plus `MANUAL_GRACE_MS`: the card shows its
+ * heading but holds the platform-specific part (and tracks nothing) so Android Chrome users don't
+ * flash the "use your browser's menu" fallback, and `install_prompt_shown` reports the platform
+ * the user actually got.
  */
 export function InstallCard({ placement }: { placement: InstallPlacement }) {
   const { platform, promptInstall } = useInstall();
@@ -52,7 +53,7 @@ export function InstallCard({ placement }: { placement: InstallPlacement }) {
     track("install_prompt_shown", { placement, platform });
   }, [placement, platform, settled]);
 
-  if (platform === null || platform === "standalone" || !settled) return null;
+  if (platform === null || platform === "standalone") return null;
 
   const install = async () => {
     // Showing the prompt uses it up and the platform drops to "manual": that one is final.
@@ -72,8 +73,26 @@ export function InstallCard({ placement }: { placement: InstallPlacement }) {
         <p className="mt-1 text-muted">Open your practice in one tap, like any other app.</p>
       </div>
 
+      {/* Sized for the tallest variant (the two iOS steps), so the card keeps its height while
+          the platform settles and when the button gives way to the fallback text. */}
+      <div className="flex min-h-26 w-full flex-col items-center justify-center">
+        {settled && <InstallOptions platform={platform} onInstall={install} />}
+      </div>
+    </section>
+  );
+}
+
+function InstallOptions({
+  platform,
+  onInstall,
+}: {
+  platform: Exclude<InstallPlatform, "standalone">;
+  onInstall: () => void;
+}) {
+  return (
+    <>
       {platform === "prompt" && (
-        <button type="button" className="btn btn-primary w-full" onClick={install}>
+        <button type="button" className="btn btn-primary w-full" onClick={onInstall}>
           <Icon name="download" className="size-5" />
           Install the app
         </button>
@@ -111,6 +130,6 @@ export function InstallCard({ placement }: { placement: InstallPlacement }) {
           <b className="text-ink">Add to Home screen</b>.
         </p>
       )}
-    </section>
+    </>
   );
 }

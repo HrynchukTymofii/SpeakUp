@@ -111,10 +111,11 @@ Both paywall exits — the free plan and a completed upgrade — open the instal
 `funnel` (free plan) or `purchase` (after paying); keep it _optional_: people already running the
 installed app skip the screen and fire nothing there. On browsers that can't show a prompt (iOS,
 desktop Firefox) only `install_prompt_shown` fires, never `install_prompt_accepted`. Chrome often
-offers its prompt only after the page has hydrated, so `manual` is provisional: the card stays
-hidden and `install_prompt_shown` waits until Chrome's prompt arrives (`platform: prompt`) or
-1.5 s after the page's `load` event (`platform: manual`), and fires once with the platform the
-person actually saw. A second tap on "Install the app" while the first dialog is open fires
+offers its prompt only after the page has hydrated, so `manual` is provisional: the card shows
+its heading but not the install options, and `install_prompt_shown` waits until Chrome's prompt
+arrives (`platform: prompt`) or 1.5 s after the page's `load` event, or after the card appears if
+that is later (`platform: manual`). It fires once, with the platform the person actually saw.
+Using up Chrome's prompt settles it at once: the fallback shows straight away. A second tap on "Install the app" while the first dialog is open fires
 nothing (there is no prompt left to show).
 `app_installed` also fires for installs from the browser's own menu, so it is the count of real
 installs. Upgrades on `/pricing` and `/app/billing` show the same install card right under "You're
