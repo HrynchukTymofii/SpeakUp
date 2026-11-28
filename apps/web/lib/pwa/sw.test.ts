@@ -149,6 +149,21 @@ describe("service worker (public/sw.js)", () => {
     expect(worker.self.skipWaiting).not.toHaveBeenCalled();
   });
 
+  it("fails the install when /offline was redirected", async () => {
+    // e.g. a Vercel preview's deployment protection sends the credential-less fetch to a login
+    // page: that page must not be cached as the offline screen.
+    const fetch = vi.fn(async () => {
+      const response = new Response("<html>Log in</html>", { status: 200 });
+      Object.defineProperty(response, "redirected", { value: true });
+      return response;
+    });
+    const worker = loadWorker({ fetch });
+
+    await expect(worker.lifecycle("install")).rejects.toThrow();
+    expect(worker.caches.snapshot()[CACHE] ?? []).toEqual([]);
+    expect(worker.self.skipWaiting).not.toHaveBeenCalled();
+  });
+
   it("serves navigations from the network and never stores them", async () => {
     const fetch = offlineSiteFetch();
     fetch.mockImplementation(async (input: string | Req) =>
