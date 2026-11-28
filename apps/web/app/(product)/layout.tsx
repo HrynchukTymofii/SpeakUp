@@ -1,6 +1,24 @@
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import type { Metadata, Viewport } from "next";
 import { Suspense, type ReactNode } from "react";
+import { PwaSetup } from "@/components/pwa/pwa-setup";
 import { SiteHeader } from "@/components/site-header";
+
+/**
+ * Only the app host is installable: the manifest, the iOS home-screen tags and the service worker
+ * live here, not in the root layout, so the marketing pages stay a plain website.
+ */
+export const metadata: Metadata = {
+  manifest: "/speakup.webmanifest",
+  icons: { apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "SpeakUp", statusBarStyle: "default" },
+  // Next only emits the standard `mobile-web-app-capable`; older iOS still reads the Apple name.
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+// Lets the installed app draw under the notch and home indicator; fixed and sticky UI pads itself
+// with env(safe-area-inset-*).
+export const viewport: Viewport = { viewportFit: "cover" };
 
 /**
  * Product pages (served on the app host once the domain split is on — see lib/hosts.ts):
@@ -28,6 +46,7 @@ export default function ProductLayout({ children }: { children: ReactNode }) {
         </Suspense>
       </SiteHeader>
       {children}
+      <PwaSetup />
     </div>
   );
 }

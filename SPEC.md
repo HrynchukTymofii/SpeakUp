@@ -295,6 +295,11 @@ URL, including each funnel step, so back/forward and analytics work. All pages a
 The web app talks to the API through one typed client (`apps/web/lib/api.ts`) that attaches the
 Clerk token and validates responses with the shared schemas; TanStack Query holds server state.
 
+The app host is an installable web app (PWA): a manifest, home-screen icons and a service worker
+on product pages only. It stays online-only: the worker caches nothing but an offline screen
+("You're offline", with a Try again link) shown when a page can't load. Details:
+[`docs/architecture.md`](./docs/architecture.md#installable-web-app-pwa).
+
 ---
 
 ## 12. Not built yet
@@ -328,7 +333,8 @@ Clerk token and validates responses with the shared schemas; TanStack Query hold
 
 Real-time or streaming feedback, our own ML models, accent-specific phoneme scoring (designed as
 a pluggable provider, §6.4), an admin CMS for lessons and courses (content is seeded; the funnel
-builder in §12 is the only admin editing), email notifications.
+builder in §12 is the only admin editing), email notifications, offline use of the app (the
+installed web app needs a connection; it only shows an offline screen without one).
 
 ---
 
@@ -367,6 +373,7 @@ One row per significant technical choice. The bigger ones also have a decision r
 | Lost jobs recovered by a sweeper in every worker: Postgres is the record, attempts `queued`/`processing` for 10 min with no BullMQ job are re-queued (in-process timer, every 5 min + at startup)             | The single Redis node can come back empty after an outage, and the API can die between "queued" and "add job"; either left the user on an endless spinner. Dedup by jobId and conditional updates make it safe on any number of workers, and it costs one indexed query | Redis with failover or MemoryDB makes data loss rarer but doesn't cover the API crash; a transactional outbox if enqueueing must be exactly-once at the moment of submit        |
 | Agent pipeline (`/pipeline`): planner → implementers in git worktrees → verifier → reviewer → PR, as Claude Code subagents in `.claude/`                                                                      | Splits multi-package features, runs independent parts in parallel, and checks every change against `CLAUDE.md` before a human sees it; checkers are read-only so they report instead of silently fixing; the owner still approves the plan and merges                   | A single session for small fixes; the Claude Agent SDK or a CI job if the pipeline should run without a local session                                                           |
 | Funnel definition = versioned JSON validated by `FunnelDefinitionSchema`; closed enums for personalizers and option providers, declarative `showIf` rules and `{{answer:key}}` templates instead of functions | Storable in Postgres and editable without a deploy; names from a closed list can't reference arbitrary code, and every value is checked against the answer options when saving                                                                                          | TS functions in the web config (previous) while only developers edit funnels; a full expression language if admins need logic the rules can't express                           |
+| PWA: hand-written `public/sw.js` caching only the offline screen, network-only navigations; manifest linked only on the app host; icons generated from the Mascot via `next/og` (no image dependency)         | No new dependency; nothing signed-in or from the API is cached, so nothing can go stale or leak between accounts on a shared device; the landing stays a plain website                                                                                                  | Serwist/Workbox if we ever cache content offline; the Expo app (§12) for store presence and push                                                                                |
 
 ---
 

@@ -88,6 +88,37 @@ The web app is one Next.js project on Vercel with two domains attached:
   Clerk's `authorizedParties` and the recordings bucket's CORS. The product only calls the API
   from the app host; the site origin stays listed so sessions open during the switch keep working.
 
+### Installable web app (PWA)
+
+The app host can be installed to the home screen; the marketing host cannot.
+
+- **Manifest only on the app host.** `/speakup.webmanifest` is a route handler
+  (`apps/web/app/speakup.webmanifest/route.ts`, built from `apps/web/lib/pwa/manifest.ts`), linked
+  only by the `(product)` layout. It is not `app/manifest.ts`, because Next links that from every
+  page, landing included. The manifest has `id: "/"`, `scope: "/"`, `start_url: "/app"`
+  (`PWA_START_URL`), `display: "standalone"`, the `--page` colour as theme and background, and the
+  icons in `public/icons` (generated from the Mascot). The product layout also adds the Apple
+  touch icon, the `apple-mobile-web-app-*` / `mobile-web-app-capable` tags and
+  `viewport-fit=cover`; marketing pages get none of these.
+- **Service worker** (`apps/web/public/sw.js`, hand-written, scope `/`). It is registered by
+  `<PwaSetup />` in the product layout, and only in production builds (`NODE_ENV=production`, a
+  secure context, `serviceWorker` support), so `pnpm dev` never runs it. It caches only the
+  offline screen: `/offline` plus the CSS and font files that page references, in the cache
+  `speakup-offline-v1`.
+  - Navigations always go to the network and are never stored; when the network fails, the
+    worker shows the cached `/offline` page.
+  - `/_next/static/*` is served from the cache only if it was precached; nothing else is written.
+  - It never touches non-GET requests, cross-origin requests (the API, Clerk's frontend API,
+    Paddle, Amplitude, Turnstile) or same-origin `/__clerk/*`. Nothing signed-in or from the API
+    is ever cached, so nothing can go stale or leak between accounts on a shared device.
+- **Updates.** The worker calls `skipWaiting()` on install and `clients.claim()` on activate, so a
+  new `sw.js` takes over on the next load, and activation deletes every other `speakup-*` cache.
+  When the offline page changes (new design, new CSS), bump the cache name in `sw.js`
+  (`speakup-offline-v2`, …) so installed clients precache the new version.
+- `/sw.js`, `/speakup.webmanifest` and `/icons/*` skip the proxy (see above), so both hosts serve
+  them; the landing just never links them. If a CSP is added later it needs
+  `worker-src 'self'; manifest-src 'self'`.
+
 ## Network (AWS)
 
 - **VPC** across 2 availability zones with public, app and data subnets and one NAT gateway.
