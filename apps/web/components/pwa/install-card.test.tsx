@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InstallPlatform } from "@/lib/pwa/install-platform";
 import { InstallCard } from "./install-card";
 
@@ -18,6 +18,19 @@ beforeEach(() => {
   install.promptInstall.mockReset();
   install.platform = "manual";
 });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+const shownEvents = () => track.mock.calls.filter(([event]) => event === "install_prompt_shown");
+
+/** "manual" is provisional for 1.5 s after load: let that pass. */
+function settle() {
+  act(() => {
+    vi.advanceTimersByTime(1500);
+  });
+}
 
 describe("InstallCard", () => {
   it("renders nothing when running standalone", () => {
@@ -60,20 +73,78 @@ describe("InstallCard", () => {
     expect(install.promptInstall).toHaveBeenCalledTimes(2);
   });
 
-  it("tracks install_prompt_shown once with placement and platform", () => {
+  it("waits for Chrome's late prompt instead of flashing the fallback", () => {
+    vi.useFakeTimers();
     install.platform = "manual";
-    const { rerender } = render(<InstallCard placement="funnel" />);
-    // Chrome's prompt can arrive after the card is on screen: still one impression.
+    const { container, rerender } = render(<InstallCard placement="funnel" />);
+    // Chrome's prompt often arrives after hydration: nothing shown or tracked until then.
+    expect(container).toBeEmptyDOMElement();
+    expect(track).not.toHaveBeenCalled();
+
     install.platform = "prompt";
     rerender(<InstallCard placement="funnel" />);
     expect(screen.getByRole("button", { name: "Install the app" })).toBeVisible();
-    const shown = track.mock.calls.filter(([event]) => event === "install_prompt_shown");
-    expect(shown).toEqual([["install_prompt_shown", { placement: "funnel", platform: "manual" }]]);
+    settle();
+    expect(shownEvents()).toEqual([
+      ["install_prompt_shown", { placement: "funnel", platform: "prompt" }],
+    ]);
+  });
+
+  it("tracks manual once it has settled after page load", () => {
+    vi.useFakeTimers();
+    install.platform = "manual";
+    render(<InstallCard placement="funnel" />);
+    act(() => {
+      vi.advanceTimersByTime(1499);
+    });
+    expect(screen.queryByText(/browser's menu/)).not.toBeInTheDocument();
+    expect(shownEvents()).toEqual([]);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.getByText(/browser's menu/)).toBeVisible();
+    expect(shownEvents()).toEqual([
+      ["install_prompt_shown", { placement: "funnel", platform: "manual" }],
+    ]);
+  });
+
+  it("starts the grace period only when the page has loaded", () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "readyState", "get").mockReturnValue("interactive");
+    install.platform = "manual";
+    render(<InstallCard placement="funnel" />);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(shownEvents()).toEqual([]);
+
+    act(() => {
+      window.dispatchEvent(new Event("load"));
+      vi.advanceTimersByTime(1500);
+    });
+    expect(shownEvents()).toEqual([
+      ["install_prompt_shown", { placement: "funnel", platform: "manual" }],
+    ]);
+  });
+
+  it("doesn't log a dismissal when there was no prompt to show", async () => {
+    const user = userEvent.setup();
+    install.platform = "prompt";
+    install.promptInstall.mockResolvedValue("unavailable");
+    render(<InstallCard placement="purchase" />);
+
+    await user.click(screen.getByRole("button", { name: "Install the app" }));
+    expect(install.promptInstall).toHaveBeenCalledOnce();
+    expect(track).not.toHaveBeenCalledWith("install_prompt_dismissed", expect.anything());
+    expect(track).not.toHaveBeenCalledWith("install_prompt_accepted", expect.anything());
   });
 
   it("gives a fallback when the browser can't prompt", () => {
+    vi.useFakeTimers();
     install.platform = "manual";
     const { unmount } = render(<InstallCard placement="direct" />);
+    settle();
     expect(screen.getByText(/browser's menu/)).toBeVisible();
     expect(screen.getByText(/Install app/)).toBeVisible();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();

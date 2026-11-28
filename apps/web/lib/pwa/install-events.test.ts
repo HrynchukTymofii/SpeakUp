@@ -58,6 +58,23 @@ describe("install events", () => {
     expect(result.current.platform).toBe("manual");
   });
 
+  it("reports unavailable when there is no captured prompt (double tap)", async () => {
+    const { useInstall } = await load();
+    const event = fakeInstallPrompt("dismissed");
+    window.dispatchEvent(event);
+    const { result } = renderHook(() => useInstall());
+
+    let outcomes: string[] = [];
+    await act(async () => {
+      outcomes = await Promise.all([
+        result.current.promptInstall(),
+        result.current.promptInstall(),
+      ]);
+    });
+    expect(event.prompt).toHaveBeenCalledOnce();
+    expect(outcomes).toEqual(["dismissed", "unavailable"]);
+  });
+
   it("tracks app_installed and stops offering the install", async () => {
     const { useInstall } = await load();
     window.dispatchEvent(fakeInstallPrompt("accepted"));

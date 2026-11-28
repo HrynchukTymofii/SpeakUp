@@ -59,12 +59,13 @@ function getSnapshot(): InstallPlatform {
 /** The server can't know the browser: `null` until the client has rendered. */
 const getServerSnapshot = (): InstallPlatform | null => null;
 
-export type InstallOutcome = "accepted" | "dismissed";
+/** `"unavailable"`: there was no captured prompt to show (e.g. the second tap of a double tap). */
+export type InstallOutcome = "accepted" | "dismissed" | "unavailable";
 
 /**
  * The current install platform (`null` during server render and hydration) and a function that
- * shows the browser's install dialog. `promptInstall` resolves `"dismissed"` when there is no
- * captured prompt to show.
+ * shows the browser's install dialog. `promptInstall` resolves `"unavailable"` when there is no
+ * captured prompt to show, so callers don't count it as a dismissal.
  */
 export function useInstall(): {
   platform: InstallPlatform | null;
@@ -77,7 +78,7 @@ export function useInstall(): {
   );
   const promptInstall = useCallback(async (): Promise<InstallOutcome> => {
     const event = deferredPrompt;
-    if (!event) return "dismissed";
+    if (!event) return "unavailable";
     // A captured prompt can be shown only once; drop it before awaiting so a double tap can't
     // reuse it.
     deferredPrompt = null;

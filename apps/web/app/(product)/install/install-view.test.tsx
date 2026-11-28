@@ -51,6 +51,7 @@ describe("InstallView", () => {
   });
 
   it("shows the install card and a continue link", () => {
+    install.platform = "prompt";
     query.current = new URLSearchParams({ from: "funnel", next: "/app/practice" });
     render(<InstallView />);
     expect(screen.getByRole("heading", { name: "Get SpeakUp on your home screen" })).toBeVisible();
