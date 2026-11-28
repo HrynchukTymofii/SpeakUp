@@ -4,7 +4,7 @@
  * FakeDb implements only the handful of Prisma calls our routes make, backed by arrays.
  * This keeps route tests fast and DB-free; the real queries are exercised end-to-end in dev.
  */
-import type { Attempt, DbClient, Subscription, User } from "@speakup/db";
+import { Prisma, type Attempt, type DbClient, type Subscription, type User } from "@speakup/db";
 import type { PresignedUpload } from "@speakup/shared";
 import type { Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
@@ -55,6 +55,24 @@ interface FunnelSessionOrigin {
   utmContent: string | null;
   utmTerm: string | null;
   referrerHost: string | null;
+}
+
+/** A funnel update as the admin routes send it: Prisma's DbNull and `{ increment }` included. */
+type FakeFunnelUpdate = {
+  [K in keyof FakeDb["funnels"][number]]?: K extends "version"
+    ? number | { increment: number }
+    : unknown;
+};
+
+function fakeFunnelData(funnel: FakeDb["funnels"][number], data: FakeFunnelUpdate) {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === Prisma.DbNull) out[key] = null;
+    else if (key === "version" && typeof value === "object" && value && "increment" in value) {
+      out[key] = funnel.version + Number(value.increment);
+    } else out[key] = value;
+  }
+  return out;
 }
 
 export class FakeDb {
@@ -340,6 +358,7 @@ export class FakeDb {
     status: "draft" | "live";
     version: number;
     definition: unknown;
+    draftDefinition?: unknown;
     updatedAt?: Date;
   }[] = [];
 
@@ -348,6 +367,7 @@ export class FakeDb {
       ...funnel,
       id: funnel.id ?? `fn_${funnel.slug}`,
       name: funnel.name ?? funnel.slug,
+      draftDefinition: funnel.draftDefinition ?? null,
       updatedAt: funnel.updatedAt ?? new Date("2026-01-01T00:00:00Z"),
     };
   }
@@ -359,17 +379,24 @@ export class FakeDb {
     },
     /** Insertion order stands in for `orderBy: { createdAt: "asc" }`. */
     findMany: async () => this.funnels.map((f) => this.funnelRow(f)),
-    update: async ({
+    update: async ({ where, data }: { where: { slug: string }; data: FakeFunnelUpdate }) => {
+      const funnel = this.funnels.find((f) => f.slug === where.slug);
+      if (!funnel) throw new Error("not found");
+      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: new Date() });
+      return this.funnelRow(funnel);
+    },
+    /** Only the `{ slug, version }` match the publish route uses (an optimistic lock). */
+    updateMany: async ({
       where,
       data,
     }: {
-      where: { slug: string };
-      data: Partial<FakeDb["funnels"][number]>;
+      where: { slug: string; version: number };
+      data: FakeFunnelUpdate;
     }) => {
-      const funnel = this.funnels.find((f) => f.slug === where.slug);
-      if (!funnel) throw new Error("not found");
-      Object.assign(funnel, data, { updatedAt: new Date() });
-      return this.funnelRow(funnel);
+      const funnel = this.funnels.find((f) => f.slug === where.slug && f.version === where.version);
+      if (!funnel) return { count: 0 };
+      Object.assign(funnel, fakeFunnelData(funnel, data), { updatedAt: new Date() });
+      return { count: 1 };
     },
     /** Throws Prisma's unique-constraint error (P2002) for a taken slug, like Postgres. */
     create: async ({ data }: { data: Omit<FakeDb["funnels"][number], "id" | "updatedAt"> }) => {

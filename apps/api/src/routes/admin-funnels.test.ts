@@ -1,4 +1,4 @@
-import { DEFAULT_FUNNEL_DEFINITION } from "@speakup/shared";
+import { DEFAULT_FUNNEL_DEFINITION, type FunnelDefinition } from "@speakup/shared";
 import { describe, expect, it } from "vitest";
 import { buildTestServer, FakeDb } from "../testing/fakes.js";
 
@@ -7,6 +7,9 @@ const NOT_ADMIN = { authorization: "Bearer valid:user_someone" };
 const env = { ADMIN_CLERK_USER_IDS: ["user_admin"] };
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/** The default funnel's first three screens: a valid, shorter funnel to save as a draft. */
+const SHORT: FunnelDefinition = { version: 1, steps: DEFAULT_FUNNEL_DEFINITION.steps.slice(0, 3) };
 
 function setup() {
   const db = new FakeDb();
@@ -63,6 +66,10 @@ describe("admin access", () => {
       url: "/v1/admin/funnels/main/duplicate",
       payload: { slug: "copy", name: "Copy" },
     },
+    { method: "GET", url: "/v1/admin/funnels/main" },
+    { method: "PUT", url: "/v1/admin/funnels/main/draft", payload: { definition: SHORT } },
+    { method: "DELETE", url: "/v1/admin/funnels/main/draft" },
+    { method: "POST", url: "/v1/admin/funnels/main/publish" },
   ] as const;
 
   it("401 without a session", async () => {
@@ -115,6 +122,7 @@ describe("GET /v1/admin/funnels", () => {
           status: "live",
           version: 3,
           updatedAt: "2026-11-01T10:00:00.000Z",
+          hasDraft: false,
           sessions30d: { started: 2, signedUp: 1 },
         },
         {
@@ -123,6 +131,7 @@ describe("GET /v1/admin/funnels", () => {
           status: "draft",
           version: 1,
           updatedAt: "2026-11-20T10:00:00.000Z",
+          hasDraft: false,
           sessions30d: { started: 1, signedUp: 0 },
         },
       ],
@@ -266,5 +275,119 @@ describe("POST /v1/admin/funnels/:slug/duplicate", () => {
       });
       expect(res.statusCode).toBe(400);
     }
+  });
+});
+
+describe("funnel editor: drafts and publishing", () => {
+  const draftUrl = "/v1/admin/funnels/main/draft";
+
+  it("GET returns what visitors see and the draft (none yet)", async () => {
+    const app = await buildTestServer({ db: setup(), env });
+    const res = await app.inject({ method: "GET", url: "/v1/admin/funnels/main", headers: ADMIN });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.json()).toMatchObject({
+      funnel: { slug: "main", version: 3, hasDraft: false },
+      definition: DEFAULT_FUNNEL_DEFINITION,
+      draft: null,
+    });
+    const unknown = await app.inject({
+      method: "GET",
+      url: "/v1/admin/funnels/nope",
+      headers: ADMIN,
+    });
+    expect(unknown.statusCode).toBe(404);
+  });
+
+  it("saves a draft without changing what visitors see", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    const res = await app.inject({
+      method: "PUT",
+      url: draftUrl,
+      headers: ADMIN,
+      payload: { definition: SHORT },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ funnel: { hasDraft: true, version: 3 }, draft: SHORT });
+    expect(db.funnels[0]?.definition).toEqual(DEFAULT_FUNNEL_DEFINITION);
+    expect(db.funnels[0]?.draftDefinition).toEqual(SHORT);
+  });
+
+  it("400 for a draft whose screens are in an order that breaks the funnel", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    const steps = DEFAULT_FUNNEL_DEFINITION.steps;
+    const results = steps.find((s) => s.type === "results");
+    const res = await app.inject({
+      method: "PUT",
+      url: draftUrl,
+      headers: ADMIN,
+      payload: { definition: { version: 1, steps: [results, ...SHORT.steps] } },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.message).toContain("recording screen");
+    expect(db.funnels[0]?.draftDefinition).toBeUndefined();
+  });
+
+  it("publishes the draft: visitors get it, the version goes up, the draft is cleared", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    await app.inject({
+      method: "PUT",
+      url: draftUrl,
+      headers: ADMIN,
+      payload: { definition: SHORT },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/admin/funnels/main/publish",
+      headers: ADMIN,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      funnel: { version: 4, hasDraft: false },
+      definition: SHORT,
+      draft: null,
+    });
+    expect(db.funnels[0]).toMatchObject({ definition: SHORT, draftDefinition: null, version: 4 });
+
+    // Nothing left to publish.
+    const again = await app.inject({
+      method: "POST",
+      url: "/v1/admin/funnels/main/publish",
+      headers: ADMIN,
+    });
+    expect(again.statusCode).toBe(409);
+    expect(db.funnels[0]?.version).toBe(4);
+  });
+
+  it("discards the draft", async () => {
+    const db = setup();
+    const app = await buildTestServer({ db, env });
+    await app.inject({
+      method: "PUT",
+      url: draftUrl,
+      headers: ADMIN,
+      payload: { definition: SHORT },
+    });
+    const res = await app.inject({ method: "DELETE", url: draftUrl, headers: ADMIN });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ funnel: { hasDraft: false, version: 3 }, draft: null });
+    expect(db.funnels[0]?.draftDefinition).toBeNull();
+  });
+
+  it("409 instead of publishing a stored draft that no longer passes the checks", async () => {
+    const db = setup();
+    const main = db.funnels[0];
+    if (main) main.draftDefinition = { version: 1, steps: [] };
+    const app = await buildTestServer({ db, env });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/admin/funnels/main/publish",
+      headers: ADMIN,
+    });
+    expect(res.statusCode).toBe(409);
+    expect(db.funnels[0]?.version).toBe(3);
   });
 });
