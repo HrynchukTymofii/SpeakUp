@@ -33,9 +33,10 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderView() {
+/** `appRetry`: the app's real default (one retry, `app/providers.tsx`) instead of none. */
+function renderView({ appRetry = false } = {}) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: appRetry ? 1 : false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
@@ -133,11 +134,36 @@ describe("FunnelsView", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent('"main" is already used');
   });
 
-  it("shows a no-access screen to signed-in users who aren't admins", async () => {
-    api.getAdminFunnels.mockRejectedValue(new ApiClientError(403, "FORBIDDEN", "Admins only"));
+  it("action buttons keep a 44 px tap target", async () => {
+    api.getAdminFunnels.mockResolvedValue({
+      funnels: [funnel({}), funnel({ slug: "spring", name: "Spring", status: "draft" })],
+    });
     renderView();
+    await userEvent.click((await screen.findAllByRole("button", { name: "Duplicate" }))[0]!);
+    for (const name of ["Take live", "Duplicate", "Create draft", "Cancel"]) {
+      for (const button of screen.getAllByRole("button", { name })) {
+        expect(button).toHaveClass("min-h-11");
+      }
+    }
+  });
+
+  it("moves focus into the duplicate form and back to Duplicate when it closes", async () => {
+    api.getAdminFunnels.mockResolvedValue({ funnels: [funnel({})] });
+    renderView();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Duplicate" }));
+    expect(screen.getByLabelText("New link")).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Duplicate" })).toHaveFocus();
+  });
+
+  it("shows a no-access screen to signed-in users who aren't admins, without retrying", async () => {
+    api.getAdminFunnels.mockRejectedValue(new ApiClientError(403, "FORBIDDEN", "Admins only"));
+    renderView({ appRetry: true });
 
     expect(await screen.findByRole("heading", { name: "This page is for admins" })).toBeVisible();
     expect(screen.getByRole("link", { name: /Back to the app/ })).toHaveAttribute("href", "/app");
+    // A 403 won't change by asking again.
+    expect(api.getAdminFunnels).toHaveBeenCalledTimes(1);
   });
 });

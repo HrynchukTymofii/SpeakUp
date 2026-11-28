@@ -9,13 +9,16 @@ import {
 } from "@speakup/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { BackLink } from "@/components/back-link";
 import { Mascot } from "@/components/mascot";
 import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 
 const QUERY_KEY = ["admin-funnels"];
+
+/** `btn-sm` is 40 px tall; admin actions keep the 44 px tap target (design-system.md). */
+const SMALL_BUTTON = "btn btn-sm min-h-11";
 
 /** The API's own message for refusals (409 slug taken, main can't go offline…), else a generic one. */
 function errorText(error: unknown): string {
@@ -30,7 +33,12 @@ function errorText(error: unknown): string {
  */
 export function FunnelsView() {
   const api = useApi();
-  const funnels = useQuery({ queryKey: QUERY_KEY, queryFn: () => api.getAdminFunnels() });
+  const funnels = useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: () => api.getAdminFunnels(),
+    // A 403 (not an admin) won't change by retrying: show the right screen at once.
+    retry: (count, err) => !(err instanceof ApiClientError && err.status < 500) && count < 1,
+  });
 
   if (funnels.isPending) return <p className="text-muted">Loading…</p>;
 
@@ -56,7 +64,7 @@ export function FunnelsView() {
         </p>
         <button
           type="button"
-          className="btn btn-secondary btn-sm w-fit"
+          className={`${SMALL_BUTTON} btn-secondary w-fit`}
           onClick={() => void funnels.refetch()}
         >
           Try again
@@ -92,6 +100,12 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [duplicating, setDuplicating] = useState(false);
+  const duplicateButton = useRef<HTMLButtonElement>(null);
+  // Closing the form would otherwise drop keyboard focus to <body>: hand it back to "Duplicate".
+  const closeForm = () => {
+    setDuplicating(false);
+    duplicateButton.current?.focus();
+  };
   const refresh = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const setStatus = useMutation({
@@ -146,22 +160,22 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
         ) : (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className={`${SMALL_BUTTON} btn-secondary`}
             disabled={setStatus.isPending}
             onClick={() => setStatus.mutate(isLive ? "draft" : "live")}
           >
             {isLive ? "Take offline" : "Take live"}
           </button>
         )}
-        {!duplicating && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setDuplicating(true)}
-          >
-            Duplicate
-          </button>
-        )}
+        <button
+          ref={duplicateButton}
+          type="button"
+          className={`${SMALL_BUTTON} btn-secondary`}
+          aria-expanded={duplicating}
+          onClick={() => setDuplicating((open) => !open)}
+        >
+          Duplicate
+        </button>
       </div>
       {setStatus.isError && (
         <p role="alert" className="text-sm font-medium text-danger">
@@ -172,9 +186,9 @@ function FunnelCard({ funnel }: { funnel: AdminFunnel }) {
       {duplicating && (
         <DuplicateForm
           source={funnel}
-          onDone={() => setDuplicating(false)}
+          onDone={closeForm}
           onCreated={() => {
-            setDuplicating(false);
+            closeForm();
             void refresh();
           }}
         />
@@ -200,6 +214,9 @@ function DuplicateForm({
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [slugError, setSlugError] = useState<string | null>(null);
+  const slugInput = useRef<HTMLInputElement>(null);
+  // The form opens from the "Duplicate" button: start typing in its first field.
+  useEffect(() => slugInput.current?.focus(), []);
 
   const duplicate = useMutation({
     mutationFn: (body: DuplicateFunnelBody) => api.duplicateFunnel(source.slug, body),
@@ -230,6 +247,7 @@ function DuplicateForm({
           /f/
         </span>
         <input
+          ref={slugInput}
           id={`${id}-slug`}
           className={INPUT}
           value={slug}
@@ -267,10 +285,14 @@ function DuplicateForm({
         </p>
       )}
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={duplicate.isPending}>
+        <button
+          type="submit"
+          className={`${SMALL_BUTTON} btn-primary`}
+          disabled={duplicate.isPending}
+        >
           Create draft
         </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onDone}>
+        <button type="button" className={`${SMALL_BUTTON} btn-secondary`} onClick={onDone}>
           Cancel
         </button>
       </div>
