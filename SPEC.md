@@ -334,13 +334,28 @@ on product pages only. It stays online-only: the worker caches nothing but an of
   - editing a screen's text (titles, options) in the editor, and drag-and-drop ordering;
   - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
     send the variant to Amplitude as a property.
+- **Body-language feedback** (gestures, eye contact, posture). The camera runs next to the mic
+  during recording, and MediaPipe (`@mediapipe/tasks-vision`: hand, pose and face landmarkers)
+  tracks the speaker on the device. Only per-attempt numbers leave the browser (share of time the
+  hands are visible, how much they move, share of time looking at the camera, posture, fidgeting),
+  validated with Zod and passed to the feedback prompt next to the speech metrics. Video is never
+  uploaded. Open questions: hands are often out of frame on a hand-held phone (maybe face and gaze
+  only on mobile), frame rate on low-end phones, and wording the feedback as nudges, not a grade,
+  since good gestures depend on culture.
+- **Pronunciation and accent feedback.** An Azure Pronunciation Assessment implementation of
+  `PronunciationProvider` (§6.4), first for `read_aloud` (scored against its `referenceText`):
+  per-phoneme errors with timestamps, plus accuracy, fluency and prosody (stress, intonation,
+  rhythm; en-US only). The worker runs it next to speech-to-text, saves the results, and passes the
+  weakest sounds to the feedback prompt. Later: a "sounds you keep missing" view across attempts.
+  Speechace is the fallback vendor. Accent identification ("you sound 70% X") is not planned: it
+  does not tell the learner what to fix.
 
 ## 13. Out of scope
 
-Real-time or streaming feedback, our own ML models, accent-specific phoneme scoring (designed as
-a pluggable provider, §6.4), an admin CMS for lessons and courses (content is seeded; the funnel
-builder in §12 is the only admin editing), email notifications, offline use of the app (the
-installed web app needs a connection; it only shows an offline screen without one).
+Real-time or streaming feedback, our own ML models, an admin CMS for lessons and courses
+(content is seeded; the funnel builder in §12 is the only admin editing), email notifications,
+offline use of the app (the installed web app needs a connection; it only shows an offline
+screen without one).
 
 ---
 
