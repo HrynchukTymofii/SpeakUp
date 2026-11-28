@@ -267,6 +267,7 @@ export class FakeDb {
     currentStep: string | null;
     userId: string | null;
     ipHash: string | null;
+    createdAt: Date;
     claimedAt: Date | null;
   } & FunnelSessionOrigin)[] = [];
 
@@ -281,6 +282,7 @@ export class FakeDb {
         answers: {},
         currentStep: null,
         userId: null,
+        createdAt: new Date(),
         claimedAt: null,
         funnelId: null,
         funnelVersion: null,
@@ -303,21 +305,80 @@ export class FakeDb {
       Object.assign(session, data);
       return session;
     },
+    /**
+     * The admin list's per-funnel counts: `by: ["funnelId"]` with `funnelId: { in }`,
+     * `createdAt: { gte }` and optionally `claimedAt: { not: null }`.
+     */
+    groupBy: async ({
+      where,
+    }: {
+      where: {
+        funnelId: { in: string[] };
+        createdAt: { gte: Date };
+        claimedAt?: { not: null };
+      };
+    }) => {
+      const counts = new Map<string, number>();
+      for (const s of this.funnelSessions) {
+        if (s.funnelId === null || !where.funnelId.in.includes(s.funnelId)) continue;
+        if (s.createdAt < where.createdAt.gte) continue;
+        if (where.claimedAt && s.claimedAt === null) continue;
+        counts.set(s.funnelId, (counts.get(s.funnelId) ?? 0) + 1);
+      }
+      return [...counts].map(([funnelId, all]) => ({ funnelId, _count: { _all: all } }));
+    },
   };
 
-  /** Funnel rows in the shape the public route selects (definition is raw JSON, unvalidated). */
+  /**
+   * Funnel rows (definition is raw JSON, unvalidated). `id`, `name` and `updatedAt` get
+   * defaults so public-route tests can leave them out.
+   */
   funnels: {
     id?: string;
     slug: string;
+    name?: string;
     status: "draft" | "live";
     version: number;
     definition: unknown;
+    updatedAt?: Date;
   }[] = [];
+
+  private funnelRow(funnel: FakeDb["funnels"][number]) {
+    return {
+      ...funnel,
+      id: funnel.id ?? `fn_${funnel.slug}`,
+      name: funnel.name ?? funnel.slug,
+      updatedAt: funnel.updatedAt ?? new Date("2026-01-01T00:00:00Z"),
+    };
+  }
 
   funnel = {
     findUnique: async ({ where }: { where: { slug: string } }) => {
       const funnel = this.funnels.find((f) => f.slug === where.slug);
-      return funnel ? { ...funnel, id: funnel.id ?? `fn_${funnel.slug}` } : null;
+      return funnel ? this.funnelRow(funnel) : null;
+    },
+    /** Insertion order stands in for `orderBy: { createdAt: "asc" }`. */
+    findMany: async () => this.funnels.map((f) => this.funnelRow(f)),
+    update: async ({
+      where,
+      data,
+    }: {
+      where: { slug: string };
+      data: Partial<FakeDb["funnels"][number]>;
+    }) => {
+      const funnel = this.funnels.find((f) => f.slug === where.slug);
+      if (!funnel) throw new Error("not found");
+      Object.assign(funnel, data, { updatedAt: new Date() });
+      return this.funnelRow(funnel);
+    },
+    /** Throws Prisma's unique-constraint error (P2002) for a taken slug, like Postgres. */
+    create: async ({ data }: { data: Omit<FakeDb["funnels"][number], "id" | "updatedAt"> }) => {
+      if (this.funnels.some((f) => f.slug === data.slug)) {
+        throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+      }
+      const funnel = { ...data, id: `fn_${this.nextId++}`, updatedAt: new Date() };
+      this.funnels.push(funnel);
+      return this.funnelRow(funnel);
     },
   };
 

@@ -307,6 +307,9 @@ export class SpeakUpStack extends cdk.Stack {
           CORS_ORIGINS: config.webOrigins.join(","),
           PADDLE_ENV: config.paddleEnv,
           TRUST_PROXY_HOPS: "1", // the ALB
+          ...(config.adminClerkUserIds.length > 0 && {
+            ADMIN_CLERK_USER_IDS: config.adminClerkUserIds.join(","),
+          }),
           DB_POOL_MAX: String(API_DB_POOL),
           ...(loadTest && {
             LOAD_TEST_STACK: "true",
