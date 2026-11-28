@@ -44,23 +44,27 @@ Autocaptured clicks and form fields could send text people type.
 
 ## Events
 
-| Event                        | Where                                                    | Properties                                                |
-| ---------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
-| `funnel_step_viewed`         | every funnel step                                        | `step` (id from `funnel/config.ts`), `index`              |
-| `funnel_answer`              | every answered question (incl. loader)                   | `step`, `value`                                           |
-| `mic_permission_result`      | `mic` step                                               | `result`: `granted` · `denied` · `unsupported`            |
-| `funnel_recording_submitted` | `exercise` step                                          | `durationMs`                                              |
-| `funnel_signup_completed`    | `auth` step, after the anonymous check is claimed        | `step`                                                    |
-| `funnel_results_viewed`      | `results` step                                           | `score`                                                   |
-| `paywall_viewed`             | `paywall` step                                           | `placement`: `funnel`                                     |
-| `funnel_free_plan_chosen`    | paywall, "Continue with the free plan"                   | —                                                         |
-| `checkout_started`           | any "Upgrade to Pro" button                              | `placement`: `funnel` · `pricing` · `lesson`              |
-| `checkout_closed`            | Paddle overlay closed without paying                     | `placement`                                               |
-| `checkout_completed`         | Paddle reports a successful payment                      | `placement`, `currency`; **revenue** = the checkout total |
-| `pro_activated`              | our API reports the account as Pro                       | `placement`                                               |
-| `recording_submitted`        | any recording in the app (lessons, practice, challenges) | `exercise` (slug), `exerciseType`, `durationSec`          |
-| `results_viewed`             | results page, once the analysis is done                  | `status`: `completed` · `failed`, `exercise`, `score`     |
-| `lesson_completed`           | the "Lesson complete!" screen                            | `lesson`, `course`                                        |
+| Event                        | Where                                                    | Properties                                                                                                            |
+| ---------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `funnel_step_viewed`         | every funnel step                                        | `step` (id from `funnel/config.ts`), `index`                                                                          |
+| `funnel_answer`              | every answered question (incl. loader)                   | `step`, `value`                                                                                                       |
+| `mic_permission_result`      | `mic` step                                               | `result`: `granted` · `denied` · `unsupported`                                                                        |
+| `funnel_recording_submitted` | `exercise` step                                          | `durationMs`                                                                                                          |
+| `funnel_signup_completed`    | `auth` step, after the anonymous check is claimed        | `step`                                                                                                                |
+| `funnel_results_viewed`      | `results` step                                           | `score`                                                                                                               |
+| `paywall_viewed`             | `paywall` step                                           | `placement`: `funnel`                                                                                                 |
+| `funnel_free_plan_chosen`    | paywall, "Continue with the free plan"                   | —                                                                                                                     |
+| `checkout_started`           | any "Upgrade to Pro" button                              | `placement`: `funnel` · `pricing` · `lesson`                                                                          |
+| `checkout_closed`            | Paddle overlay closed without paying                     | `placement`                                                                                                           |
+| `checkout_completed`         | Paddle reports a successful payment                      | `placement`, `currency`; **revenue** = the checkout total                                                             |
+| `pro_activated`              | our API reports the account as Pro                       | `placement`                                                                                                           |
+| `install_prompt_shown`       | the install card (`InstallCard`), once per screen        | `placement`: `landing` · `funnel` · `purchase` · `direct`; `platform`: `prompt` · `ios` · `in_app_browser` · `manual` |
+| `install_prompt_accepted`    | the browser's install dialog, "Install" chosen           | `placement`                                                                                                           |
+| `install_prompt_dismissed`   | the browser's install dialog, closed without installing  | `placement`                                                                                                           |
+| `app_installed`              | the browser reports the app was installed (any way)      | —                                                                                                                     |
+| `recording_submitted`        | any recording in the app (lessons, practice, challenges) | `exercise` (slug), `exerciseType`, `durationSec`                                                                      |
+| `results_viewed`             | results page, once the analysis is done                  | `status`: `completed` · `failed`, `exercise`, `score`                                                                 |
+| `lesson_completed`           | the "Lesson complete!" screen                            | `lesson`, `course`                                                                                                    |
 
 To add an event: add its name to `AnalyticsEvent` in `funnel/analytics.ts`, call `track()` and
 add a row here.
@@ -100,6 +104,13 @@ separate one.
 Visitors who are already signed in pass step 13 without a form (their check is claimed at once,
 which still fires `funnel_signup_completed`). People who choose the free plan leave at step 19 with
 `funnel_free_plan_chosen` and continue at step 22.
+
+The install screen `/install` will sit between steps 21 and 22 (after the paywall, before `/app`).
+Use `install_prompt_shown` placement = `funnel` (free plan) or `purchase` (after paying) as an
+_optional_ step there: people already running the installed app skip it, and on browsers that
+can't show a prompt (iOS, desktop Firefox) only `install_prompt_shown` fires, never `accepted`.
+`app_installed` also fires for installs from the browser's own menu, so it is the count of real
+installs.
 
 Useful extra charts:
 
