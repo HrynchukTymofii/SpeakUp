@@ -9,6 +9,7 @@ import { ApiClientError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { track } from "../analytics";
 import { funnelApi } from "../api";
+import { useFunnel } from "../funnel-context";
 import { useFunnelStore } from "../store";
 import { StepHeading } from "../ui";
 import type { StepProps } from "./props";
@@ -18,11 +19,9 @@ const STAGE_TEXT: Record<string, string> = {
   queued: "Your recording is in the queue…",
   transcribing: "Transcribing your recording…",
   analyzing: "Measuring pace, pauses and filler words…",
-  completed: "Your analysis is ready ✓",
+  completed: "Your analysis is ready",
   failed: "We couldn’t analyze this recording — you’ll see why after signing up.",
 };
-
-const RETURN_URL = "/start/auth";
 
 /**
  * Auth gate (SPEC §15.2 step 12): sign up to see the results. The analysis runs meanwhile, and a
@@ -33,6 +32,8 @@ const RETURN_URL = "/start/auth";
 export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
   const { isLoaded, isSignedIn } = useAuth();
   const api = useApi();
+  // Clerk sends the visitor back to this step of the same funnel, where the claim runs.
+  const returnUrl = `${useFunnel().basePath}/${step.id}`;
   const { guestToken, attemptId, claimed, setClaimed } = useFunnelStore();
 
   const status = useQuery({
@@ -117,9 +118,9 @@ export function AuthStep({ step, onNext }: StepProps<"auth_gate">) {
         {/* routing="hash": the whole sign-up (incl. email code) happens inside this page. */}
         <SignUp
           routing="hash"
-          forceRedirectUrl={RETURN_URL}
-          signInForceRedirectUrl={RETURN_URL}
-          signInUrl={`/sign-in?redirect_url=${encodeURIComponent(RETURN_URL)}`}
+          forceRedirectUrl={returnUrl}
+          signInForceRedirectUrl={returnUrl}
+          signInUrl={`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`}
         />
       </div>
     </div>

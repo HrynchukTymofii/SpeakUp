@@ -115,7 +115,9 @@ the model must keep:
   not only in code).
 - **Content is seeded**, not edited in an admin UI: `packages/db/src/seed-data.ts`, applied by an
   idempotent `pnpm db:seed`. Lesson videos are plain URLs (configurable); CloudFront + HLS is listed
-  in §12.
+  in §12. The seed also creates the default web funnel `main` (from
+  `packages/shared/src/funnel-default.ts`) — create-only: a re-seed never overwrites an existing
+  funnel row.
 - **Schema changes stay backward compatible** with the running version (expand → migrate →
   contract), because old and new tasks run side by side during a deploy.
 
@@ -213,8 +215,8 @@ How the pipeline is built: [`docs/architecture.md`](./docs/architecture.md#analy
 The full reference is [`docs/api.md`](./docs/api.md). The rules every endpoint follows:
 
 - REST under `/v1`. Every route needs `Authorization: Bearer <Clerk token>` except `/health*`,
-  the public billing plans, webhooks (signature instead) and the funnel routes (guest token
-  instead). The first authenticated request creates our `User` row (lazy provisioning).
+  the public billing plans, published funnel definitions (`GET /v1/funnels/:slug`, no auth),
+  webhooks (signature instead) and the funnel routes (guest token instead). The first authenticated request creates our `User` row (lazy provisioning).
 - **One error shape:** `{ "error": { "code", "message", "requestId" } }`. Statuses: 400
   validation, 401 unauthenticated, 402 paywall, 403 forbidden, 404 (also for someone else's
   resource), 409 wrong state, 429 rate-limited or over quota, 500.
@@ -321,13 +323,13 @@ on product pages only. It stays online-only: the worker caches nothing but an of
 - **High availability, before the first paying users:** a NAT gateway per AZ first, then a Redis
   replica with automatic failover, then RDS Multi-AZ (about +$75/month together). Order and what
   each one protects: [`docs/scaling.md` §2.6](./docs/scaling.md#26-single-points-of-failure).
-- **Funnel builder** (issue #45). Funnel definitions can already be written as data and checked
-  by `FunnelDefinitionSchema` (`packages/shared/src/funnel-definition.ts`). Still to build:
-  - funnels stored in the DB and served at `/f/<slug>`, with the UTM parameters and the variant
-    saved on the funnel session;
+- **Funnel builder** (issue #45). Funnels are already data (`FunnelDefinitionSchema`), stored in
+  the `Funnel` table and served at `/f/<slug>`, with the funnel, revision and first-touch UTM /
+  referrer host saved on the funnel session. Still to build:
   - admin sign-in and a list of funnels;
-  - an admin editor with a live preview and publishing;
-  - A/B splits between funnel variants, with the variant sent to Amplitude as a property.
+  - an admin editor with a live preview and publishing (bumps `Funnel.version`);
+  - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
+    send the variant to Amplitude as a property.
 
 ## 13. Out of scope
 
@@ -373,6 +375,7 @@ One row per significant technical choice. The bigger ones also have a decision r
 | Lost jobs recovered by a sweeper in every worker: Postgres is the record, attempts `queued`/`processing` for 10 min with no BullMQ job are re-queued (in-process timer, every 5 min + at startup)             | The single Redis node can come back empty after an outage, and the API can die between "queued" and "add job"; either left the user on an endless spinner. Dedup by jobId and conditional updates make it safe on any number of workers, and it costs one indexed query | Redis with failover or MemoryDB makes data loss rarer but doesn't cover the API crash; a transactional outbox if enqueueing must be exactly-once at the moment of submit        |
 | Agent pipeline (`/pipeline`): planner → implementers in git worktrees → verifier → reviewer → PR, as Claude Code subagents in `.claude/`                                                                      | Splits multi-package features, runs independent parts in parallel, and checks every change against `CLAUDE.md` before a human sees it; checkers are read-only so they report instead of silently fixing; the owner still approves the plan and merges                   | A single session for small fixes; the Claude Agent SDK or a CI job if the pipeline should run without a local session                                                           |
 | Funnel definition = versioned JSON validated by `FunnelDefinitionSchema`; closed enums for personalizers and option providers, declarative `showIf` rules and `{{answer:key}}` templates instead of functions | Storable in Postgres and editable without a deploy; names from a closed list can't reference arbitrary code, and every value is checked against the answer options when saving                                                                                          | TS functions in the web config (previous) while only developers edit funnels; a full expression language if admins need logic the rules can't express                           |
+| Funnels as JSON rows (`Funnel.definition`), loaded by the server page for `/f/<slug>` (3 s timeout, cached 60 s), the bundled default as fallback for `main`; `/start` never calls the API                    | Funnels can change without a web deploy, while ad traffic must not break when the API is down or slow: `/start` and `/f/main` always render; the definition is validated on the server, so the browser only gets checked data                                           | Edge cache/CDN in front of `GET /v1/funnels/:slug` if the API becomes a bottleneck; drop the bundled fallback once the editor exists and `main` is edited only there            |
 | PWA: hand-written `public/sw.js` caching only the offline screen, network-only navigations; manifest linked only on the app host; icons generated from the Mascot via `next/og` (no image dependency)         | No new dependency; nothing signed-in or from the API is cached, so nothing can go stale or leak between accounts on a shared device; the landing stays a plain website                                                                                                  | Serwist/Workbox if we ever cache content offline; the Expo app (§12) for store presence and push                                                                                |
 
 ---
@@ -388,7 +391,7 @@ layout), not its content or branding. How that reference works and what SpeakUp 
 
 ### 15.2 Step sequence
 
-`/start/[step]`. Progress bar across the top for the pre-paywall part. Back button on every step except the loaders and the recording-in-progress state. Answers save on every step (local first, then `PATCH /v1/funnel/sessions/current`).
+`/start/[step]` renders the bundled default funnel `main`; `/f/<slug>/[step]` renders the live funnel with that slug from the API (ad links; `/f/main` falls back to the bundled copy when the API is unavailable, an unknown slug is a 404). The steps below are the default funnel. Progress bar across the top for the pre-paywall part. Back button on every step except the loaders and the recording-in-progress state. Answers save on every step (local first, then `PATCH /v1/funnel/sessions/current`).
 
 | #   | Step id        | Type                  | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --- | -------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -413,10 +416,10 @@ layout), not its content or branding. How that reference works and what SpeakUp 
 
 ### 15.3 Funnel engine (implementation)
 
-- **Config-driven, as data.** `apps/web/funnel/config.ts` exports `FUNNEL_DEFINITION = { version, steps }`: an ordered list of steps `{ id, type, ...typeSpecificProps, showIf? }` that is plain JSON (no functions), validated by `FunnelDefinitionSchema` in `packages/shared` (in a unit test, not at runtime). `showIf` is a declarative rule on the answers (`equals`, `notEquals`, `in`, `includes`, `answered`, `notAnswered`, combined with `all` / `any` / `not`). Configured text may contain `{{answer:key|fallback}}`, filled with the answer's label. Dynamic parts are referenced by name: reflection personalizers (`content: { personalizer }`) and option providers (`options: { provider }`), implemented in `funnel/personalize.ts`. Pages render by `type` via a component map. Adding/reordering steps = editing that data only.
+- **Config-driven, as data.** `packages/shared/src/funnel-default.ts` exports `DEFAULT_FUNNEL_DEFINITION = { version, steps }` (the web app re-exports it as `FUNNEL_DEFINITION` from `apps/web/funnel/config.ts`): an ordered list of steps `{ id, type, ...typeSpecificProps, showIf? }` that is plain JSON (no functions), validated by `FunnelDefinitionSchema` in `packages/shared` (in a unit test, not at runtime). `showIf` is a declarative rule on the answers (`equals`, `notEquals`, `in`, `includes`, `answered`, `notAnswered`, combined with `all` / `any` / `not`); it may only read answers that an earlier step collects (not the step's own, nor a loader's own questions), otherwise the schema rejects the definition. Configured text may contain `{{answer:key|fallback}}`, filled with the answer's label. Dynamic parts are referenced by name: reflection personalizers (`content: { personalizer }`) and option providers (`options: { provider }`), implemented in `funnel/personalize.ts`. Pages render by `type` via a component map. Adding/reordering steps = editing that data only.
 - **Step types:** `single_choice`, `multi_choice`, `slider`, `reflection`, `video_lesson`, `mic_permission`, `recording`, `auth_gate`, `results`, `loader_with_questions`, `plan_summary`, `paywall`.
-- **State:** Zustand store persisted to `localStorage` (answers, current step, guest token, attemptId). Reload resumes where the user left off. Guest token never goes into URLs or logs.
-- **Server sync:** create the funnel session on step 1; PATCH answers on each step (debounced, failures don't block the UI).
+- **State:** Zustand store persisted to `localStorage` (answers, current step, guest token, attemptId, plus the funnel's slug and content revision and the first-touch attribution). It holds one funnel at a time: opening a different funnel starts fresh. Reload resumes where the user left off. Guest token never goes into URLs or logs. The shell takes the funnel's steps and base path from a `FunnelProvider` (`apps/web/funnel/funnel-context.tsx`); `/start` renders the bundled default `main` without calling the API.
+- **Server sync:** create the funnel session on step 1, sending the funnel shown (`{ slug, version }`) and the first-touch attribution (`utm_*`, referrer host only); PATCH answers on each step (debounced, failures don't block the UI).
 - **Guards:** you can't open a step whose prerequisites aren't met (e.g. `/start/results` without a claimed attempt redirects to the right step). Already-signed-in users who open `/start` skip `auth`.
 - **Personalization text** comes from `funnel/personalize.ts`, unit-tested: the named personalizers (`PERSONALIZERS`: reflection copy from the goal / first symptom), option providers (`OPTIONS_PROVIDERS`: the `focus` options from the result's top issues), `renderText` for `{{answer:…}}` templates, and the plan builder.
 - **Copy rule:** no invented statistics or testimonials. Where the reference funnel uses social-proof numbers, put clearly marked `TODO(founder)` placeholders.

@@ -41,6 +41,22 @@ describe("routeForHost on the marketing host", () => {
     expect(route(SITE, "/starter")).toEqual({ kind: "next", noindex: false });
   });
 
+  it("/f/main?utm_source=x on the site host redirects to the app host, keeping the query", () => {
+    // Ad links point at /f/<slug>; the UTM tags must survive the hop for first-touch attribution.
+    expect(route(SITE, "/f/main/goal", "?utm_source=x&utm_campaign=spring")).toEqual({
+      kind: "redirect",
+      url: "https://app.speakup.fibipals.com/f/main/goal?utm_source=x&utm_campaign=spring",
+      status: 308,
+    });
+    expect(route(SITE, "/f/main", "?utm_source=x")).toEqual({
+      kind: "redirect",
+      url: "https://app.speakup.fibipals.com/f/main?utm_source=x",
+      status: 308,
+    });
+    // Whole segments only: a marketing page named /faq stays on the site.
+    expect(route(SITE, "/faq")).toEqual({ kind: "next", noindex: false });
+  });
+
   it("leaves Clerk's and Next's internal paths alone", () => {
     expect(route(SITE, "/__clerk/v1/client")).toEqual({ kind: "next", noindex: false });
   });

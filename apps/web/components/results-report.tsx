@@ -7,6 +7,7 @@ import {
   scoreSurface,
   voiceVerdict,
 } from "@/lib/report";
+import { Icon } from "./icons";
 import { Mascot } from "./mascot";
 import { SkillBars } from "./skill-bars";
 import { TranscriptView } from "./transcript-view";
@@ -127,7 +128,7 @@ export function ResultsReport({
           <ul className="flex flex-col gap-1.5 font-medium">
             {feedback.strengths.map((s) => (
               <li key={s} className="flex gap-2">
-                <span aria-hidden>✓</span>
+                <Icon name="check" className="mt-1 size-4" strokeWidth={2.5} />
                 {s}
               </li>
             ))}

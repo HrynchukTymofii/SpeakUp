@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AudioMimeTypeSchema } from "./api/attempts.js";
+import { SlugSchema } from "./api/courses.js";
 
 /**
  * Web funnel contracts (SPEC §15). Answer options live here — not only in the web config — so the
@@ -101,6 +102,72 @@ export type FunnelAnswers = z.infer<typeof FunnelAnswersSchema>;
 
 /** Max length of an anonymous baseline recording (SPEC §9). */
 export const FUNNEL_MAX_RECORDING_SEC = 45;
+
+/**
+ * A funnel's URL id (`/f/<slug>`). Same shape as lesson slugs, but shorter. It lives here, not in
+ * api/funnels.ts, because that module imports the definition schema, which imports this file.
+ */
+export const FunnelSlugSchema = SlugSchema.min(1).max(64);
+export type FunnelSlug = z.infer<typeof FunnelSlugSchema>;
+
+/** ASCII control characters. Postgres rejects NUL in text, and none belong in a UTM value. */
+// eslint-disable-next-line no-control-regex -- matching control characters is the point
+export const CONTROL_CHARS = /[\u0000-\u001F\u007F]/g;
+
+const attributionValue = z
+  .string()
+  .transform((value) => value.replace(CONTROL_CHARS, ""))
+  .pipe(z.string().trim().min(1).max(200));
+
+const attributionShape = {
+  utmSource: attributionValue.optional(),
+  utmMedium: attributionValue.optional(),
+  utmCampaign: attributionValue.optional(),
+  utmContent: attributionValue.optional(),
+  utmTerm: attributionValue.optional(),
+  referrerHost: z
+    .string()
+    .trim()
+    .max(200)
+    .regex(
+      /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i,
+      "referrerHost must be a hostname, not a URL",
+    )
+    .optional(),
+};
+
+/**
+ * First-touch attribution sent when a guest session is created. Only the referrer's HOST is
+ * kept: a full referrer URL can carry search terms or other personal data in its path/query.
+ */
+export const FunnelAttributionSchema = z.strictObject(attributionShape);
+export type FunnelAttribution = z.infer<typeof FunnelAttributionSchema>;
+
+/**
+ * The same fields, but an invalid value is dropped instead of failing the parse. Attribution
+ * comes from the landing URL (visitor-controlled) and is persisted first-touch, so rejecting
+ * it would block that visitor's guest session on every retry. Unknown keys are still an error:
+ * the web client only ever sends the fields above.
+ */
+const LenientFunnelAttributionSchema = z.strictObject({
+  utmSource: attributionShape.utmSource.catch(undefined),
+  utmMedium: attributionShape.utmMedium.catch(undefined),
+  utmCampaign: attributionShape.utmCampaign.catch(undefined),
+  utmContent: attributionShape.utmContent.catch(undefined),
+  utmTerm: attributionShape.utmTerm.catch(undefined),
+  referrerHost: attributionShape.referrerHost.catch(undefined),
+});
+
+/**
+ * POST /v1/funnel/sessions body. Everything is optional — older web builds send no body at all.
+ * `funnel.version` is the content revision the guest was shown (`Funnel.version`).
+ */
+export const CreateFunnelSessionBodySchema = z.strictObject({
+  funnel: z.strictObject({ slug: FunnelSlugSchema, version: z.number().int().min(1) }).optional(),
+  // Lenient: bad attribution must never cost us the session (see the schema above).
+  attribution: LenientFunnelAttributionSchema.optional(),
+});
+export type CreateFunnelSessionBody = z.infer<typeof CreateFunnelSessionBodySchema>;
 
 /** POST /v1/funnel/sessions → the guest token, shown ONCE (the server keeps only its hash). */
 export const CreateFunnelSessionResponseSchema = z.object({ token: z.string() });

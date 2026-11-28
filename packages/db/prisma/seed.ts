@@ -3,11 +3,14 @@
  *
  * Idempotent: everything is upserted by its unique `slug`, so running the seed twice
  * updates content instead of creating duplicates or failing. Safe to re-run after editing copy.
+ * The exception is the default funnel: it is only created, never updated (see below).
  */
+import { FunnelDefinitionSchema } from "@speakup/shared";
 import { createDbClient } from "../src/client.js";
 import {
   baselineExercise,
   courses,
+  defaultFunnel,
   practiceExercises,
   speakingChecks,
   type SeedExercise,
@@ -41,6 +44,9 @@ function exerciseFields(ex: SeedExercise, lessonId: string | null) {
 const SEED_TRANSACTION_OPTIONS = { maxWait: 30_000, timeout: 120_000 } as const;
 
 async function main(): Promise<void> {
+  // Fail before touching the database: the API serves this JSON to the web funnel as stored.
+  const funnelDefinition = FunnelDefinitionSchema.parse(defaultFunnel.definition);
+
   // One transaction: the content is either fully seeded or not at all.
   await db.$transaction(async (tx) => {
     for (const { lessons, ...courseFields } of courses) {
@@ -87,15 +93,24 @@ async function main(): Promise<void> {
         update: fields,
       });
     }
+
+    // Default funnel `main`: create-only (`update: {}`). Once it exists it is edited in the
+    // database; a re-seed must not overwrite a live funnel or reset its version.
+    await tx.funnel.upsert({
+      where: { slug: defaultFunnel.slug },
+      create: { ...defaultFunnel, definition: funnelDefinition },
+      update: {},
+    });
   }, SEED_TRANSACTION_OPTIONS);
 
-  const [courseCount, lessonCount, exerciseCount] = await Promise.all([
+  const [courseCount, lessonCount, exerciseCount, funnelCount] = await Promise.all([
     db.course.count(),
     db.lesson.count(),
     db.exercise.count(),
+    db.funnel.count(),
   ]);
   console.log(
-    `Seeded: ${courseCount} course(s), ${lessonCount} lessons, ${exerciseCount} exercises`,
+    `Seeded: ${courseCount} course(s), ${lessonCount} lessons, ${exerciseCount} exercises, ${funnelCount} funnel(s)`,
   );
 }
 

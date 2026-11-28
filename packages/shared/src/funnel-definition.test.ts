@@ -6,6 +6,7 @@ import {
   TemplateTextSchema,
   type FunnelDefinition,
 } from "./funnel-definition.js";
+import { DEFAULT_FUNNEL_DEFINITION } from "./funnel-default.js";
 
 /** One step of every type, shaped like today's web config (apps/web/funnel/config.ts). */
 const everyStepType = (): FunnelDefinition => ({
@@ -79,11 +80,11 @@ const everyStepType = (): FunnelDefinition => ({
       showIf: {
         all: [
           { answer: "self-rating", op: "in", values: [1, 2] },
-          { not: { answer: "symptoms", op: "includes", value: "fillers" } },
+          { not: { answer: "situations", op: "includes", value: "calls" } },
           {
             any: [
               { answer: "reminders", op: "answered" },
-              { answer: "time", op: "notAnswered" },
+              { answer: "focus", op: "notAnswered" },
             ],
           },
         ],
@@ -94,6 +95,15 @@ const everyStepType = (): FunnelDefinition => ({
 });
 
 const withStep = (step: unknown) => ({ version: 1, steps: [step] });
+/** A loader that asks `reminders`, so later steps may refer to it. */
+const askReminders = {
+  id: "l",
+  type: "loader_with_questions",
+  title: "t",
+  checklist: [],
+  durationMs: 1000,
+  questions: [{ atPct: 50, answerKey: "reminders", title: "q" }],
+};
 const ok = (value: unknown) => FunnelDefinitionSchema.safeParse(value).success;
 
 describe("FunnelDefinitionSchema", () => {
@@ -102,6 +112,12 @@ describe("FunnelDefinitionSchema", () => {
     const parsed = FunnelDefinitionSchema.parse(def);
     expect(parsed).toEqual(def);
     expect(new Set(parsed.steps.map((s) => s.type)).size).toBe(12);
+  });
+
+  it("accepts the bundled default funnel unchanged", () => {
+    expect(FunnelDefinitionSchema.parse(DEFAULT_FUNNEL_DEFINITION)).toEqual(
+      DEFAULT_FUNNEL_DEFINITION,
+    );
   });
 
   it("rejects a version other than 1 and an empty step list", () => {
@@ -223,6 +239,68 @@ describe("FunnelDefinitionSchema", () => {
     expect(ok(loaderTwice)).toBe(false);
   });
 
+  it("rejects a showIf on an answer no earlier step collects", () => {
+    const issues = (def: unknown) =>
+      FunnelDefinitionSchema.safeParse(def).error?.issues.map((i) => [i.path, i.message]);
+    const goal = {
+      id: "goal",
+      type: "single_choice",
+      answerKey: "goal",
+      title: "t",
+      options: [{ value: "pitching", label: "Pitching" }],
+    };
+    const paywall = (showIf: unknown) => ({ id: "paywall", type: "paywall", showIf });
+    const notAskedYet = (i: number, key: string) => [
+      ["steps", i, "showIf"],
+      `"${key}" isn't asked before this step`,
+    ];
+
+    // Asked only by a later step.
+    expect(
+      issues({ version: 1, steps: [paywall({ answer: "goal", op: "answered" }), goal] }),
+    ).toEqual([notAskedYet(0, "goal")]);
+    // Asked by the step itself.
+    expect(issues(withStep({ ...goal, showIf: { answer: "goal", op: "notAnswered" } }))).toEqual([
+      notAskedYet(0, "goal"),
+    ]);
+    // A loader can't refer to its own questions.
+    expect(
+      issues(withStep({ ...askReminders, showIf: { answer: "reminders", op: "answered" } })),
+    ).toEqual([notAskedYet(0, "reminders")]);
+    // Never asked, nested inside all / not.
+    expect(
+      issues({
+        version: 1,
+        steps: [
+          goal,
+          paywall({
+            all: [
+              { answer: "goal", op: "answered" },
+              { not: { answer: "time", op: "equals", value: "5" } },
+            ],
+          }),
+        ],
+      }),
+    ).toEqual([notAskedYet(1, "time")]);
+  });
+
+  it("accepts a showIf on an answer collected earlier", () => {
+    expect(
+      ok({
+        version: 1,
+        steps: [
+          askReminders,
+          {
+            id: "paywall",
+            type: "paywall",
+            showIf: { any: [{ not: { answer: "reminders", op: "equals", value: "no" } }] },
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(ok(everyStepType())).toBe(true);
+  });
+
   it("rejects bad numbers on timed steps", () => {
     const loader = (atPct: number, durationMs = 1000) =>
       withStep({
@@ -285,15 +363,16 @@ describe("FunnelRuleSchema", () => {
   });
 
   it("rejects a disallowed rule value inside a step's showIf", () => {
-    expect(
-      ok(
-        withStep({
-          id: "x",
-          type: "paywall",
-          showIf: { not: { answer: "reminders", op: "equals", value: "maybe" } },
-        }),
-      ),
-    ).toBe(false);
+    // A step collecting `reminders` comes first, so only the value can be what's wrong.
+    const def = (value: string) => ({
+      version: 1,
+      steps: [
+        askReminders,
+        { id: "x", type: "paywall", showIf: { not: { answer: "reminders", op: "equals", value } } },
+      ],
+    });
+    expect(ok(def("no"))).toBe(true);
+    expect(ok(def("maybe"))).toBe(false);
   });
 
   it("allows nesting up to 5 levels, not deeper", () => {

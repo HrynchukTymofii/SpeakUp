@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { create } from "zustand";
 import { setUserProperties, track } from "./analytics";
 import { funnelApi } from "./api";
-import { FUNNEL_STEPS, NO_BACK_STEP_TYPES, PROGRESS_STEP_TYPES } from "./config";
+import { NO_BACK_STEP_TYPES, PROGRESS_STEP_TYPES } from "./config";
+import { useFunnel } from "./funnel-context";
 import { furthestAllowedIndex, progressOf, visibleSteps, type EngineState } from "./engine";
 import { STEP_COMPONENTS } from "./steps";
 import type { StepProps } from "./steps/props";
@@ -21,7 +22,7 @@ const engineState = (s: FunnelState): EngineState => ({
   claimed: s.claimed,
 });
 
-const currentSteps = (s: FunnelState) => visibleSteps(FUNNEL_STEPS, engineState(s));
+const currentSteps = (all: FunnelStep[], s: FunnelState) => visibleSteps(all, engineState(s));
 
 /**
  * Which way the last navigation went, so the next step slides in from the right (forward) or the
@@ -33,20 +34,23 @@ const useSlideDirection = create<{
 }>((set) => ({ dir: "forward", set: (dir) => set({ dir }) }));
 
 /**
- * Creates the guest session on the first visit (SPEC §15.3: "create the funnel session on step 1").
+ * Creates the guest session on the first visit (SPEC §15.3: "create the funnel session on step 1"),
+ * tagged with the funnel shown and the first-touch attribution the FunnelProvider captured.
  * One request even if several components mount at once; retried a few times if the API is down,
  * without ever blocking the questions.
  */
 let creatingSession: Promise<void> | null = null;
 function useGuestSession() {
+  const { slug, version } = useFunnel();
   const token = useFunnelStore((s) => s.guestToken);
   const [failures, setFailures] = useState(0);
   useEffect(() => {
     if (token || failures > 5) return;
     const retry = setTimeout(
       () => {
+        const { attribution } = useFunnelStore.getState();
         creatingSession ??= funnelApi
-          .createSession()
+          .createSession({ funnel: { slug, version }, ...(attribution ? { attribution } : {}) })
           .then(({ token: t }) => useFunnelStore.getState().setGuestToken(t))
           .catch(() => setFailures((f) => f + 1))
           .finally(() => {
@@ -56,7 +60,7 @@ function useGuestSession() {
       failures === 0 ? 0 : 2_000 * failures,
     );
     return () => clearTimeout(retry);
-  }, [token, failures]);
+  }, [token, failures, slug, version]);
 }
 
 /** PATCH answers + current step to the server, debounced; failures never block the UI. */
@@ -74,26 +78,28 @@ function useAnswerSync(stepId: string) {
 }
 
 /**
- * Renders one funnel step (`/start/<stepId>`): progress bar, back button, guarded navigation and
- * the slide transition. Steps themselves come from `config.ts` via the component map.
+ * Renders one funnel step (`<basePath>/<stepId>`): progress bar, back button, guarded navigation
+ * and the slide transition. Steps come from the FunnelProvider's definition; each step type maps
+ * to a component (`steps/index.tsx`).
  */
 export function FunnelShell({ stepId }: { stepId: string }) {
   const router = useRouter();
+  const { steps: allSteps, basePath } = useFunnel();
   const state = useFunnelStore();
   const slide = useSlideDirection((s) => s.dir);
   const setDirection = useSlideDirection((s) => s.set);
   useGuestSession();
   useAnswerSync(stepId);
 
-  const steps = currentSteps(state);
+  const steps = currentSteps(allSteps, state);
   const index = steps.findIndex((s) => s.id === stepId);
   const allowed = furthestAllowedIndex(steps, engineState(state));
   // Guard: unknown step, or a step whose prerequisites aren't met → the furthest allowed one.
   const redirectTo = index === -1 || index > allowed ? steps[allowed]?.id : undefined;
 
   useEffect(() => {
-    if (redirectTo) router.replace(`/start/${redirectTo}`);
-  }, [redirectTo, router]);
+    if (redirectTo) router.replace(`${basePath}/${redirectTo}`);
+  }, [redirectTo, router, basePath]);
 
   useEffect(() => {
     if (redirectTo || index === -1) return;
@@ -111,13 +117,13 @@ export function FunnelShell({ stepId }: { stepId: string }) {
         );
       }
       // Re-read: the answer just given may change which steps apply.
-      const fresh = currentSteps(useFunnelStore.getState());
+      const fresh = currentSteps(allSteps, useFunnelStore.getState());
       const next = fresh[fresh.findIndex((s) => s.id === stepId) + 1];
       useSlideDirection.getState().set("forward");
-      if (next) router.push(`/start/${next.id}`);
+      if (next) router.push(`${basePath}/${next.id}`);
       window.scrollTo({ top: 0 });
     },
-    [router, stepId],
+    [router, stepId, allSteps, basePath],
   );
 
   const goBack = () => {
@@ -126,7 +132,7 @@ export function FunnelShell({ stepId }: { stepId: string }) {
       const prev = steps[i];
       if (prev && prev.type !== "loader_with_questions") {
         setDirection("back");
-        router.push(`/start/${prev.id}`);
+        router.push(`${basePath}/${prev.id}`);
         return;
       }
     }
@@ -196,14 +202,15 @@ function StepView({
   );
 }
 
-/** `/start` without a step: resume where the visitor left off. */
+/** `<basePath>` without a step: resume where the visitor left off. */
 export function FunnelResume() {
   const router = useRouter();
+  const { steps: allSteps, basePath } = useFunnel();
   useEffect(() => {
     const state = useFunnelStore.getState();
-    const steps = currentSteps(state);
+    const steps = currentSteps(allSteps, state);
     const target = steps[furthestAllowedIndex(steps, engineState(state))] ?? steps[0];
-    if (target) router.replace(`/start/${target.id}`);
-  }, [router]);
+    if (target) router.replace(`${basePath}/${target.id}`);
+  }, [router, allSteps, basePath]);
   return <div className="flex-1" aria-busy />;
 }

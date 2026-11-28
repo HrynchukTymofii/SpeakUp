@@ -243,17 +243,39 @@ On `failed`, `attempt.errorCode` is `NO_SPEECH`, `STT_FAILED`, `LLM_INVALID_OUTP
 `readAloud` is `null` for free-speech exercises. `issues` has at most 4 entries; `category` is one of
 `pace`, `pauses`, `fillers`, `clarity`, `accuracy`, `structure`.
 
+## Funnels (public)
+
+| Method | Path                | Auth | Description                                                                                       |
+| ------ | ------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/funnels/:slug` | —    | A live funnel: `{ "funnel": { slug, version, definition } }`, `Cache-Control: public, max-age=60` |
+
+`version` is the content revision (bumped on publish); `definition` follows `FunnelDefinitionSchema`
+(`packages/shared/src/funnel-definition.ts`). A draft or unknown slug answers `404 NOT_FOUND` with
+`Cache-Control: no-store`; a slug that isn't URL-safe answers `400`. A stored definition that fails
+the schema answers `500` (logged with its slug) instead of reaching visitors.
+
 ## Funnel (anonymous)
 
 | Method | Path                             | Auth  | Description                                                                                                        |
 | ------ | -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
-| POST   | `/v1/funnel/sessions`            | —     | Start a session → `201 { "token": "…" }` (returned once; only its hash is stored)                                  |
+| POST   | `/v1/funnel/sessions`            | —     | Start a session; optional body (see below) → `201 { "token": "…" }` (returned once; only its hash is stored)       |
 | PATCH  | `/v1/funnel/sessions/current`    | guest | Save answers (merged) and the current step → `204`                                                                 |
 | GET    | `/v1/funnel/exercise`            | guest | The speaking check for the session's goal (`check-<goal>`, else `check-general`; max 45 s)                         |
 | POST   | `/v1/funnel/attempts`            | guest | Create the baseline attempt; body `{ mimeType, turnstileToken }`                                                   |
 | POST   | `/v1/funnel/attempts/:id/submit` | guest | Same as the signed-in submit                                                                                       |
 | GET    | `/v1/funnel/attempts/:id`        | guest | Progress only: `{ "attempt": { id, status, stage } }` — never the result                                           |
 | POST   | `/v1/funnel/claim`               | user  | Body `{ "guestToken": "…" }`; attaches the session and its attempt to the account → `{ "attemptId": "…" \| null }` |
+
+`POST /v1/funnel/sessions` takes an optional body (`CreateFunnelSessionBodySchema`):
+`{ "funnel": { slug, version }, "attribution": { utmSource, utmMedium, utmCampaign, utmContent, utmTerm, referrerHost } }`,
+every part optional; no body at all is fine too (older web builds). `funnel.version` is the revision
+the guest was shown. The session links to the funnel only if the slug is a **live** funnel; an
+unknown or draft slug still gets a session, without the link. Attribution is first-touch and
+best-effort: control characters are stripped from UTM values, and a field that is still invalid
+(empty, over 200 characters, a `referrerHost` that is not a plain hostname) is dropped, never a
+`400` — it comes from the landing URL, and rejecting it would block that visitor's session on every
+retry. Unknown keys (in the body or in `attribution`) and a bad `funnel` are still `400`. UTM values
+are stored but never logged.
 
 `POST /v1/funnel/attempts` checks: session not yet claimed (`409`), Turnstile (`403 BOT_CHECK_FAILED`),
 one baseline per session (`409 WRONG_STATE`; a re-take before submit replaces the unsubmitted one),

@@ -37,7 +37,7 @@ pnpm install
 cp .env.example .env          # one .env at the repo root, used by every app
 pnpm infra:up                 # start Postgres + Redis + local S3 in Docker
 pnpm db:migrate               # apply migrations (creates tables)
-pnpm db:seed                  # load the courses, lessons and exercises
+pnpm db:seed                  # load the courses, lessons, exercises and the default funnel
 pnpm dev                      # web + api + worker (+ shared in watch mode)
 ```
 
@@ -90,11 +90,17 @@ locally (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpe
 Flow: record → `/results/<attemptId>` waits for the worker (long-polling) → worker runs Deepgram →
 decodes the audio (ffmpeg) → metrics + scores → Claude → the report appears.
 
-### Web funnel (`/start`)
+### Web funnel (`/start`, `/f/<slug>`)
 
 The landing page links to `/start`: questions → mini-lesson → an **anonymous** 45-second speaking
 check → sign-up → results → plan → paywall (SPEC §15). How it works is documented in
 [`docs/funnel-reference.md`](./docs/funnel-reference.md).
+
+- **Two entry points:** `/start` renders the default funnel bundled in the web app and never calls
+  the API. `/f/<slug>` (for ad links, e.g. `/f/main?utm_source=tiktok`) loads the live `Funnel`
+  row from `GET /v1/funnels/:slug` (seeded: `main`, via `pnpm db:seed`). An unknown or draft slug
+  is a 404; `/f/main` falls back to the bundled funnel when the API is down. Definitions are cached
+  for 60 s, so a changed row shows up within a minute.
 
 - **Bot check:** Cloudflare Turnstile. With the two `*TURNSTILE*` variables empty, dev uses
   Cloudflare's always-pass test keys. For real keys: Cloudflare dashboard → Turnstile → Add widget
@@ -103,8 +109,10 @@ check → sign-up → results → plan → paywall (SPEC §15). How it works is 
   per day (Redis).
 - **Cleanup:** the worker deletes unclaimed funnel sessions, their attempts and audio after 7 days
   (daily at 03:00 UTC).
-- To restart the funnel in a browser: DevTools → Application → Local Storage → delete
-  `speakup-funnel`.
+- `speakup-funnel` (localStorage) holds one funnel at a time: opening a different funnel starts
+  fresh (new answers and guest session); the same funnel at a newer revision keeps progress. It
+  also keeps the first-touch UTM parameters and referrer host. To restart the funnel in a browser:
+  DevTools → Application → Local Storage → delete `speakup-funnel`.
 
 ### Payments (Paddle sandbox)
 
@@ -318,6 +326,9 @@ The migrate task logs go to CloudWatch (log group `SpeakUp-MigrateLogs…`). See
 - **Schema changes:** run `MigrateCommand` **before** deploying code that needs the change, and
   keep migrations backwards-compatible (add a column first, drop the old one in a later release).
   During a rollout, old and new tasks run side by side.
+- **Funnels (`20261127202017_funnels`):** after this migration, run the seed task once (the
+  `prisma db seed` override above) so the `main` funnel row exists. Without it, `/f/main` serves
+  the bundled copy and new funnel sessions get `funnelId` null (no per-funnel numbers).
 - **Logs:** CloudWatch → Log groups `SpeakUp-ApiLogs…` / `SpeakUp-WorkerLogs…` (JSON, 30 days).
 
 ### Tearing down

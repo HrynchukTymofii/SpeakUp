@@ -25,10 +25,10 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
-    "@prisma/client": "7.10.1"
+    "@prisma/client": "7.10.1",
+    "@speakup/shared": "workspace:*"
   },
   "devDependencies": {
-    "@speakup/shared": "workspace:*",
     "prisma": "7.10.1",
     "tsx": "4.23.15"
   }

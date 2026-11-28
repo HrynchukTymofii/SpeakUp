@@ -22,6 +22,7 @@ import { attemptRoutes } from "./routes/attempts.js";
 import type { AttemptEvents } from "./services/attempt-events.js";
 import { billingPublicRoutes, billingRoutes } from "./routes/billing.js";
 import { funnelClaimRoutes, funnelGuestRoutes } from "./routes/funnel.js";
+import { funnelPublicRoutes } from "./routes/funnels.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import type { AnalysisQueue } from "./services/analysis-queue.js";
 import type { AuthProvider } from "./services/auth-provider.js";
@@ -127,6 +128,8 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   // Provider webhooks (signature-verified, raw body) and public billing info.
   await app.register(webhookRoutes, { prefix: "/v1", db: deps.db, payments: deps.payments });
   await app.register(billingPublicRoutes, { prefix: "/v1", payments: deps.payments });
+  // Published funnel definitions: anonymous visitors load them before any session exists.
+  await app.register(funnelPublicRoutes, { prefix: "/v1", db: deps.db });
 
   // Anonymous funnel routes: no Clerk session, a guest token instead (SPEC §7).
   await app.register(funnelGuestRoutes, {

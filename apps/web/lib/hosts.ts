@@ -15,7 +15,7 @@ export type HostDecision =
   { kind: "next"; noindex: boolean } | { kind: "redirect"; url: string; status: 307 | 308 };
 
 /**
- * Routes that belong to the product. Prefix match on whole path segments.
+ * Routes that belong to the product (`/f/<slug>`: ad funnels). Prefix match on whole path segments.
  * `/install` and `/offline` are pages of the installable app, so they must live on the app origin
  * the manifest and service worker belong to. The PWA's static assets (`/sw.js`,
  * `/speakup.webmanifest`, `/icons/*`) never reach `routeForHost`: the proxy matcher skips static
@@ -23,6 +23,7 @@ export type HostDecision =
  */
 const APP_ROUTES = [
   "/start",
+  "/f",
   "/sign-in",
   "/sign-up",
   "/app",

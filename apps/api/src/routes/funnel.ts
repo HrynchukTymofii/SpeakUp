@@ -4,6 +4,7 @@ import {
   ClaimFunnelResponseSchema,
   CreateAttemptResponseSchema,
   CreateFunnelAttemptBodySchema,
+  CreateFunnelSessionBodySchema,
   CreateFunnelSessionResponseSchema,
   ErrorCode,
   ExerciseResponseSchema,
@@ -78,17 +79,53 @@ const notFound = () => new AppError(404, ErrorCode.NOT_FOUND, "Attempt not found
 export const funnelGuestRoutes: FastifyPluginAsyncZod<FunnelRoutesOptions> = async (app, opts) => {
   const { db, storage, queue } = opts;
 
-  /** Step 1 of the funnel: create a session. The token is returned once and never stored. */
+  /**
+   * Step 1 of the funnel: create a session. The token is returned once and never stored.
+   * The optional body says which funnel (and revision) the guest saw and where they came from;
+   * older web builds send no body, so every part of it is optional.
+   */
   app.post(
     "/funnel/sessions",
-    { schema: { response: { 201: CreateFunnelSessionResponseSchema } } },
+    {
+      schema: {
+        // nullish, not optional: Fastify passes `null` as the body when the request has none.
+        body: CreateFunnelSessionBodySchema.nullish(),
+        response: { 201: CreateFunnelSessionResponseSchema },
+      },
+    },
     async (request, reply) => {
+      const { funnel: shown, attribution } = request.body ?? {};
+      // An unknown or unpublished slug must not cost us the visitor: the session is still
+      // created, just without a funnel link (so it can't skew that funnel's numbers).
+      const funnel = shown
+        ? await db.funnel.findUnique({
+            where: { slug: shown.slug },
+            select: { id: true, status: true },
+          })
+        : null;
+      const live = funnel?.status === "live";
+
       const { token, tokenHash } = createGuestToken();
       const session = await db.funnelSession.create({
-        data: { tokenHash, ipHash: hashIp(request.ip, opts.ipHashSecret) },
+        data: {
+          tokenHash,
+          ipHash: hashIp(request.ip, opts.ipHashSecret),
+          funnelId: live ? funnel.id : null,
+          funnelVersion: live && shown ? shown.version : null,
+          utmSource: attribution?.utmSource ?? null,
+          utmMedium: attribution?.utmMedium ?? null,
+          utmCampaign: attribution?.utmCampaign ?? null,
+          utmContent: attribution?.utmContent ?? null,
+          utmTerm: attribution?.utmTerm ?? null,
+          referrerHost: attribution?.referrerHost ?? null,
+        },
         select: { id: true },
       });
-      request.log.info({ funnelSessionId: session.id }, "funnel session created");
+      // UTM values are marketing data, not operational: never logged.
+      request.log.info(
+        { funnelSessionId: session.id, funnelSlug: shown?.slug },
+        "funnel session created",
+      );
       return reply.code(201).send({ token });
     },
   );

@@ -66,10 +66,25 @@ Autocaptured clicks and form fields could send text people type.
 | `results_viewed`             | results page, once the analysis is done                  | `status`: `completed` · `failed`, `exercise`, `score`                                                                 |
 | `lesson_completed`           | the "Lesson complete!" screen                            | `lesson`, `course`                                                                                                    |
 
+**Funnel context.** While a funnel is open, every event (the `funnel_*` events above and also
+`paywall_viewed`, `checkout_*` and `pro_activated` fired from it) carries two more properties, set
+once with `setEventContext()` instead of by each caller:
+
+| Property         | Value                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| `funnel_id`      | the funnel's slug, e.g. `main`                                                             |
+| `funnel_version` | the funnel's content revision the visitor saw (`Funnel.version`), so edits can be compared |
+
+The context is cleared when the funnel closes; a property passed to `track()` wins over it.
+
 To add an event: add its name to `AnalyticsEvent` in `funnel/analytics.ts`, call `track()` and
 add a row here.
 
 ## The funnel today, step by step
+
+The paths below are the default funnel at `/start`. The same steps under `/f/<slug>/<step>` (ad
+links) fire the same events; tell funnels apart with the `funnel_id` / `funnel_version`
+properties, not the path.
 
 Build this as one **Funnel Analysis** chart in Amplitude (conversion within 1 day, "any order" off).
 Steps marked _optional_ are skipped by some visitors; leave them out of the chart or use a
