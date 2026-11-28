@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { BackLink } from "@/components/back-link";
 import { Mascot } from "@/components/mascot";
 import { track } from "@/funnel/analytics";
 import { ResultsReport } from "@/components/results-report";
@@ -96,11 +97,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
     });
   }, [outcome, query.data, attemptId]);
 
-  const backLink = (
-    <Link href={next ?? "/app"} className="link w-fit text-sm font-bold">
-      ← Back
-    </Link>
-  );
+  const backLink = <BackLink href={next ?? "/app"}>Back</BackLink>;
   const continueButton = next && (
     <Link href={next} className="btn btn-primary w-full">
       {continueLabel(next)}
@@ -167,7 +164,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
               <li key={label} className="flex items-center gap-3 text-sm">
                 <span
                   aria-hidden
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
                     done
                       ? "bg-sage text-on-pastel"
                       : active
@@ -175,7 +172,7 @@ export function ResultsView({ attemptId, next }: { attemptId: string; next?: str
                         : "border-[1.5px] border-line-2"
                   }`}
                 >
-                  {done ? "✓" : ""}
+                  {done && <Icon name="check" className="size-3.5" strokeWidth={2.5} />}
                 </span>
                 <span className={active ? "font-bold text-ink" : "text-muted"}>{label}</span>
               </li>

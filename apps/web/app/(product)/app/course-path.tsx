@@ -141,7 +141,13 @@ function PathNode({
       title={title}
       className={`raised flex h-[64px] w-[84px] items-center justify-center rounded-[50%] font-display text-2xl font-semibold ${look[state]}`}
     >
-      {state === "done" ? "✓" : state === "locked" ? <LockIcon /> : index}
+      {state === "done" ? (
+        <Icon name="check" className="size-7" strokeWidth={2.5} />
+      ) : state === "locked" ? (
+        <LockIcon />
+      ) : (
+        index
+      )}
     </Link>
   );
 }

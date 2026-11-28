@@ -24,9 +24,11 @@ for app-only rules; it no longer changes any token.
 2. **Neutral canvas, few accents.** Surfaces are near-white; personality comes from one
    lavender glow, a single black card per screen and the blue mascot. The soft pastels (sage,
    rose, butter, sky) only carry meaning: good, fix, highlight, info.
-3. **No emoji.** Use the line icons in `components/icons.tsx` (or an image). A test
-   (`lib/no-emoji.test.ts`) fails if an emoji appears in the UI source; text symbols like ✓
-   and × are fine.
+3. **No emoji, no glyph icons.** Use the line icons in `components/icons.tsx` (or an image). A
+   test (`lib/no-emoji.test.ts`) fails if an emoji appears in the UI source. Text glyphs used as
+   icons count too: a check or refresh mark is `<Icon name="check" />` / `<Icon name="refresh" />`,
+   never ✓ or ↻, and `lib/no-glyph-icons.test.ts` fails if either glyph appears in the UI source
+   (copy included). × and arrows inside copy remain allowed typography.
 4. **Pastel surfaces keep dark ink.** Text on any pastel background uses `text-on-pastel`
    (and `text-on-pastel-muted` for secondary text) — never cream text on a pastel.
 5. **Big and soft.** Large Manrope headlines, pill buttons, generously rounded cards (20–28 px),
@@ -97,31 +99,33 @@ tracking.
 Plain CSS classes in the `@layer components` block of `globals.css`. Tailwind utilities on the
 same element override them (utilities come later in the cascade).
 
-| Class           | What it is                                                                                                 |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| `btn`           | base pill button (height ≥ 52 px, extra-bold, press-scale, disabled state). Always combine with a variant: |
-| `btn-primary`   | black pill with a gentle gradient — the main call to action (same look as `btn-ink`)                       |
-| `btn-peach`     | the lavender (`brand`) pill — upgrade/checkout only                                                        |
-| `btn-secondary` | white pill with a little depth                                                                             |
-| `btn-sm`        | smaller size modifier                                                                                      |
-| `card`          | rounded 28 px white card with a slight gradient and the depth shadow (no border)                           |
-| `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                     |
-| `pill`          | small rounded badge; add a `bg-*` and text color                                                           |
-| `link`          | muted text link that brightens on hover                                                                    |
-| `paper`         | graph-paper texture; draws nothing in Glow (`--grid` is transparent)                                       |
-| `dots`          | dotted canvas (behind the lesson path)                                                                     |
-| `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                           |
-| `surface`       | Glow: white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth                   |
-| `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                         |
-| `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                  |
-| `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                            |
+| Class           | What it is                                                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `btn`           | base pill button (height ≥ 52 px, extra-bold, press-scale, disabled state). Always combine with a variant:                                                |
+| `btn-primary`   | black pill with a gentle gradient — the main call to action (same look as `btn-ink`)                                                                      |
+| `btn-peach`     | the lavender (`brand`) pill — upgrade/checkout only                                                                                                       |
+| `btn-secondary` | white pill with a little depth                                                                                                                            |
+| `btn-sm`        | smaller size modifier                                                                                                                                     |
+| `card`          | rounded 28 px white card with a slight gradient and the depth shadow (no border)                                                                          |
+| `eyebrow`       | small uppercase label (`HOW IT WORKS`)                                                                                                                    |
+| `pill`          | small rounded badge; add a `bg-*` and text color                                                                                                          |
+| `link`          | muted text link that brightens on hover                                                                                                                   |
+| `paper`         | graph-paper texture; draws nothing in Glow (`--grid` is transparent)                                                                                      |
+| `dots`          | dotted canvas (behind the lesson path)                                                                                                                    |
+| `raised`        | pressable "3D" button with a solid ledge underneath (path nodes)                                                                                          |
+| `surface`       | Glow: white card with a slight top-to-bottom gradient; pair with `shadow-soft` for depth                                                                  |
+| `surface-ink`   | Glow: the one raised black card (gradient, light top edge, own shadow, white text)                                                                        |
+| `btn-ink`       | Glow: black pill with a gentle gradient and top highlight                                                                                                 |
+| `surface-glow`  | Glow: white fading into the lavender glow — the one "continue" card on a screen                                                                           |
+| `range`         | styled native slider: 44 px touch target, 8 px track (`brand` fill via `--range-fill`, `line-2` unfilled), 28 px thumb; native slider under forced colors |
 
 Landing building blocks: `app/(marketing)/landing-visuals.tsx` (the hero phone with its floating
 cards, the step pictures, the lesson art, the feedback icons).
 
 App building blocks: `Icon` (line icons, `components/icons.tsx`), `IconTile` (a lavender square
 with an icon) and `PlayCircle` (the black play button in white "Continue" pills) in
-`components/icon-tile.tsx`; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
+`components/icon-tile.tsx`; `BackLink` (`components/back-link.tsx`), the "back" text link at the
+top of a screen with the `arrowLeft` icon and a 44 px tap area; the tab bar `components/app-tab-bar.tsx` (white, rounded top, icons
 with labels, the active tab in ink with a dot); the Learn stat cards (today's goal is the black
 card, then streak and level) in `app/(product)/app/learn-view.tsx`; the lesson path with its START
 bubble and mascot in `app/(product)/app/course-path.tsx`.
@@ -196,7 +200,10 @@ Clerk gotchas (Clerk 7):
   Re-check the ratios when changing a token.
 - Focus: global `:focus-visible` outline in `peach-2`; never remove outlines without a replacement.
 - Motion: every animation (funnel slides, mascot, pulses) stops under reduced motion.
-- Touch targets: buttons and options are ≥ 44 px tall.
+- Touch targets: buttons, options and sliders are ≥ 44 px tall (sliders use `range`).
+  Standalone text links get a ≥ 44 px tap area too, without changing the layout: `min-h-11` plus
+  a negative vertical margin that gives the extra height back (`BackLink`'s pattern; keep ≥ 12 px
+  of gap around it so the tap area doesn't cover a neighbour).
 - Icons/mascot are `aria-hidden` unless they carry information.
 
 ---

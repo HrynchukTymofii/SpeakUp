@@ -19,7 +19,7 @@ const STAGE_TEXT: Record<string, string> = {
   queued: "Your recording is in the queue…",
   transcribing: "Transcribing your recording…",
   analyzing: "Measuring pace, pauses and filler words…",
-  completed: "Your analysis is ready ✓",
+  completed: "Your analysis is ready",
   failed: "We couldn’t analyze this recording — you’ll see why after signing up.",
 };
 

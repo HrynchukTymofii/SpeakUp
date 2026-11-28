@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Icon } from "@/components/icons";
 
 /** Small shared building blocks for funnel steps (mobile-first, one column). */
 
@@ -45,11 +46,11 @@ export function OptionButton({
       {multi && (
         <span
           aria-hidden
-          className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-xs font-extrabold ${
+          className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-[1.5px] ${
             selected ? "border-ink bg-ink text-page" : "border-line-2"
           }`}
         >
-          {selected ? "✓" : ""}
+          {selected && <Icon name="check" className="size-3.5" strokeWidth={2.5} />}
         </span>
       )}
     </button>
@@ -92,11 +93,11 @@ export function Tick({ tone = "sage" }: { tone?: "sage" | "peach" }) {
   return (
     <span
       aria-hidden
-      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-on-pastel ${
+      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-on-pastel ${
         tone === "sage" ? "bg-sage" : "bg-peach"
       }`}
     >
-      ✓
+      <Icon name="check" className="size-3.5" strokeWidth={2.5} />
     </span>
   );
 }

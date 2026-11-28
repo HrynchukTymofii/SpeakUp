@@ -1,16 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { useLearnData } from "@/learn/use-learn-data";
 import { CoursePath } from "../../course-path";
 
 export function CourseView({ slug }: { slug: string }) {
   const { data, error } = useLearnData();
-  const back = (
-    <Link href="/app" className="link w-fit text-sm font-bold">
-      ← Learn
-    </Link>
-  );
+  const back = <BackLink href="/app">Learn</BackLink>;
 
   if (error) {
     return (
