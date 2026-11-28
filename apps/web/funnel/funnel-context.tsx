@@ -40,12 +40,15 @@ export function FunnelProvider({
   version,
   definition,
   basePath,
+  testRun = false,
   children,
 }: {
   slug: string;
   version: number;
   definition: FunnelDefinition;
   basePath: string;
+  /** An admin's test run (`/admin/funnels/<slug>/try`): events carry `test_run: true`. */
+  testRun?: boolean;
   children: ReactNode;
 }) {
   // Steps render only once the store belongs to this funnel, never with another funnel's state.
@@ -61,9 +64,14 @@ export function FunnelProvider({
     store.captureAttribution(
       readAttribution(window.location.search, document.referrer, ownHosts()),
     );
-    setEventContext({ funnel_id: slug, funnel_version: version });
+    setEventContext({
+      funnel_id: slug,
+      funnel_version: version,
+      // Lets the Amplitude charts leave out admins trying a funnel before launch.
+      ...(testRun ? { test_run: true } : {}),
+    });
     return () => setEventContext(null);
-  }, [slug, version]);
+  }, [slug, version, testRun]);
 
   const value = { slug, version, steps: definition.steps, basePath };
   return (

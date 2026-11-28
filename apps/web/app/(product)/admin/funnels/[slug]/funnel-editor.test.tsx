@@ -26,7 +26,17 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/use-api", () => ({ useApi: () => api }));
 // The preview renders real steps; some of them hold a router.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/admin/funnels/spring",
+}));
+// The screen gallery renders every screen, sign-up and paywall included.
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true }),
+  SignUp: () => null,
+}));
+vi.mock("@/lib/use-me", () => ({ useMe: () => ({ data: undefined }) }));
+vi.mock("@/components/pro-price", () => ({ ProPrice: () => "$9.99" }));
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -75,7 +85,7 @@ function renderEditor() {
 /** The screen names, in list order. */
 function names() {
   const list = screen.getByRole("heading", { name: "Screens, in order" }).parentElement;
-  const rows = list?.querySelectorAll("ol > li") ?? [];
+  const rows = list?.querySelectorAll(":scope > ol > li") ?? [];
   return [...rows].map((li) => li.querySelector("button span:nth-child(2) span")?.textContent);
 }
 
@@ -126,8 +136,10 @@ describe("FunnelEditor", () => {
 
     await userEvent.click(screen.getByRole("button", { name: `Move “${NAME.goal}” down` }));
     await userEvent.click(screen.getByRole("button", { name: `Remove “${NAME.exercise}”` }));
-    await userEvent.selectOptions(screen.getByLabelText("Add a screen"), "language");
-    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    // The gallery shows every library screen; ones already in the funnel can't be added again.
+    await userEvent.click(screen.getByRole("button", { name: "Add screens" }));
+    expect(screen.queryByRole("button", { name: `Add “${NAME.goal}”` })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: `Add “${NAME.language}”` }));
     expect(names()).toEqual([NAME.time, NAME.goal, NAME.language]);
 
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
@@ -142,6 +154,15 @@ describe("FunnelEditor", () => {
     expect(publish).toBeEnabled();
     expect(publish).toHaveFocus();
     expect(screen.getByText(/Visitors still see version 2/)).toBeInTheDocument();
+  });
+
+  it("links to a test run of the saved screens", async () => {
+    api.getAdminFunnel.mockResolvedValue(detail(def("goal", "time")));
+    renderEditor();
+    expect(await screen.findByRole("link", { name: "Try it" })).toHaveAttribute(
+      "href",
+      "/admin/funnels/spring/try",
+    );
   });
 
   it("keeps focus on the move button that was used", async () => {

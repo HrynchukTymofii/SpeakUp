@@ -329,8 +329,9 @@ on product pages only. It stays online-only: the worker caches nothing but an of
   the `Funnel` table and served at `/f/<slug>`, with the funnel, revision and first-touch UTM /
   referrer host saved on the funnel session. Admins (`ADMIN_CLERK_USER_IDS`) list funnels with
   30-day numbers, take them live or offline, duplicate one into a draft at `/admin/funnels`, and
-  reorder, remove and add screens with a preview, saved as a draft and published, at
-  `/admin/funnels/<slug>`. Still to build:
+  create funnels, reorder, remove and add screens (from a gallery) with a phone preview, saved
+  as a draft and published, at `/admin/funnels/<slug>`, and try a funnel end to end at
+  `/admin/funnels/<slug>/try`. Still to build:
   - editing a screen's text (titles, options) in the editor, and drag-and-drop ordering;
   - A/B splits between funnel variants: write `FunnelSession.variant` (the column exists) and
     send the variant to Amplitude as a property.

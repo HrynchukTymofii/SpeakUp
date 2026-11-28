@@ -70,10 +70,11 @@ Autocaptured clicks and form fields could send text people type.
 `paywall_viewed`, `checkout_*` and `pro_activated` fired from it) carries two more properties, set
 once with `setEventContext()` instead of by each caller:
 
-| Property         | Value                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| `funnel_id`      | the funnel's slug, e.g. `main`                                                             |
-| `funnel_version` | the funnel's content revision the visitor saw (`Funnel.version`), so edits can be compared |
+| Property         | Value                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `funnel_id`      | the funnel's slug, e.g. `main`                                                                   |
+| `funnel_version` | the funnel's content revision the visitor saw (`Funnel.version`), so edits can be compared       |
+| `test_run`       | `true` only in an admin's test run (`/admin/funnels/<slug>/try`): filter it out of funnel charts |
 
 The context is cleared when the funnel closes; a property passed to `track()` wins over it.
 
